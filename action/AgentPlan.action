@@ -1,0 +1,11 @@
+# Goal
+# Instead of a goal, this specifies the vehicles on the road.
+uint32 ego
+uint32[] agents
+---
+# Feedback
+# TODO: what could a meaningful feedback?
+float32 percent
+---
+# Result
+bool success
