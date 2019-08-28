@@ -3,9 +3,10 @@
 uint32 ego
 uint32[] agents
 ---
+# Result
+bool success
+---
 # Feedback
 # TODO: what could a meaningful feedback?
 float32 percent
----
-# Result
-bool success
+
