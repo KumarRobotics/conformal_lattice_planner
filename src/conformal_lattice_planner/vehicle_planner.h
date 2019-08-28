@@ -48,14 +48,16 @@ protected:
   using WorldSnapshot = carla::client::WorldSnapshot;
   using ActorSnapshot = carla::client::ActorSnapshot;
   using Transform     = carla::geom::Transform;
-  using ShapredPtr    = carla::SharedPtr;
+
+  template<typename T>
+  using SharedPtr    = carla::SharedPtr<T>;
 
 protected:
 
   const double time_step_;
 
-  SharedPtr world_;
-  SharedPtr map_;
+  SharedPtr<World> world_;
+  SharedPtr<Map> map_;
 
 public:
 
@@ -65,7 +67,7 @@ public:
       const uint16_t port = 2000) : time_step_(time_step) {
     Client client = Client(host, port);
     client.SetTimeout(std::chrono::seconds(10));
-    world_ = bst::make_shared<World>(client.GetWorld());
+    world_ = boost::make_shared<World>(client.GetWorld());
     map_ = world_->GetMap();
     return;
   }
@@ -82,14 +84,14 @@ public:
   boost::optional<size_t> findFollower(
       const size_t target, const std::vector<size_t>& others) const;
 
-  /// Find the lead vehicles on the given lane.
-  std::vector<size_t> findLeader(
+  /// Find the lead vehicle on the given lane.
+  boost::optional<size_t> findLeader(
       const size_t target,
       const std::vector<size_t>& others,
       const size_t lane) const;
 
-  /// Find the following vehicles on the given lane.
-  std::vector<size_t> findFollower(
+  /// Find the following vehicle on the given lane.
+  boost::optional<size_t> findFollower(
       const size_t target,
       const std::vector<size_t>& others,
       const size_t lane) const;

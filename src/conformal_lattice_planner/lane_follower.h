@@ -16,15 +16,17 @@
 
 #pragma once
 
-#include <boost/optional.hpp>
-#include <boost/pointer_cast.hpp>
 #include <conformal_lattice_planner/vehicle_planner.h>
 #include <conformal_lattice_planner/intelligent_driver_model.h>
-#include <conformal_lattice_planner/EgoPlanAction.h>
 
 namespace planner {
 
 class LaneFollower final : public VehiclePlanner {
+
+private:
+
+  template<typename T>
+  using SharedPtr = VehiclePlanner::SharedPtr<T>;
 
 protected:
 
@@ -35,52 +37,16 @@ public:
   LaneFollower(const double time_step,
                const std::string& host = "localhost",
                const uint16_t port = 2000,
-               const boost::optional<IntelligentDriverModel&> idm) :
-    VehiclePlanner(time_step, host, port), idm_(idm){}
+               const IntelligentDriverModel& idm = IntelligentDriverModel()) :
+    VehiclePlanner(time_step, host, port), idm_(idm) {}
 
   void plan(const size_t target,
-            const std::vector<size_t>& others) override {
+            const std::vector<size_t>& others) override;
 
-    // Get the target vehicle.
-    SharedPtr<Vehicle> target_vehicle =
-      boost::static_pointer_cast<Vehicle>(world_->GetActor(target));
+private:
 
-    // Get the (desired) speed of the target vehicle.
-    // TODO: Maybe the target should look ahead a bit to avoid aggressive brake.
-    const double target_desired_speed = target_vehicle->GetSpeedLimit();
-    SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_vehicle->GetTransform());
-    double target_speed = target_vehicle->GetVelocity().Length();
-
-    // Get the leader vehicle.
-    SharedPtr<Vehicle> lead_vehicle = nullptr;
-    boost::optional<size_t> leader =  findLeader(target, others);
-    if (leader) {
-      lead_vehicle = boost::static_pointer_cast<Vehicle>(world_->GetActor(target));
-    }
-
-    // Compute the acceleration of the target vehicle.
-    double target_accel = 0.0;
-    if (lead_vehicle) {
-      // Lead vehicle speed.
-      const double lead_speed = lead_vehicle->GetVelocity().Length();
-      // Following distance.
-      SharedPtr<Waypoint> lead_waypoint =
-        map_.GetWaypoint(lead_vehicle->GetTransform());
-      const double following_distance =
-        lead_waypoint->GetDistance() - target_waypoint->GetDistance;
-
-      target_accel = idm_.idm(
-          target_speed, target_desired_speed, lead_speed, following_distance);
-
-    } else {
-      target_accel = idm_.idm(target_speed, target_desired_speed);
-    }
-
-    // Update the state of the target vehicle.
-    // Snap the target vehicle back to the center of the lane.
-
-    return;
-  }
+  SharedPtr<Waypoint> findNextWaypoint(
+      const SharedPtr<Waypoint>& waypoint, const double distance);
 
 };
 

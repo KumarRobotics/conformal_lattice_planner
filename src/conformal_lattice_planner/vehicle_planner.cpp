@@ -28,7 +28,7 @@ bst::optional<size_t> VehiclePlanner::findLeader(
 
   // Get the target vehicle.
   SharedPtr<Actor> target_actor = world_->GetActor(target);
-  SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform());
+  SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform().location);
 
   SharedPtr<Actor> leader = nullptr;
   double min_distance_diff = numeric_limits<double>::max();
@@ -36,7 +36,7 @@ bst::optional<size_t> VehiclePlanner::findLeader(
   // Loop through other actors to find the leader.
   for (const auto& other : others) {
     SharedPtr<Actor> actor = world_->GetActor(other);
-    SharedPtr<Waypoint> waypoint = map_->GetWaypoint(actor->GetTransform());
+    SharedPtr<Waypoint> waypoint = map_->GetWaypoint(actor->GetTransform().location);
 
     // Continue if the vehicle is not on the same road or
     // the same lane with the target.
@@ -59,12 +59,12 @@ bst::optional<size_t> VehiclePlanner::findLeader(
   else return bst::none;
 }
 
-size_t VehiclePlanner::findFollower(
+boost::optional<size_t> VehiclePlanner::findFollower(
     const size_t target, const std::vector<size_t>& others) const {
 
   // Get the target vehicle.
   SharedPtr<Actor> target_actor = world_->GetActor(target);
-  SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform());
+  SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform().location);
 
   SharedPtr<Actor> follower = nullptr;
   double min_distance_diff = numeric_limits<double>::max();
@@ -72,7 +72,7 @@ size_t VehiclePlanner::findFollower(
   // Loop through other actors to find the leader.
   for (const auto& other : others) {
     SharedPtr<Actor> actor = world_->GetActor(other);
-    SharedPtr<Waypoint> waypoint = map_->GetWaypoint(actor->GetTransform());
+    SharedPtr<Waypoint> waypoint = map_->GetWaypoint(actor->GetTransform().location);
 
     // Continue if the vehicle is not on the same road or
     // the same lane with the target.

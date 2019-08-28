@@ -33,8 +33,6 @@ protected:
 
 public:
 
-  IntelligentDriverModel() = default;
-
   IntelligentDriverModel(
       const boost::optional<double> time_gap = boost::none,
       const boost::optional<double> distance_gap = boost::none,
@@ -44,7 +42,7 @@ public:
 
     if (time_gap)      time_gap_      = *time_gap;
     if (distance_gap)  distance_gap_  = *distance_gap;
-    if (accel_exp)     accep_exp_     = *accel_exp;
+    if (accel_exp)     accel_exp_     = *accel_exp;
     if (comfort_accel) comfort_accel_ = *comfort_accel;
     if (comfort_decel) comfort_decel_ = *comfort_decel;
     return;
@@ -75,6 +73,7 @@ public:
 
     if (lead_v && s) {
       // A lead vehicle presents.
+      const double v_ratio = ego_v / ego_v0;
       const double s_star = desiredDistance(ego_v, *lead_v);
       const double s_ratio = s_star / *s;
       accel = comfort_accel_ * (
@@ -90,7 +89,7 @@ public:
 
 private:
 
-  double desiredDistance(const double ego_v, const double lead_v) {
+  double desiredDistance(const double ego_v, const double lead_v) const {
     const double v_diff = ego_v - lead_v;
     const double braking_coeff = 2.0 * std::sqrt(comfort_accel_*comfort_decel_);
     const double distance = std::max(
