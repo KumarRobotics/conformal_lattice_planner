@@ -20,6 +20,7 @@
 #include <vector>
 #include <cstdint>
 #include <chrono>
+#include <boost/optional.hpp>
 
 #include <carla/client/Client.h>
 #include <carla/client/World.h>
@@ -70,16 +71,16 @@ public:
   }
 
   // TODO: Should I use a template container instead of \c std::vector?
-  virtual plan(const size_t target,
-               const std::vector<size_t>& others) = 0;
+  virtual void plan(const size_t target,
+                    const std::vector<size_t>& others) = 0;
 
   /// Find the lead vehicle on the same lane of the target.
-  size_t findLeader(const size_t target,
-                    const std::vector<size_t>& others) const;
+  boost::optional<size_t> findLeader(
+      const size_t target, const std::vector<size_t>& others) const;
 
   /// Find the following vehicle on the same lane of the target.
-  size_t findFollower(const size_t target,
-                      const std::vector<size_t>& others) const;
+  boost::optional<size_t> findFollower(
+      const size_t target, const std::vector<size_t>& others) const;
 
   /// Find the lead vehicles on the given lane.
   std::vector<size_t> findLeader(

@@ -88,10 +88,10 @@ public:
     nh_(nh), ego_client_(nh_, "ego_plan") {}
 
   /// Delete the copy constructor.
-  CarlaSimulatorNode(const CarlaSimulator&) = delete;
+  CarlaSimulatorNode(const CarlaSimulatorNode&) = delete;
 
   /// Delete the copy assignment.
-  CarlaSimulatorNode& operator=(const CarlaSimulator&) = delete;
+  CarlaSimulatorNode& operator=(const CarlaSimulatorNode&) = delete;
 
   /// Initialize the simulator ros node.
   bool initialize();

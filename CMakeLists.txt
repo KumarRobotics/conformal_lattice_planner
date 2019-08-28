@@ -125,6 +125,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
+  src
   ${catkin_INCLUDE_DIRS}
   /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include
   /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include/system
@@ -165,8 +166,8 @@ link_directories(
 # )
 
 add_executable(carla_simulator_node
-  src/carla_simulator_node.cpp
-  src/convert_to_visualization_msgs.cpp
+  src/ros/nodes/carla_simulator_node.cpp
+  src/ros/nodes/convert_to_visualization_msgs.cpp
 )
 target_link_libraries(carla_simulator_node
   carla_client

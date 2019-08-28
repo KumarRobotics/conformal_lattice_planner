@@ -23,14 +23,14 @@ namespace bst = boost;
 
 namespace planner {
 
-size_t VehiclePlanner::findLeader(
+bst::optional<size_t> VehiclePlanner::findLeader(
     const size_t target, const std::vector<size_t>& others) const {
 
   // Get the target vehicle.
   SharedPtr<Actor> target_actor = world_->GetActor(target);
   SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform());
 
-  SharedPtr<Actor> leader;
+  SharedPtr<Actor> leader = nullptr;
   double min_distance_diff = numeric_limits<double>::max();
 
   // Loop through other actors to find the leader.
@@ -55,7 +55,8 @@ size_t VehiclePlanner::findLeader(
     }
   }
 
-  return leader->GetId();
+  if (leader) return leader->GetId();
+  else return bst::none;
 }
 
 size_t VehiclePlanner::findFollower(
@@ -65,7 +66,7 @@ size_t VehiclePlanner::findFollower(
   SharedPtr<Actor> target_actor = world_->GetActor(target);
   SharedPtr<Waypoint> target_waypoint = map_->GetWaypoint(target_actor->GetTransform());
 
-  SharedPtr<Actor> follower;
+  SharedPtr<Actor> follower = nullptr;
   double min_distance_diff = numeric_limits<double>::max();
 
   // Loop through other actors to find the leader.
@@ -90,7 +91,8 @@ size_t VehiclePlanner::findFollower(
     }
   }
 
-  return follower->GetId();
+  if (follower) return follower->GetId();
+  else return bst::none;
 }
 
 } // End namespace planner.
