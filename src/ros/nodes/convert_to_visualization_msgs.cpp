@@ -166,7 +166,8 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
 }
 
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
-    const carla::SharedPtr<cc::Actor>& vehicle) {
+    const carla::SharedPtr<cc::Actor>& vehicle,
+    const std::string& vehicle_frame_id) {
 
   geometry_msgs::TransformStampedPtr transform_msg(
       new geometry_msgs::TransformStamped);
@@ -174,7 +175,7 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
 
   transform_msg->header.stamp = ros::Time::now();
   transform_msg->header.frame_id = "map";
-  transform_msg->child_frame_id = std::string("vehicle_") + std::to_string(vehicle->GetId());
+  transform_msg->child_frame_id = vehicle_frame_id;
 
   transform_msg->transform.translation.x = transform.location.x;
   transform_msg->transform.translation.y = transform.location.y;

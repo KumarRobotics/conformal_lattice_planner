@@ -19,7 +19,7 @@
 #include <vector>
 #include <array>
 #include <unordered_set>
-#include <functional>
+#include <boost/core/noncopyable.hpp>
 
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -56,20 +56,20 @@ namespace carla {
 
 /// Prototypes for creating visualization msgs.
 visualization_msgs::MarkerPtr createWaypointMsg(
-    const vector<carla::SharedPtr<cc::Waypoint>>& waypoints);
+    const vector<carla::SharedPtr<cc::Waypoint>>&);
 visualization_msgs::MarkerPtr createJunctionMsg(
-    const cc::Map::TopologyList& waypoint_pairs);
+    const cc::Map::TopologyList&);
 visualization_msgs::MarkerPtr createVehicleMarkerMsg(
-    const carla::SharedPtr<cc::Actor>& vehicle);
+    const carla::SharedPtr<cc::Actor>&);
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
-    const carla::SharedPtr<cc::Actor>& vehicle);
+    const carla::SharedPtr<cc::Actor>&, const std::string&);
 
-class CarlaSimulatorNode {
+class CarlaSimulatorNode : private bst::noncopyable {
 
 public:
 
-  using Ptr = std::shared_ptr<CarlaSimulatorNode>;
-  using ConstPtr = std::shared_ptr<const CarlaSimulatorNode>;
+  using Ptr = bst::shared_ptr<CarlaSimulatorNode>;
+  using ConstPtr = bst::shared_ptr<const CarlaSimulatorNode>;
 
 private:
 
@@ -91,12 +91,6 @@ public:
 
   CarlaSimulatorNode(ros::NodeHandle nh) :
     nh_(nh), ego_client_(nh_, "ego_plan", false) {}
-
-  /// Delete the copy constructor.
-  CarlaSimulatorNode(const CarlaSimulatorNode&) = delete;
-
-  /// Delete the copy assignment.
-  CarlaSimulatorNode& operator=(const CarlaSimulatorNode&) = delete;
 
   /// Initialize the simulator ros node.
   bool initialize();
@@ -155,30 +149,30 @@ bool CarlaSimulatorNode::initialize() {
   string map_name = "/Game/Carla/Maps/Town04";
 
   // Get the world.
-  ROS_INFO("Connect to the server and load new map.");
+  ROS_INFO("CARLA Simulator Initialization: connect to the server and load new map.");
   cc::Client client = cc::Client(host, port);
   client.SetTimeout(std::chrono::seconds(10));
   vector<string> map_names = client.GetAvailableMaps();
   world_ = bst::make_shared<cc::World>(client.LoadWorld(map_name));
 
   // Publish the map.
-  ROS_INFO("Publish global map once for all.");
+  ROS_INFO("CARLA Simulator Initialization: publish global map.");
   publishMap();
 
   // Initialize the ego vehicle.
-  ROS_INFO("Spawn the ego vehicle.");
+  ROS_INFO("CARLA Simulator Initialization: spawn the ego vehicle.");
   spawnEgo();
 
   world_->Tick();
   // Publish the ego vehicle marker.
-  ROS_INFO("Publish Ego and Agents.");
+  ROS_INFO("CARLA Simulator Initialization: publish ego and agents.");
   publishTraffic();
 
   // Wait for the planner servers.
-  ROS_INFO("Waiting for planner action servers.");
-  ego_client_.waitForServer(ros::Duration(2.0));
+  ROS_INFO("CARLA Simulator Initialization: waiting for action servers.");
+  ego_client_.waitForServer(ros::Duration(5.0));
 
-  ROS_INFO("CARLA simulator node initialization finishes.");
+  ROS_INFO("CARLA Simulator Initialization: initialization finishes.");
   return true;
 }
 
@@ -237,7 +231,7 @@ void CarlaSimulatorNode::publishTraffic() const {
 
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_)));
-  tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_))));
+  tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_), "ego")));
 
   // TODO: Publish the agents' markers.
   return;
@@ -276,7 +270,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
 
   carla::CarlaSimulatorNodePtr carla_sim =
-    std::make_shared<carla::CarlaSimulatorNode>(nh);
+    bst::make_shared<carla::CarlaSimulatorNode>(nh);
   if (!carla_sim->initialize()) {
     ROS_ERROR("Cannot initialize the CARLA simulator.");
   }
