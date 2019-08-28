@@ -62,6 +62,7 @@
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
 
+  <test_depend>rosunit</test_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

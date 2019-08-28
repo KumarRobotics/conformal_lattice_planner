@@ -146,6 +146,11 @@ link_directories(
 ## either from message generation or dynamic reconfigure
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_library(all_planning
+  src/conformal_lattice_planner/vehicle_planner.cpp
+  src/conformal_lattice_planner/lane_follower.cpp
+)
+
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
@@ -235,6 +240,9 @@ add_dependencies(carla_simulator_node
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
+catkin_add_gtest(test_idm
+  src/conformal_lattice_planner/tests/test_intelligent_driver_model.cpp
+)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
