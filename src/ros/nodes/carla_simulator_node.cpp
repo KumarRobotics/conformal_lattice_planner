@@ -90,7 +90,7 @@ private:
 public:
 
   CarlaSimulatorNode(ros::NodeHandle nh) :
-    nh_(nh), ego_client_(nh_, "ego_plan") {}
+    nh_(nh), ego_client_(nh_, "ego_plan", false) {}
 
   /// Delete the copy constructor.
   CarlaSimulatorNode(const CarlaSimulatorNode&) = delete;
