@@ -22,6 +22,8 @@
 #include <functional>
 
 #include <ros/ros.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <actionlib/client/simple_action_client.h>
@@ -59,6 +61,8 @@ visualization_msgs::MarkerPtr createJunctionMsg(
     const cc::Map::TopologyList& waypoint_pairs);
 visualization_msgs::MarkerPtr createVehicleMarkerMsg(
     const carla::SharedPtr<cc::Actor>& vehicle);
+geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
+    const carla::SharedPtr<cc::Actor>& vehicle);
 
 class CarlaSimulatorNode {
 
@@ -74,12 +78,13 @@ private:
   std::unordered_set<size_t> agents_;
 
   /// ROS interface.
-  ros::NodeHandle nh_;
-  ros::Publisher map_pub_;
-  ros::Publisher ego_marker_pub_;
+  mutable ros::NodeHandle nh_;
+  mutable tf2_ros::TransformBroadcaster tf_broadcaster_;
+  mutable ros::Publisher map_pub_;
+  mutable ros::Publisher ego_marker_pub_;
   //ros::Publisher agent_markers_pub_;
 
-  actionlib::SimpleActionClient<clp::EgoPlanAction> ego_client_;
+  mutable actionlib::SimpleActionClient<clp::EgoPlanAction> ego_client_;
   //actionlib::SimpleActionClient<clp::AgentPlanAction> agent_client;
 
 public:
@@ -107,10 +112,10 @@ private:
   void manageAgents();
 
   /// Publish the map visualization markers.
-  void publishMapMarkers() const;
+  void publishMap() const;
 
   /// Publish the vehicle visualization markers.
-  void publishTrafficMarkers() const;
+  void publishTraffic() const;
 
   /**
    * @name Ego action callbacks
@@ -158,7 +163,7 @@ bool CarlaSimulatorNode::initialize() {
 
   // Publish the map.
   ROS_INFO("Publish global map once for all.");
-  publishMapMarkers();
+  publishMap();
 
   // Initialize the ego vehicle.
   ROS_INFO("Spawn the ego vehicle.");
@@ -167,7 +172,7 @@ bool CarlaSimulatorNode::initialize() {
   world_->Tick();
   // Publish the ego vehicle marker.
   ROS_INFO("Publish Ego and Agents.");
-  publishTrafficMarkers();
+  publishTraffic();
 
   // Wait for the planner servers.
   ROS_INFO("Waiting for planner action servers.");
@@ -212,7 +217,7 @@ void CarlaSimulatorNode::spawnEgo() {
   return;
 }
 
-void CarlaSimulatorNode::publishMapMarkers() const {
+void CarlaSimulatorNode::publishMap() const {
 
   visualization_msgs::MarkerPtr waypoints_msg =
     createWaypointMsg(world_->GetMap()->GenerateWaypoints(5.0));
@@ -228,10 +233,11 @@ void CarlaSimulatorNode::publishMapMarkers() const {
   return;
 }
 
-void CarlaSimulatorNode::publishTrafficMarkers() const {
+void CarlaSimulatorNode::publishTraffic() const {
 
-  // Publish the ego marker.
+  // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_)));
+  tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_))));
 
   // TODO: Publish the agents' markers.
   return;

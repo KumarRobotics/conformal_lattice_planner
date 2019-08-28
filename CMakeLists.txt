@@ -11,6 +11,7 @@ add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf2
+  tf2_ros
   tf2_geometry_msgs
 
   std_msgs

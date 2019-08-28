@@ -23,6 +23,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/convert.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -162,6 +163,34 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
   tf2::convert(tf2_quat, vehicle_msg->pose.orientation);
 
   return vehicle_msg;
+}
+
+geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
+    const carla::SharedPtr<cc::Actor>& vehicle) {
+
+  geometry_msgs::TransformStampedPtr transform_msg(
+      new geometry_msgs::TransformStamped);
+  cg::Transform transform = vehicle->GetTransform();
+
+  transform_msg->header.stamp = ros::Time::now();
+  transform_msg->header.frame_id = "map";
+  transform_msg->child_frame_id = std::string("vehicle_") + std::to_string(vehicle->GetId());
+
+  transform_msg->transform.translation.x = transform.location.x;
+  transform_msg->transform.translation.y = transform.location.y;
+  transform_msg->transform.translation.z = transform.location.z;
+
+  tf2::Quaternion tf2_quat;
+  tf2_quat.setRPY(
+      transform.rotation.roll,
+      transform.rotation.pitch,
+      transform.rotation.yaw/180.0*M_PI);
+  transform_msg->transform.rotation.x = tf2_quat.x();
+  transform_msg->transform.rotation.y = tf2_quat.y();
+  transform_msg->transform.rotation.z = tf2_quat.z();
+  transform_msg->transform.rotation.w = tf2_quat.w();
+
+  return transform_msg;
 }
 
 } // End namespace carla.
