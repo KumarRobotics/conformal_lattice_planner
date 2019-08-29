@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 # System dependencies are found with CMake's conventions
-#find_package(Boost REQUIRED)
+find_package(Boost 1.69 REQUIRED COMPONENTS timer)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -127,13 +127,23 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   src
-  ${catkin_INCLUDE_DIRS}
   /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include
   /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include/system
+  ${Boost_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
 )
 
 link_directories(
   /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/lib
+)
+
+set(CARLA_LIBS
+  carla_client
+  rpc
+  Recast
+  Detour
+  DetourCrowd
+  DetourTileCache
 )
 
 ## Declare a C++ library
@@ -149,6 +159,15 @@ link_directories(
 add_library(all_planning
   src/conformal_lattice_planner/vehicle_planner.cpp
   src/conformal_lattice_planner/lane_follower.cpp
+)
+target_link_libraries(all_planning
+  ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(all_planning
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
 )
 
 ## Declare a C++ executable
@@ -176,15 +195,23 @@ add_executable(carla_simulator_node
   src/ros/nodes/convert_to_visualization_msgs.cpp
 )
 target_link_libraries(carla_simulator_node
-  carla_client
-  rpc
-  Recast
-  Detour
-  DetourCrowd
-  DetourTileCache
+  ${CARLA_LIBS}
   ${catkin_LIBRARIES}
 )
 add_dependencies(carla_simulator_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+add_executable(ego_lane_following_node
+  src/ros/nodes/ego_lane_following_node.cpp
+)
+target_link_libraries(ego_lane_following_node
+  all_planning
+  ${CARLA_LIBS}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(ego_lane_following_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
