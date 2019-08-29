@@ -1,0 +1,16 @@
+<launch>
+  <arg name="host" default="localhost"/>
+  <arg name="port" default="2000"/>
+  <arg name="time_step" default="0.05"/>
+
+  <group ns="carla">
+    <node pkg="conformal_lattice_planner"
+      type="ego_lane_following_node"
+      name="ego_lane_following_planner"
+      output="screen">
+      <param name="host" value="$(arg host)"/>
+      <param name="port" value="$(arg port)"/>
+      <param name="time_step" value="$(arg time_step)"/>
+    </node>
+  </group>
+</launch>

@@ -1,0 +1,24 @@
+<launch>
+  <arg name="host" default="localhost"/>
+  <arg name="port" default="2000"/>
+  <arg name="time_step" default="0.05"/>
+  <arg name="town_name" default="/Game/Carla/Maps/Town04"/>
+  <arg name="ego_initial_x" default="0"/>
+  <arg name="ego_initial_y" default="0"/>
+  <arg name="ego_initial_z" default="0"/>
+
+  <group ns="carla">
+    <node pkg="conformal_lattice_planner"
+      type="carla_simulator_node"
+      name="carla_simulator"
+      output="screen">
+      <param name="host" value="$(arg host)"/>
+      <param name="port" value="$(arg port)"/>
+      <param name="time_step" value="$(arg time_step)"/>
+      <param name="town_name" value="$(arg town_name)"/>
+      <param name="ego_initial_x" value="$(arg ego_initial_x)"/>
+      <param name="ego_initial_y" value="$(arg ego_initial_y)"/>
+      <param name="ego_initial_z" value="$(arg ego_initial_z)"/>
+    </node>
+  </group>
+</launch>

@@ -1,6 +1,0 @@
-<launch>
-  <group ns="carla">
-    <node pkg="carla_ros_bridge" type="carla_simulator_node.py" name="carla_simulator_node" output="screen">
-    </node>
-  </group>
-</launch>

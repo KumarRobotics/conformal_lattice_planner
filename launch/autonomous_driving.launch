@@ -1,0 +1,20 @@
+<launch>
+  <arg name="host" default="localhost"/>
+  <arg name="port" default="2000"/>
+  <arg name="time_step" default="0.05"/>
+
+  <!-- CARLA simulator -->
+  <include file="$(find conformal_lattice_planner)/launch/carla_simulator.launch">
+    <arg name="host" value="$(arg host)"/>
+    <arg name="port" value="$(arg port)"/>
+    <arg name="time_step" value="$(arg time_step)"/>
+  </include>
+
+  <!-- Ego lane following controller -->
+  <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
+    <arg name="host" value="$(arg host)"/>
+    <arg name="port" value="$(arg port)"/>
+    <arg name="time_step" value="$(arg time_step)"/>
+  </include>
+
+</launch>
