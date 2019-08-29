@@ -19,6 +19,7 @@
 #include <chrono>
 #include <random>
 #include <cmath>
+#include <unordered_map>
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -128,14 +129,21 @@ visualization_msgs::MarkerPtr createJunctionMsg(
 visualization_msgs::MarkerPtr createVehicleMarkerMsg(
     const carla::SharedPtr<cc::Actor>& vehicle) {
 
+  static unordered_map<size_t, std_msgs::ColorRGBA> vehicle_colors;
   std_msgs::ColorRGBA fixed_color;
-  const size_t seed = chrono::system_clock::now().time_since_epoch().count();
-  default_random_engine rand_gen(seed);
-  uniform_real_distribution<double> uni_dist(0.0, 1.0);
-  fixed_color.r = uni_dist(rand_gen);
-  fixed_color.g = uni_dist(rand_gen);
-  fixed_color.b = uni_dist(rand_gen);
-  fixed_color.a = 1.0;
+
+  if (vehicle_colors.find(vehicle->GetId()) != vehicle_colors.end()) {
+    fixed_color = vehicle_colors[vehicle->GetId()];
+  } else {
+    const size_t seed = chrono::system_clock::now().time_since_epoch().count();
+    default_random_engine rand_gen(seed);
+    uniform_real_distribution<double> uni_dist(0.0, 1.0);
+    fixed_color.r = uni_dist(rand_gen);
+    fixed_color.g = uni_dist(rand_gen);
+    fixed_color.b = uni_dist(rand_gen);
+    fixed_color.a = 1.0;
+    vehicle_colors[vehicle->GetId()] = fixed_color;
+  }
 
   visualization_msgs::MarkerPtr vehicle_msg(new visualization_msgs::Marker);
   vehicle_msg->header.stamp = ros::Time::now();
@@ -157,8 +165,8 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
   vehicle_msg->pose.position.z = transform.location.z;
   tf2::Quaternion tf2_quat;
   tf2_quat.setRPY(
-      transform.rotation.roll,
-      transform.rotation.pitch,
+      transform.rotation.roll/180.0*M_PI,
+      -transform.rotation.pitch/180.0*M_PI,
       transform.rotation.yaw/180.0*M_PI);
   tf2::convert(tf2_quat, vehicle_msg->pose.orientation);
 
@@ -183,8 +191,8 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
 
   tf2::Quaternion tf2_quat;
   tf2_quat.setRPY(
-      transform.rotation.roll,
-      transform.rotation.pitch,
+      transform.rotation.roll/180.0*M_PI,
+      -transform.rotation.pitch/180.0*M_PI,
       transform.rotation.yaw/180.0*M_PI);
   transform_msg->transform.rotation.x = tf2_quat.x();
   transform_msg->transform.rotation.y = tf2_quat.y();
