@@ -230,10 +230,16 @@ void CarlaSimulatorNode::spawnEgo() {
 
   SharedPtr<cc::BlueprintLibrary> blueprint_library =
     world_->GetBlueprintLibrary();
-  SharedPtr<cc::BlueprintLibrary> vehicle_library =
-    blueprint_library->Filter("vehicle");
+  //SharedPtr<cc::BlueprintLibrary> vehicle_library =
+  //  blueprint_library->Filter("vehicle");
+  //for (const auto& actor_blueprint : *vehicle_library) {
+  //  cout << actor_blueprint.GetId() << endl;
+  //}
+
   // TODO: Load a specific vehicle blueprint.
-  auto ego_blueprint = (*vehicle_library)[0];
+  const std::string vehicle_name = "vehicle.audi.tt";
+  auto ego_blueprint = blueprint_library->at(vehicle_name);
+  //auto ego_blueprint = (*vehicle_library)[0];
 
   // TODO: Load the deired ego initial state as parameters.
   array<float, 3> ego_pt{0, 0, 0};
