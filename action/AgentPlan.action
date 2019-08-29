@@ -1,7 +1,7 @@
 # Goal
 # Instead of a goal, this specifies the vehicles on the road.
-uint32 ego
-uint32[] agents
+uint64 ego
+uint64[] agents
 ---
 # Result
 bool success
