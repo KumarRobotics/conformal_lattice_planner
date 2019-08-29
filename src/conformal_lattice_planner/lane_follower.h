@@ -31,14 +31,13 @@ private:
 protected:
 
   IntelligentDriverModel idm_;
+  double target_speed_ = 0.0;
 
 public:
 
   LaneFollower(const double time_step,
-               const std::string& host = "localhost",
-               const uint16_t port = 2000,
                const IntelligentDriverModel& idm = IntelligentDriverModel()) :
-    VehiclePlanner(time_step, host, port), idm_(idm) {}
+    VehiclePlanner(time_step), idm_(idm) {}
 
   void plan(const size_t target,
             const std::vector<size_t>& others) override;

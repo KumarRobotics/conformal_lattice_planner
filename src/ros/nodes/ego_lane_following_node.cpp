@@ -17,6 +17,7 @@
 #include <vector>
 #include <memory>
 #include <boost/core/noncopyable.hpp>
+#include <boost/timer/timer.hpp>
 
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
@@ -44,7 +45,8 @@ public:
 
 private:
 
-  std::shared_ptr<LaneFollower> planner_ = nullptr;
+  SharedPtr<cc::Client> client_ = nullptr;
+  SharedPtr<LaneFollower> planner_ = nullptr;
 
   mutable ros::NodeHandle nh_;
   mutable actionlib::SimpleActionServer<clp::EgoPlanAction> server_;
@@ -64,21 +66,36 @@ private:
 };
 
 bool EgoLaneFollowingNode::initialize() {
-  //TODO: Load the \c time_step from parameter server.
-  ROS_INFO("Ego Planner Initialization: initialize planner.");
+
+  string host = "localhost";
+  uint16_t port = 2000;
+
+  // Get the world.
+  ROS_INFO_NAMED("ego_lane_following_planner", "connect to the server.");
+  client_ = bst::make_shared<cc::Client>(host, port);
+  client_->SetTimeout(std::chrono::seconds(10));
+
+  // Initialize the planner.
+  ROS_INFO_NAMED("ego_lane_following_planner", "initialize lane following planner.");
   double time_step = 0.05;
-  planner_ = std::make_shared<LaneFollower>(time_step);
+  planner_ = bst::make_shared<LaneFollower>(time_step);
 
   // Start the action server.
-  ROS_INFO("Ego Planner Initialization: start action server.");
+  ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
   server_.start();
 
-  ROS_INFO("Ego Planner Initialization: initialization finishes.");
+  ROS_INFO_NAMED("ego_lane_following_planner", "initialization finishes.");
   return true;
 }
 
 void EgoLaneFollowingNode::executeCallback(
     const clp::EgoPlanGoalConstPtr& goal) {
+
+  ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
+
+  // Update the world for planner.
+  SharedPtr<cc::World> world = bst::make_shared<cc::World>(client_->GetWorld());
+  planner_->updateWorld(world);
 
   // Plan for the ego vehicle.
   const size_t ego = goal->ego;

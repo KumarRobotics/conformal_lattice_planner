@@ -58,21 +58,21 @@ protected:
 
   SharedPtr<World> world_;
   SharedPtr<Map> map_;
+  //SharedPtr<Client> client_;
 
 public:
 
-  VehiclePlanner(
-      const double time_step,
-      const std::string& host = "localhost",
-      const uint16_t port = 2000) : time_step_(time_step) {
-    Client client = Client(host, port);
-    client.SetTimeout(std::chrono::seconds(10));
-    world_ = boost::make_shared<World>(client.GetWorld());
+  VehiclePlanner(const double time_step) :
+    time_step_(time_step){}
+
+  void updateWorld(const SharedPtr<World>& world) {
+    world_ = world;
     map_ = world_->GetMap();
-    return;
   }
 
-  // TODO: Should I use a template container instead of \c std::vector?
+  // TODO: Should I use a template container instead of \c std::vector<size_t>?
+  //       If I use template, I have to templating other member functions as well.
+  //       Sounds like a messy option.
   virtual void plan(const size_t target,
                     const std::vector<size_t>& others) = 0;
 

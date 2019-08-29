@@ -29,7 +29,7 @@ protected:
   double distance_gap_ = 6.0;
   double accel_exp_ = 4.0;
   double comfort_accel_ = 1.5;
-  double comfort_decel_ = 3.0;
+  double comfort_decel_ = 2.5;
 
 public:
 

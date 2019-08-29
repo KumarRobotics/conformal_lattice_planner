@@ -74,8 +74,13 @@ public:
 private:
 
   SharedPtr<cc::World> world_ = nullptr;
+  SharedPtr<cc::Client> client_ = nullptr;
   size_t ego_;
   std::unordered_set<size_t> agents_;
+
+  bool ego_ready_ = true;
+  bool agents_ready_ = true;
+  bool timer_ready_ = true;
 
   /// ROS interface.
   mutable ros::NodeHandle nh_;
@@ -83,9 +88,10 @@ private:
   mutable ros::Publisher map_pub_;
   mutable ros::Publisher ego_marker_pub_;
   //ros::Publisher agent_markers_pub_;
+  mutable ros::Timer sim_timer_;
 
   mutable actionlib::SimpleActionClient<clp::EgoPlanAction> ego_client_;
-  //actionlib::SimpleActionClient<clp::AgentPlanAction> agent_client;
+  //actionlib::SimpleActionClient<clp::AgentPlanAction> agents_client;
 
 public:
 
@@ -111,6 +117,9 @@ private:
   /// Publish the vehicle visualization markers.
   void publishTraffic() const;
 
+  /// Timer callback.
+  void timerCallback(const ros::TimerEvent& event);
+
   /**
    * @name Ego action callbacks
    */
@@ -127,13 +136,28 @@ private:
   void egoPlanActiveCallback() {}
 
   /// Feedback callback for ego_client.
-  void egoPlanFeedbackCallback(const clp::EgoPlanFeedbackConstPtr& feedback) {}
+  void egoPlanFeedbackCallback(
+      const clp::EgoPlanFeedbackConstPtr& feedback) {}
   /// @}
 
   /**
    * @name Agent plan callbacks
    */
   /// @{
+  /// Send the goal for the agents.
+  void sendAgentsGoal();
+
+  /// Done callback for agents_client.
+  void agentsPlanDoneCallback(
+      const actionlib::SimpleClientGoalState& state,
+      const clp::AgentPlanResultConstPtr& result);
+
+  /// Action callback for agents_client.
+  void agentsPlanActiveCallback() {}
+
+  /// Feedback callback for agents_client.
+  void agentsPlanFeedbackCallback(
+      const clp::AgentPlanFeedbackConstPtr& feedback) {}
   /// @}
 
 }; // End class CarlaSimulatorNode.
@@ -144,35 +168,61 @@ bool CarlaSimulatorNode::initialize() {
   ego_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_object", 1, true);
 
   // TODO: load the variables from parameters.
+  double time_step = 0.05;
+  //sim_timer_ = nh_.createTimer(ros::Duration(time_step), &CarlaSimulatorNode::timerCallback, this);
+
+  // TODO: load the variables from parameters.
   string host = "localhost";
   uint16_t port = 2000;
-  string map_name = "/Game/Carla/Maps/Town04";
 
   // Get the world.
-  ROS_INFO("CARLA Simulator Initialization: connect to the server and load new map.");
-  cc::Client client = cc::Client(host, port);
-  client.SetTimeout(std::chrono::seconds(10));
-  vector<string> map_names = client.GetAvailableMaps();
-  world_ = bst::make_shared<cc::World>(client.LoadWorld(map_name));
+  ROS_INFO_NAMED("carla_simulator", "connect to the server.");
+  client_ = bst::make_shared<cc::Client>(host, port);
+  client_->SetTimeout(std::chrono::seconds(10));
+  world_ = bst::make_shared<cc::World>(client_->GetWorld());
+
+  // Set to synchronous mode.
+  ROS_INFO_NAMED("carla_simulator", "set to synchronous mode.");
+  crpc::EpisodeSettings settings = world_->GetSettings();
+  if (settings.fixed_delta_seconds) {
+    ROS_INFO_NAMED("carla_simulator",
+        "old settings: fixed_delta_seconds:N/A no_rendering_mode:%d synchronous_mode:%d",
+        settings.no_rendering_mode, settings.synchronous_mode);
+  } else {
+    ROS_INFO_NAMED("carla_simulator",
+        "old settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
+        *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
+  }
+  settings.fixed_delta_seconds = time_step;
+  settings.no_rendering_mode = true;
+  settings.synchronous_mode = true;
+  world_->ApplySettings(settings);
+  ROS_INFO_NAMED("carla_simulator",
+      "new settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
+      *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
 
   // Publish the map.
-  ROS_INFO("CARLA Simulator Initialization: publish global map.");
+  ROS_INFO_NAMED("carla_simulator", "publish global map.");
   publishMap();
 
   // Initialize the ego vehicle.
-  ROS_INFO("CARLA Simulator Initialization: spawn the ego vehicle.");
+  ROS_INFO_NAMED("carla_simulator", "spawn the ego vehicle.");
   spawnEgo();
 
   world_->Tick();
   // Publish the ego vehicle marker.
-  ROS_INFO("CARLA Simulator Initialization: publish ego and agents.");
+  ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
   publishTraffic();
 
   // Wait for the planner servers.
-  ROS_INFO("CARLA Simulator Initialization: waiting for action servers.");
+  ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
   ego_client_.waitForServer(ros::Duration(5.0));
 
-  ROS_INFO("CARLA Simulator Initialization: initialization finishes.");
+  // Send out the first goal of ego.
+  ROS_INFO_NAMED("carla_simulator", "send the first goals to action servers");
+  sendEgoGoal();
+
+  ROS_INFO_NAMED("carla_simulator", "initialization finishes.");
   return true;
 }
 
@@ -201,7 +251,7 @@ void CarlaSimulatorNode::spawnEgo() {
       min_distance_sq = distance_sq;
     }
   }
-  ROS_INFO("Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
+  ROS_INFO_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
       ego_transform.location.x, ego_transform.location.y, ego_transform.location.z,
       ego_transform.rotation.roll, ego_transform.rotation.pitch, ego_transform.rotation.yaw);
   SharedPtr<cc::Actor> ego_actor = world_->SpawnActor(ego_blueprint, ego_transform);
@@ -250,6 +300,9 @@ void CarlaSimulatorNode::sendEgoGoal() {
       bst::bind(&CarlaSimulatorNode::egoPlanActiveCallback, this),
       bst::bind(&CarlaSimulatorNode::egoPlanFeedbackCallback, this, _1));
 
+  ego_ready_ = false;
+  timer_ready_ = false;
+
   return;
 }
 
@@ -257,7 +310,20 @@ void CarlaSimulatorNode::egoPlanDoneCallback(
     const actionlib::SimpleClientGoalState& state,
     const clp::EgoPlanResultConstPtr& result) {
 
+  ROS_INFO_NAMED("carla_simulator", "egoPlanDoneCallback().");
+  ROS_INFO_NAMED("carla_simulator", "tick world.");
+  world_->Tick();
+  publishTraffic();
+  sendEgoGoal();
+
+  ego_ready_ = true;
   return;
+}
+
+void CarlaSimulatorNode::timerCallback(const ros::TimerEvent& event) {
+
+  //ROS_INFO_NAMED("carla_simulator", "timerCallback().");
+  //return;
 }
 
 using CarlaSimulatorNodePtr = CarlaSimulatorNode::Ptr;
