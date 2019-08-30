@@ -22,6 +22,7 @@
 #include <boost/core/noncopyable.hpp>
 
 #include <ros/ros.h>
+#include <ros/console.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
@@ -205,11 +206,11 @@ bool CarlaSimulatorNode::initialize() {
   ROS_INFO_NAMED("carla_simulator", "apply world settings.");
   crpc::EpisodeSettings settings = world_->GetSettings();
   if (settings.fixed_delta_seconds) {
-    ROS_INFO_NAMED("carla_simulator",
+    ROS_DEBUG_NAMED("carla_simulator",
         "old settings: fixed_delta_seconds:N/A no_rendering_mode:%d synchronous_mode:%d",
         settings.no_rendering_mode, settings.synchronous_mode);
   } else {
-    ROS_INFO_NAMED("carla_simulator",
+    ROS_DEBUG_NAMED("carla_simulator",
         "old settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
         *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
   }
@@ -286,7 +287,7 @@ cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
       min_distance_sq = distance_sq;
     }
   }
-  ROS_INFO_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
+  ROS_DEBUG_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
       ego_transform.location.x, ego_transform.location.y, ego_transform.location.z,
       ego_transform.rotation.roll, ego_transform.rotation.pitch, ego_transform.rotation.yaw);
   SharedPtr<cc::Actor> ego_actor = world_->SpawnActor(ego_blueprint, ego_transform);
@@ -395,6 +396,12 @@ using CarlaSimulatorNodeConstPtr = CarlaSimulatorNode::ConstPtr;
 int main(int argc, char** argv) {
   ros::init(argc, argv, "~");
   ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Debug)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
 
   carla::CarlaSimulatorNodePtr carla_sim =
     bst::make_shared<carla::CarlaSimulatorNode>(nh);

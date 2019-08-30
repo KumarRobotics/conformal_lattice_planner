@@ -116,8 +116,14 @@ using EgoLaneFollowingNodeConstPtr = EgoLaneFollowingNode::ConstPtr;
 } // End namespace carla.
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "ego_lane_following_planner");
-  ros::NodeHandle nh;
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Debug)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
 
   carla::EgoLaneFollowingNodePtr planner =
     bst::make_shared<carla::EgoLaneFollowingNode>(nh);
