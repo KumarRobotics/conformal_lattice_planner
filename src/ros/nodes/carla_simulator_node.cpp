@@ -236,7 +236,13 @@ bool CarlaSimulatorNode::initialize() {
   ROS_INFO_NAMED("carla_simulator", "spawn the ego vehicle.");
   spawnEgo(no_rendering_mode);
 
-  world_->Tick();
+  // Tick a few times to left the vehicles settle
+  for (size_t i = 0; i < 10; ++i)
+    world_->Tick();
+
+  //SharedPtr<cc::Actor> ego_actor = world_->GetActor(ego_);
+  //ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*20);
+
   // Publish the ego vehicle marker.
   ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
   publishTraffic();
@@ -291,15 +297,15 @@ cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
       ego_transform.location.x, ego_transform.location.y, ego_transform.location.z,
       ego_transform.rotation.roll, ego_transform.rotation.pitch, ego_transform.rotation.yaw);
   SharedPtr<cc::Actor> ego_actor = world_->SpawnActor(ego_blueprint, ego_transform);
-  ego_actor->SetSimulatePhysics(false);
+  //ego_actor->SetSimulatePhysics(false);
   ego_ = ego_actor->GetId();
 
   // Spawn a camera following the ego vehicle.
   if (!no_rendering_mode) {
     auto camera_blueprint = blueprint_library->at("sensor.camera.rgb");
     camera_blueprint.SetAttribute("sensor_tick", "0.2");
-    camera_blueprint.SetAttribute("image_size_x", "640");
-    camera_blueprint.SetAttribute("image_size_y", "480");
+    camera_blueprint.SetAttribute("image_size_x", "320");
+    camera_blueprint.SetAttribute("image_size_y", "240");
     camera_blueprint.SetAttribute("fov", "120");
     cg::Transform camera_transform = cg::Transform{
       cg::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
@@ -399,7 +405,7 @@ int main(int argc, char** argv) {
 
   if(ros::console::set_logger_level(
         ROSCONSOLE_DEFAULT_NAME,
-        ros::console::levels::Debug)) {
+        ros::console::levels::Info)) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
