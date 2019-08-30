@@ -19,11 +19,15 @@
 #include <stdexcept>
 #include <boost/timer/timer.hpp>
 #include <boost/pointer_cast.hpp>
+
+
+#include <carla/rpc/VehicleControl.h>
 #include <conformal_lattice_planner/lane_follower.h>
 
 using namespace std;
 namespace bst = boost;
 namespace cg = carla::geom;
+namespace crpc = carla::rpc;
 
 namespace planner {
 
@@ -38,10 +42,11 @@ void LaneFollower::plan(const size_t target,
   // TODO: Maybe the target should look ahead a bit for desired speed
   //       in order to avoid aggressive brake.
   // FIXME: It seems that the unit of speed limit is km/h.
+  const double target_speed = target_vehicle->GetVelocity().Length();
   const double target_desired_speed = target_vehicle->GetSpeedLimit() / 3.6;
   SharedPtr<Waypoint> target_waypoint =
     map_->GetWaypoint(target_vehicle->GetTransform().location);
-  //double target_speed = target_vehicle->GetVelocity().Length();
+
   printf("target location: x:%f y:%f z:%f r:%f p:%f y:%f\n",
       target_vehicle->GetTransform().location.x,
       target_vehicle->GetTransform().location.y,
@@ -49,7 +54,7 @@ void LaneFollower::plan(const size_t target,
       target_vehicle->GetTransform().rotation.roll,
       target_vehicle->GetTransform().rotation.pitch,
       target_vehicle->GetTransform().rotation.yaw);
-  printf("target speed: %f\n", target_speed_);
+  printf("target speed: %f\n", target_speed);
   printf("target desired speed: %f\n", target_desired_speed);
 
   // Get the leader vehicle.
@@ -73,23 +78,25 @@ void LaneFollower::plan(const size_t target,
                                       target_waypoint->GetDistance();
 
     target_accel = idm_.idm(
-        target_speed_, target_desired_speed, lead_speed, following_distance);
+        target_speed, target_desired_speed, lead_speed, following_distance);
 
   } else {
-    target_accel = idm_.idm(target_speed_, target_desired_speed);
+    target_accel = idm_.idm(target_speed, target_desired_speed);
   }
   printf("target idm accel: %f\n", target_accel);
 
-  // Snap the target to the next closest waypoint.
-  double distance_travelled = target_speed_*time_step_ + 0.5*target_accel*time_step_*time_step_;
-  target_waypoint = findNextWaypoint(target_waypoint, distance_travelled);
-  target_vehicle->SetTransform(target_waypoint->GetTransform());
+  // Compute the reference velocity.
+  const double reference_speed = target_speed + target_accel * time_step_;
+  printf("reference speed: %f\n", reference_speed);
 
-  // Set the velocity of the target vehicle.
-  // TODO: If the physics of the vehicles is disabled, is it still necessary to set the velocity?
-  target_speed_ += target_accel * time_step_;
-  //target_vehicle->SetVelocity(target_vehicle->GetTransform().GetForwardVector()*target_speed_);
-  printf("updated target speed: %f\n", target_speed_);
+  // Compute the reference transfrom.
+  double distance_travelled = target_speed*time_step_ + 0.5*target_accel*time_step_*time_step_;
+  SharedPtr<Waypoint> reference_waypoint = findNextWaypoint(target_waypoint, distance_travelled);
+  const Transform reference_transform = reference_waypoint->GetTransform();
+
+  // Update the vehicle speed and transform.
+  target_vehicle->SetTransform(reference_transform);
+  target_vehicle->SetVelocity(reference_transform.GetForwardVector()*reference_speed);
 
   return;
 }
@@ -115,8 +122,6 @@ LaneFollower::SharedPtr<LaneFollower::Waypoint>
   //    waypoint->GetTransform().location.z);
 
   // Loop through all candidates to find the one on the same lane.
-  // TODO: What if road id or section id changes?
-  // TODO: What happens if no candidate satisfies the requirement.
   //std::printf("candidate waypoints:\n");
   for (const auto& candidate : candidates) {
     //std::printf("IDs(road, section, lane): %d, %d, %d, transform: x:%f y:%f z:%f\n",
@@ -151,6 +156,7 @@ LaneFollower::SharedPtr<LaneFollower::Waypoint>
     }
   }
 
+  // TODO: What happens if no candidate satisfies the requirement.
   if (!next_waypoint) {
     throw std::runtime_error("Cannot find next waypoint.");
   }

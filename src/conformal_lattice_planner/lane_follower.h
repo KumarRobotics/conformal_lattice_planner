@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <array>
+#include <boost/optional.hpp>
 #include <conformal_lattice_planner/vehicle_controller.h>
 #include <conformal_lattice_planner/vehicle_planner.h>
 #include <conformal_lattice_planner/intelligent_driver_model.h>
@@ -32,8 +34,7 @@ private:
 protected:
 
   IntelligentDriverModel idm_;
-  controller::VehiclePIDController controller_;
-  double target_speed_ = 0.0;
+  //controller::VehiclePIDController controller_;
 
 public:
 
@@ -43,6 +44,25 @@ public:
 
   void plan(const size_t target,
             const std::vector<size_t>& others) override;
+
+  //void setControllerGains(
+  //    const boost::optional<std::array<double, 3>&> longitudinal_gains = boost::none,
+  //    const boost::optional<std::array<double, 3>&> lateral_gains = boost::none) {
+
+  //  if (longitudinal_gains) {
+  //    controller_.longitudinalKp() = (*longitudinal_gains)[0];
+  //    controller_.longitudinalKi() = (*longitudinal_gains)[1];
+  //    controller_.longitudinalKd() = (*longitudinal_gains)[2];
+  //  }
+
+  //  if (lateral_gains) {
+  //    controller_.lateralKp() = (*lateral_gains)[0];
+  //    controller_.lateralKi() = (*lateral_gains)[1];
+  //    controller_.lateralKd() = (*lateral_gains)[2];
+  //  }
+
+  //  return;
+  //}
 
 private:
 
