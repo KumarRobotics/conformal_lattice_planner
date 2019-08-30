@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <chrono>
 #include <boost/optional.hpp>
+#include <boost/core/noncopyable.hpp>
 
 #include <carla/client/Client.h>
 #include <carla/client/World.h>
@@ -34,7 +35,7 @@
 
 namespace planner {
 
-class VehiclePlanner {
+class VehiclePlanner : boost::noncopyable {
 
 protected:
 
@@ -50,7 +51,7 @@ protected:
   using Transform     = carla::geom::Transform;
 
   template<typename T>
-  using SharedPtr    = carla::SharedPtr<T>;
+  using SharedPtr = carla::SharedPtr<T>;
 
 protected:
 

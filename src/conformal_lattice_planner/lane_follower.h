@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <conformal_lattice_planner/vehicle_controller.h>
 #include <conformal_lattice_planner/vehicle_planner.h>
 #include <conformal_lattice_planner/intelligent_driver_model.h>
 
@@ -31,6 +32,7 @@ private:
 protected:
 
   IntelligentDriverModel idm_;
+  controller::VehiclePIDController controller_;
   double target_speed_ = 0.0;
 
 public:
