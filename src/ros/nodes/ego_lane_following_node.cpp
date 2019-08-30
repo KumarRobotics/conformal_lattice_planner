@@ -67,8 +67,12 @@ private:
 
 bool EgoLaneFollowingNode::initialize() {
 
+  bool all_param_exist = true;
+
   string host = "localhost";
-  uint16_t port = 2000;
+  int port = 2000;
+  all_param_exist &= nh_.param<std::string>("host", host, "localhost");
+  all_param_exist &= nh_.param<int>("port", port, 2000);
 
   // Get the world.
   ROS_INFO_NAMED("ego_lane_following_planner", "connect to the server.");
@@ -77,15 +81,26 @@ bool EgoLaneFollowingNode::initialize() {
 
   // Initialize the planner.
   ROS_INFO_NAMED("ego_lane_following_planner", "initialize lane following planner.");
-  double time_step = 0.05;
-  planner_ = bst::make_shared<LaneFollower>(time_step);
+  double fixed_delta_seconds = 0.05;
+  all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  planner_ = bst::make_shared<LaneFollower>(fixed_delta_seconds);
+
+  //std::array<double, 3> longitudinal_gains;
+  //std::array<double, 3> lateral_gains;
+  //all_param_exist &= nh_.param<double>("longitudinal/kp", longitudinal_gains[0], 5.0);
+  //all_param_exist &= nh_.param<double>("longitudinal/ki", longitudinal_gains[1], 0.0);
+  //all_param_exist &= nh_.param<double>("longitudinal/kd", longitudinal_gains[2], 0.0);
+  //all_param_exist &= nh_.param<double>("lateral/kp", lateral_gains[0], 5.0);
+  //all_param_exist &= nh_.param<double>("lateral/ki", lateral_gains[1], 0.0);
+  //all_param_exist &= nh_.param<double>("lateral/kd", lateral_gains[2], 0.0);
+  //planner_->setControllerGains(longitudinal_gains, lateral_gains);
 
   // Start the action server.
   ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
   server_.start();
 
   ROS_INFO_NAMED("ego_lane_following_planner", "initialization finishes.");
-  return true;
+  return all_param_exist;
 }
 
 void EgoLaneFollowingNode::executeCallback(
@@ -121,7 +136,7 @@ int main(int argc, char** argv) {
 
   if(ros::console::set_logger_level(
         ROSCONSOLE_DEFAULT_NAME,
-        ros::console::levels::Debug)) {
+        ros::console::levels::Info)) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
