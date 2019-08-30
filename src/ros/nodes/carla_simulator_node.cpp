@@ -27,19 +27,20 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <actionlib/client/simple_action_client.h>
+#include <image_transport/image_transport.h>
 
 #include <carla/client/BlueprintLibrary.h>
 #include <carla/client/Vehicle.h>
 #include <carla/client/Client.h>
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
-//#include <carla/client/Sensor.h>
+#include <carla/client/Sensor.h>
 //#include <carla/client/TimeoutException.h>
 #include <carla/client/World.h>
 #include <carla/geom/Transform.h>
 //#include <carla/image/ImageIO.h>
 //#include <carla/image/ImageView.h>
-//#include <carla/sensor/data/Image.h>
+#include <carla/sensor/data/Image.h>
 
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
@@ -49,7 +50,8 @@ namespace bst = boost;
 namespace cc = carla::client;
 namespace cg = carla::geom;
 namespace crpc = carla::rpc;
-//namespace csd = carla::sensor::data;
+namespace cs = carla::sensor;
+namespace csd = carla::sensor::data;
 namespace clp = conformal_lattice_planner;
 
 namespace carla {
@@ -63,6 +65,8 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
     const carla::SharedPtr<cc::Actor>&);
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const carla::SharedPtr<cc::Actor>&, const std::string&);
+sensor_msgs::ImagePtr createImageMsg(
+    const carla::SharedPtr<csd::Image>&);
 
 class CarlaSimulatorNode : private bst::noncopyable {
 
@@ -75,6 +79,7 @@ private:
 
   SharedPtr<cc::World> world_ = nullptr;
   SharedPtr<cc::Client> client_ = nullptr;
+  SharedPtr<cc::Sensor> following_cam_ = nullptr;
   size_t ego_;
   std::unordered_set<size_t> agents_;
 
@@ -88,7 +93,10 @@ private:
   mutable ros::Publisher map_pub_;
   mutable ros::Publisher ego_marker_pub_;
   //ros::Publisher agent_markers_pub_;
-  mutable ros::Timer sim_timer_;
+  //mutable ros::Timer sim_timer_;
+
+  mutable image_transport::ImageTransport img_transport_;
+  mutable image_transport::Publisher following_img_pub_;
 
   mutable actionlib::SimpleActionClient<clp::EgoPlanAction> ego_client_;
   //actionlib::SimpleActionClient<clp::AgentPlanAction> agents_client;
@@ -96,7 +104,7 @@ private:
 public:
 
   CarlaSimulatorNode(ros::NodeHandle nh) :
-    nh_(nh), ego_client_(nh_, "ego_plan", false) {}
+    nh_(nh), img_transport_(nh_), ego_client_(nh_, "ego_plan", false) {}
 
   /// Initialize the simulator ros node.
   bool initialize();
@@ -104,7 +112,7 @@ public:
 private:
 
   /// Spawn the ego vehicle.
-  void spawnEgo();
+  cg::Transform spawnEgo(const bool no_rendering_mode = true);
 
   /// Manage agents around the ego vehicle.
   /// Add agents if there is empty space around the ego.
@@ -116,6 +124,9 @@ private:
 
   /// Publish the vehicle visualization markers.
   void publishTraffic() const;
+
+  /// Publish the following image.
+  void publishImage(const SharedPtr<cs::SensorData>& data) const;
 
   /// Timer callback.
   void timerCallback(const ros::TimerEvent& event);
@@ -163,26 +174,35 @@ private:
 }; // End class CarlaSimulatorNode.
 
 bool CarlaSimulatorNode::initialize() {
+
+  bool all_param_exist = true;
+
   // Create publishers.
   map_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("town_map", 1, true);
   ego_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_object", 1, true);
 
-  // TODO: load the variables from parameters.
-  double time_step = 0.05;
-  //sim_timer_ = nh_.createTimer(ros::Duration(time_step), &CarlaSimulatorNode::timerCallback, this);
-
-  // TODO: load the variables from parameters.
-  string host = "localhost";
-  uint16_t port = 2000;
-
   // Get the world.
+  string host = "localhost";
+  int port = 2000;
+  all_param_exist &= nh_.param<std::string>("host", host, "localhost");
+  all_param_exist &= nh_.param<int>("port", port, 2000);
+
   ROS_INFO_NAMED("carla_simulator", "connect to the server.");
   client_ = bst::make_shared<cc::Client>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
   world_ = bst::make_shared<cc::World>(client_->GetWorld());
+  ros::Duration(2.0).sleep();
 
-  // Set to synchronous mode.
-  ROS_INFO_NAMED("carla_simulator", "set to synchronous mode.");
+  // Applying the world settings.
+  // TODO: Read the variables from the parameter server.
+  double fixed_delta_seconds = 0.05;
+  bool no_rendering_mode = true;
+  bool synchronous_mode = true;
+  all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  all_param_exist &= nh_.param<bool>("no_rendering_mode", no_rendering_mode, true);
+  all_param_exist &= nh_.param<bool>("synchronous_mode", synchronous_mode, true);
+
+  ROS_INFO_NAMED("carla_simulator", "apply world settings.");
   crpc::EpisodeSettings settings = world_->GetSettings();
   if (settings.fixed_delta_seconds) {
     ROS_INFO_NAMED("carla_simulator",
@@ -193,13 +213,19 @@ bool CarlaSimulatorNode::initialize() {
         "old settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
         *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
   }
-  settings.fixed_delta_seconds = time_step;
-  settings.no_rendering_mode = true;
-  settings.synchronous_mode = true;
+  settings.fixed_delta_seconds = fixed_delta_seconds;
+  settings.no_rendering_mode = no_rendering_mode;
+  settings.synchronous_mode = synchronous_mode;
   world_->ApplySettings(settings);
+  ros::Duration(2.0).sleep();
+
+  settings = world_->GetSettings();
   ROS_INFO_NAMED("carla_simulator",
       "new settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
       *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
+
+  // TODO: initialize the timer if this is still useful.
+  //sim_timer_ = nh_.createTimer(ros::Duration(time_step), &CarlaSimulatorNode::timerCallback, this);
 
   // Publish the map.
   ROS_INFO_NAMED("carla_simulator", "publish global map.");
@@ -207,7 +233,7 @@ bool CarlaSimulatorNode::initialize() {
 
   // Initialize the ego vehicle.
   ROS_INFO_NAMED("carla_simulator", "spawn the ego vehicle.");
-  spawnEgo();
+  spawnEgo(no_rendering_mode);
 
   world_->Tick();
   // Publish the ego vehicle marker.
@@ -223,26 +249,29 @@ bool CarlaSimulatorNode::initialize() {
   sendEgoGoal();
 
   ROS_INFO_NAMED("carla_simulator", "initialization finishes.");
-  return true;
+  return all_param_exist;
 }
 
-void CarlaSimulatorNode::spawnEgo() {
+cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
+
+  bool all_param_exist = true;
 
   SharedPtr<cc::BlueprintLibrary> blueprint_library =
     world_->GetBlueprintLibrary();
-  //SharedPtr<cc::BlueprintLibrary> vehicle_library =
-  //  blueprint_library->Filter("vehicle");
-  //for (const auto& actor_blueprint : *vehicle_library) {
-  //  cout << actor_blueprint.GetId() << endl;
-  //}
 
-  // TODO: Load a specific vehicle blueprint.
-  const std::string vehicle_name = "vehicle.audi.tt";
+  // Load blueprint library.
+  std::string vehicle_name = "vehicle.audi.tt";
+  all_param_exist &= nh_.param<std::string>(
+      "vehicle_name", vehicle_name, "vehicle.audi.tt");
   auto ego_blueprint = blueprint_library->at(vehicle_name);
   //auto ego_blueprint = (*vehicle_library)[0];
 
-  // TODO: Load the deired ego initial state as parameters.
-  array<float, 3> ego_pt{0, 0, 0};
+  // Load ego vehicle initial position.
+  array<double, 3> ego_pt{0, 0, 0};
+  all_param_exist &= nh_.param<double>("ego_initial_x", ego_pt[0], 0.0);
+  all_param_exist &= nh_.param<double>("ego_initial_y", ego_pt[1], 0.0);
+  all_param_exist &= nh_.param<double>("ego_initial_z", ego_pt[2], 0.0);
+
   vector<cg::Transform> spawn_points = world_->GetMap()->GetRecommendedSpawnPoints();
   cg::Transform ego_transform;
   float min_distance_sq = numeric_limits<float>::max();
@@ -264,7 +293,25 @@ void CarlaSimulatorNode::spawnEgo() {
   ego_actor->SetSimulatePhysics(false);
   ego_ = ego_actor->GetId();
 
-  return;
+  // Spawn a camera following the ego vehicle.
+  if (!no_rendering_mode) {
+    auto camera_blueprint = blueprint_library->at("sensor.camera.rgb");
+    camera_blueprint.SetAttribute("sensor_tick", "0.2");
+    camera_blueprint.SetAttribute("image_size_x", "640");
+    camera_blueprint.SetAttribute("image_size_y", "480");
+    camera_blueprint.SetAttribute("fov", "120");
+    cg::Transform camera_transform = cg::Transform{
+      cg::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
+      cg::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
+    SharedPtr<cc::Actor> cam_actor = world_->SpawnActor(camera_blueprint, camera_transform, ego_actor.get());
+    following_cam_ = boost::static_pointer_cast<cc::Sensor>(cam_actor);
+    following_cam_->Listen(bst::bind(&CarlaSimulatorNode::publishImage, this, _1));
+
+    // Create the image publisher for the following camera.
+    following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
+  }
+
+  return ego_transform;
 }
 
 void CarlaSimulatorNode::publishMap() const {
@@ -290,6 +337,14 @@ void CarlaSimulatorNode::publishTraffic() const {
   tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_), "ego")));
 
   // TODO: Publish the agents' markers.
+  return;
+}
+
+void CarlaSimulatorNode::publishImage(const SharedPtr<cs::SensorData>& data) const {
+
+  const SharedPtr<csd::Image> img = bst::static_pointer_cast<csd::Image>(data);
+  following_img_pub_.publish(createImageMsg(img));
+
   return;
 }
 
@@ -338,8 +393,8 @@ using CarlaSimulatorNodeConstPtr = CarlaSimulatorNode::ConstPtr;
 
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "carla_simulator_node");
-  ros::NodeHandle nh;
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
 
   carla::CarlaSimulatorNodePtr carla_sim =
     bst::make_shared<carla::CarlaSimulatorNode>(nh);

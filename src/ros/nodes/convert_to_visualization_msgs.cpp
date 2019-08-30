@@ -24,6 +24,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/convert.h>
+#include <sensor_msgs/Image.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -32,12 +33,14 @@
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 #include <carla/geom/Transform.h>
+#include <carla/sensor/data/Image.h>
 
 using namespace std;
 namespace bst = boost;
 namespace cc = carla::client;
 namespace cg = carla::geom;
 namespace crpc = carla::rpc;
+namespace csd = carla::sensor::data;
 
 namespace carla {
 
@@ -200,6 +203,35 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
   transform_msg->transform.rotation.w = tf2_quat.w();
 
   return transform_msg;
+}
+
+sensor_msgs::ImagePtr createImageMsg(const carla::SharedPtr<csd::Image>& img) {
+
+  sensor_msgs::ImagePtr image_msg(new sensor_msgs::Image);
+
+  image_msg->header.stamp = ros::Time::now();
+  image_msg->header.frame_id = "following_camera";
+  image_msg->height = img->GetHeight();
+  image_msg->width = img->GetWidth();
+  image_msg->encoding = "rgba8";
+  // FIXME: Is this bigendian or not?
+  //        Since the data is really uint8, it probably does not matter.
+  image_msg->is_bigendian = false;
+  image_msg->step = 4 * image_msg->width;
+
+  // Fill in the data.
+  // FIXME: Is there a more efficient to copy the data cover?
+  //        memcpy() won't work since the order of RGBA is different
+  //        on both ends.
+  image_msg->data.resize(image_msg->height*image_msg->step);
+  for (size_t i = 0; i < image_msg->height*image_msg->width; ++i) {
+    image_msg->data[4*i+0] = (img->data()+i)->r;
+    image_msg->data[4*i+1] = (img->data()+i)->g;
+    image_msg->data[4*i+2] = (img->data()+i)->b;
+    image_msg->data[4*i+3] = (img->data()+i)->a;
+  }
+
+  return image_msg;
 }
 
 } // End namespace carla.

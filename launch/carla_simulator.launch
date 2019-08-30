@@ -1,8 +1,10 @@
 <launch>
   <arg name="host" default="localhost"/>
   <arg name="port" default="2000"/>
-  <arg name="time_step" default="0.05"/>
-  <arg name="town_name" default="/Game/Carla/Maps/Town04"/>
+  <arg name="fixed_delta_seconds" default="0.05"/>
+  <arg name="no_rendering_mode" default="true"/>
+  <arg name="synchronous_mode" default="true"/>
+  <arg name="vehicle_name" default="vehicle.audi.tt"/>
   <arg name="ego_initial_x" default="0"/>
   <arg name="ego_initial_y" default="0"/>
   <arg name="ego_initial_z" default="0"/>
@@ -12,10 +14,15 @@
       type="carla_simulator_node"
       name="carla_simulator"
       output="screen">
+      <!-- connect to client -->
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
-      <param name="time_step" value="$(arg time_step)"/>
-      <param name="town_name" value="$(arg town_name)"/>
+      <!-- world settings -->
+      <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+      <param name="no_rendering_mode" value="$(arg no_rendering_mode)"/>
+      <param name="synchronous_mode" value="$(arg synchronous_mode)"/>
+      <!-- ego vehicle -->
+      <param name="vehicle_name" value="$(arg vehicle_name)"/>
       <param name="ego_initial_x" value="$(arg ego_initial_x)"/>
       <param name="ego_initial_y" value="$(arg ego_initial_y)"/>
       <param name="ego_initial_z" value="$(arg ego_initial_z)"/>

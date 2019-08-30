@@ -10,6 +10,7 @@ add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+
   tf2
   tf2_ros
   tf2_geometry_msgs
@@ -17,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   visualization_msgs
+  image_transport
 
   actionlib
   actionlib_msgs
