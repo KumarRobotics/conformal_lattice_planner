@@ -1,7 +1,7 @@
 <launch>
   <arg name="host" default="localhost"/>
   <arg name="port" default="2000"/>
-  <arg name="time_step" default="0.05"/>
+  <arg name="fixed_delta_seconds" default="0.05"/>
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
@@ -10,7 +10,19 @@
       output="screen">
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
-      <param name="time_step" value="$(arg time_step)"/>
+      <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+
+      <!--
+      <param name="longitudinal/kp" value="0.1"/>
+      <param name="longitudinal/ki" value="0.6"/>
+      <param name="longitudinal/kd" value="0.5"/>
+
+      <param name="lateral/kp" value="0.05"/>
+      <param name="lateral/ki" value="0.0"/>
+      <param name="lateral/kd" value="0.04"/>
+      -->
+
+      <remap from="~ego_plan" to="carla_simulator/ego_plan"/>
     </node>
   </group>
 </launch>
