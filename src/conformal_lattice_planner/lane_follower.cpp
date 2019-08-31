@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <stdexcept>
+#include <algorithm>
 #include <boost/timer/timer.hpp>
 #include <boost/pointer_cast.hpp>
 
@@ -31,8 +32,10 @@ namespace crpc = carla::rpc;
 
 namespace planner {
 
-void LaneFollower::plan(const size_t target,
-          const std::vector<size_t>& others) {
+void LaneFollower::plan(
+    const size_t target,
+    const double policy_speed,
+    const std::vector<size_t>& others) {
 
   // Get the target vehicle.
   SharedPtr<Vehicle> target_vehicle =
@@ -43,19 +46,25 @@ void LaneFollower::plan(const size_t target,
   //       in order to avoid aggressive brake.
   // FIXME: It seems that the unit of speed limit is km/h.
   const double target_speed = target_vehicle->GetVelocity().Length();
-  const double target_desired_speed = target_vehicle->GetSpeedLimit() / 3.6;
+  const double speed_limit = target_vehicle->GetSpeedLimit() / 3.6;
+  const double target_desired_speed = std::min(speed_limit, policy_speed);
+
   SharedPtr<Waypoint> target_waypoint =
     map_->GetWaypoint(target_vehicle->GetTransform().location);
 
-  printf("target location: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-      target_vehicle->GetTransform().location.x,
-      target_vehicle->GetTransform().location.y,
-      target_vehicle->GetTransform().location.z,
-      target_vehicle->GetTransform().rotation.roll,
-      target_vehicle->GetTransform().rotation.pitch,
-      target_vehicle->GetTransform().rotation.yaw);
+  //printf("target location: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+  //    target_vehicle->GetTransform().location.x,
+  //    target_vehicle->GetTransform().location.y,
+  //    target_vehicle->GetTransform().location.z,
+  //    target_vehicle->GetTransform().rotation.roll,
+  //    target_vehicle->GetTransform().rotation.pitch,
+  //    target_vehicle->GetTransform().rotation.yaw);
   printf("target speed: %f\n", target_speed);
+  printf("policy speed: %f\n", policy_speed);
+  printf("speed limit: %f\n", speed_limit);
   printf("target desired speed: %f\n", target_desired_speed);
+
+  if (speed_limit == 0.0) return;
 
   // Get the leader vehicle.
   SharedPtr<Vehicle> lead_vehicle = nullptr;
@@ -76,10 +85,8 @@ void LaneFollower::plan(const size_t target,
       map_->GetWaypoint(lead_vehicle->GetTransform().location);
     const double following_distance = lead_waypoint->GetDistance() -
                                       target_waypoint->GetDistance();
-
     target_accel = idm_.idm(
         target_speed, target_desired_speed, lead_speed, following_distance);
-
   } else {
     target_accel = idm_.idm(target_speed, target_desired_speed);
   }

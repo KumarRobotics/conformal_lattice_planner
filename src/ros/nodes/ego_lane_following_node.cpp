@@ -23,6 +23,7 @@
 #include <actionlib/server/simple_action_server.h>
 
 #include <conformal_lattice_planner/lane_follower.h>
+#include <conformal_lattice_planner/Policy.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
 
 using namespace std;
@@ -78,22 +79,13 @@ bool EgoLaneFollowingNode::initialize() {
   ROS_INFO_NAMED("ego_lane_following_planner", "connect to the server.");
   client_ = bst::make_shared<cc::Client>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
+  client_->GetWorld();
 
   // Initialize the planner.
   ROS_INFO_NAMED("ego_lane_following_planner", "initialize lane following planner.");
   double fixed_delta_seconds = 0.05;
   all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
   planner_ = bst::make_shared<LaneFollower>(fixed_delta_seconds);
-
-  //std::array<double, 3> longitudinal_gains;
-  //std::array<double, 3> lateral_gains;
-  //all_param_exist &= nh_.param<double>("longitudinal/kp", longitudinal_gains[0], 5.0);
-  //all_param_exist &= nh_.param<double>("longitudinal/ki", longitudinal_gains[1], 0.0);
-  //all_param_exist &= nh_.param<double>("longitudinal/kd", longitudinal_gains[2], 0.0);
-  //all_param_exist &= nh_.param<double>("lateral/kp", lateral_gains[0], 5.0);
-  //all_param_exist &= nh_.param<double>("lateral/ki", lateral_gains[1], 0.0);
-  //all_param_exist &= nh_.param<double>("lateral/kd", lateral_gains[2], 0.0);
-  //planner_->setControllerGains(longitudinal_gains, lateral_gains);
 
   // Start the action server.
   ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
@@ -112,10 +104,18 @@ void EgoLaneFollowingNode::executeCallback(
   SharedPtr<cc::World> world = bst::make_shared<cc::World>(client_->GetWorld());
   planner_->updateWorld(world);
 
+  // Get the ego policy.
+  const size_t ego_id = goal->ego_policy.id;
+  const double ego_policy_speed = goal->ego_policy.desired_speed;
+
+  // Get the agents ids.
+  // Do not need the desired speed for them.
+  vector<size_t> agent_ids(goal->agent_policies.size());
+  for (size_t i = 0; i < agent_ids.size(); ++i)
+    agent_ids[i] = goal->agent_policies[i].id;
+
   // Plan for the ego vehicle.
-  const size_t ego = goal->ego;
-  const vector<size_t> agents(goal->agents.begin(), goal->agents.end());
-  planner_->plan(ego, agents);
+  planner_->plan(ego_id, ego_policy_speed, agent_ids);
 
   // Inform the client the result of plan.
   clp::EgoPlanResult result;

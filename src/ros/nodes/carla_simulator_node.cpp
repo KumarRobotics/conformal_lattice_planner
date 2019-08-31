@@ -45,6 +45,7 @@
 
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
+#include <conformal_lattice_planner/Policy.h>
 
 using namespace std;
 namespace bst = boost;
@@ -81,39 +82,45 @@ private:
   SharedPtr<cc::World> world_ = nullptr;
   SharedPtr<cc::Client> client_ = nullptr;
   SharedPtr<cc::Sensor> following_cam_ = nullptr;
-  size_t ego_;
-  std::unordered_set<size_t> agents_;
+  //size_t ego_;
+  //std::unordered_set<size_t> agents_;
+
+  std::pair<size_t, double> ego_policy_;
+  std::unordered_map<size_t, double> agent_policies_;
 
   bool ego_ready_ = true;
   bool agents_ready_ = true;
-  bool timer_ready_ = true;
 
   /// ROS interface.
   mutable ros::NodeHandle nh_;
   mutable tf2_ros::TransformBroadcaster tf_broadcaster_;
   mutable ros::Publisher map_pub_;
   mutable ros::Publisher ego_marker_pub_;
-  //ros::Publisher agent_markers_pub_;
-  //mutable ros::Timer sim_timer_;
+  mutable ros::Publisher agents_marker_pub_;
 
   mutable image_transport::ImageTransport img_transport_;
   mutable image_transport::Publisher following_img_pub_;
 
   mutable actionlib::SimpleActionClient<clp::EgoPlanAction> ego_client_;
-  //actionlib::SimpleActionClient<clp::AgentPlanAction> agents_client;
+  mutable actionlib::SimpleActionClient<clp::AgentPlanAction> agents_client_;
 
 public:
 
   CarlaSimulatorNode(ros::NodeHandle nh) :
-    nh_(nh), img_transport_(nh_), ego_client_(nh_, "ego_plan", false) {}
+    nh_(nh),
+    img_transport_(nh_),
+    ego_client_(nh_, "ego_plan", false),
+    agents_client_(nh_, "agents_plan", false) {}
 
   /// Initialize the simulator ros node.
   bool initialize();
 
 private:
 
-  /// Spawn the ego vehicle.
-  cg::Transform spawnEgo(const bool no_rendering_mode = true);
+  /// Spawn the vehicles.
+  //cg::Transform spawnEgo(const bool no_rendering_mode = true);
+  void spawnVehicles(const bool no_rendering_mode = true);
+  void startVehicles();
 
   /// Manage agents around the ego vehicle.
   /// Add agents if there is empty space around the ego.
@@ -128,9 +135,6 @@ private:
 
   /// Publish the following image.
   void publishImage(const SharedPtr<cs::SensorData>& data) const;
-
-  /// Timer callback.
-  void timerCallback(const ros::TimerEvent& event);
 
   /**
    * @name Ego action callbacks
@@ -225,23 +229,19 @@ bool CarlaSimulatorNode::initialize() {
       "new settings: fixed_delta_seconds:%f no_rendering_mode:%d synchronous_mode:%d",
       *(settings.fixed_delta_seconds), settings.no_rendering_mode, settings.synchronous_mode);
 
-  // TODO: initialize the timer if this is still useful.
-  //sim_timer_ = nh_.createTimer(ros::Duration(time_step), &CarlaSimulatorNode::timerCallback, this);
-
   // Publish the map.
   ROS_INFO_NAMED("carla_simulator", "publish global map.");
   publishMap();
 
   // Initialize the ego vehicle.
-  ROS_INFO_NAMED("carla_simulator", "spawn the ego vehicle.");
-  spawnEgo(no_rendering_mode);
+  ROS_INFO_NAMED("carla_simulator", "spawn the vehicles.");
+  spawnVehicles(no_rendering_mode);
+  world_->Tick();
 
-  // Tick a few times to left the vehicles settle
-  for (size_t i = 0; i < 10; ++i)
-    world_->Tick();
-
-  //SharedPtr<cc::Actor> ego_actor = world_->GetActor(ego_);
-  //ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*20);
+  // Start the vehicles.
+  ROS_INFO_NAMED("carla_simulator", "start the vehicles.");
+  startVehicles();
+  world_->Tick();
 
   // Publish the ego vehicle marker.
   ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
@@ -259,7 +259,7 @@ bool CarlaSimulatorNode::initialize() {
   return all_param_exist;
 }
 
-cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
+void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
   bool all_param_exist = true;
 
@@ -296,9 +296,12 @@ cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
   ROS_DEBUG_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
       ego_transform.location.x, ego_transform.location.y, ego_transform.location.z,
       ego_transform.rotation.roll, ego_transform.rotation.pitch, ego_transform.rotation.yaw);
+
+  // Spawn the ego vehicle.
   SharedPtr<cc::Actor> ego_actor = world_->SpawnActor(ego_blueprint, ego_transform);
-  //ego_actor->SetSimulatePhysics(false);
-  ego_ = ego_actor->GetId();
+
+  ego_policy_.first = ego_actor->GetId();
+  ego_policy_.second = 29.0576; // 65mph
 
   // Spawn a camera following the ego vehicle.
   if (!no_rendering_mode) {
@@ -318,7 +321,18 @@ cg::Transform CarlaSimulatorNode::spawnEgo(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  return ego_transform;
+  // TODO: Spawn target vehicles.
+
+  return;
+}
+
+void CarlaSimulatorNode::startVehicles() {
+
+  SharedPtr<cc::Actor> ego_actor = world_->GetActor(ego_policy_.first);
+  ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*15.0);
+
+  // TODO: Set the velocity for the agents.
+  return;
 }
 
 void CarlaSimulatorNode::publishMap() const {
@@ -340,8 +354,8 @@ void CarlaSimulatorNode::publishMap() const {
 void CarlaSimulatorNode::publishTraffic() const {
 
   // Publish the ego marker and tf.
-  ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_)));
-  tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_), "ego")));
+  ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
+  tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_policy_.first), "ego")));
 
   // TODO: Publish the agents' markers.
   return;
@@ -358,9 +372,14 @@ void CarlaSimulatorNode::publishImage(const SharedPtr<cs::SensorData>& data) con
 void CarlaSimulatorNode::sendEgoGoal() {
 
   clp::EgoPlanGoal goal;
-  goal.ego = ego_;
-  for (const size_t agent : agents_)
-    goal.agents.push_back(agent);
+  goal.ego_policy.id = ego_policy_.first;
+  goal.ego_policy.desired_speed = ego_policy_.second;
+
+  for (const auto agent_policy : agent_policies_) {
+    goal.agent_policies.push_back(clp::Policy());
+    goal.agent_policies.back().id = agent_policy.first;
+    goal.agent_policies.back().desired_speed = agent_policy.second;
+  }
 
   ego_client_.sendGoal(
       goal,
@@ -369,7 +388,6 @@ void CarlaSimulatorNode::sendEgoGoal() {
       bst::bind(&CarlaSimulatorNode::egoPlanFeedbackCallback, this, _1));
 
   ego_ready_ = false;
-  timer_ready_ = false;
 
   return;
 }
@@ -386,12 +404,6 @@ void CarlaSimulatorNode::egoPlanDoneCallback(
 
   ego_ready_ = true;
   return;
-}
-
-void CarlaSimulatorNode::timerCallback(const ros::TimerEvent& event) {
-
-  //ROS_INFO_NAMED("carla_simulator", "timerCallback().");
-  //return;
 }
 
 using CarlaSimulatorNodePtr = CarlaSimulatorNode::Ptr;

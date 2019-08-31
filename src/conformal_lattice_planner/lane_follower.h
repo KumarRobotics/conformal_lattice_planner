@@ -34,7 +34,6 @@ private:
 protected:
 
   IntelligentDriverModel idm_;
-  //controller::VehiclePIDController controller_;
 
 public:
 
@@ -43,26 +42,8 @@ public:
     VehiclePlanner(time_step), idm_(idm) {}
 
   void plan(const size_t target,
+            const double policy_speed,
             const std::vector<size_t>& others) override;
-
-  //void setControllerGains(
-  //    const boost::optional<std::array<double, 3>&> longitudinal_gains = boost::none,
-  //    const boost::optional<std::array<double, 3>&> lateral_gains = boost::none) {
-
-  //  if (longitudinal_gains) {
-  //    controller_.longitudinalKp() = (*longitudinal_gains)[0];
-  //    controller_.longitudinalKi() = (*longitudinal_gains)[1];
-  //    controller_.longitudinalKd() = (*longitudinal_gains)[2];
-  //  }
-
-  //  if (lateral_gains) {
-  //    controller_.lateralKp() = (*lateral_gains)[0];
-  //    controller_.lateralKi() = (*lateral_gains)[1];
-  //    controller_.lateralKd() = (*lateral_gains)[2];
-  //  }
-
-  //  return;
-  //}
 
 private:
 

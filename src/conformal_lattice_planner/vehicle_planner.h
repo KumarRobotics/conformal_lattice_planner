@@ -35,7 +35,7 @@
 
 namespace planner {
 
-class VehiclePlanner : boost::noncopyable {
+class VehiclePlanner {
 
 protected:
 
@@ -59,7 +59,6 @@ protected:
 
   SharedPtr<World> world_;
   SharedPtr<Map> map_;
-  //SharedPtr<Client> client_;
 
 public:
 
@@ -75,6 +74,7 @@ public:
   //       If I use template, I have to templating other member functions as well.
   //       Sounds like a messy option.
   virtual void plan(const size_t target,
+                    const double policy_speed,
                     const std::vector<size_t>& others) = 0;
 
   /// Find the lead vehicle on the same lane of the target.
