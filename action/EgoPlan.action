@@ -1,7 +1,7 @@
 # Goal
-# Instead of a goal, this specifies the vehicles on the road.
-uint64 ego
-uint64[] agents
+# Policys of the ego and agent vehicles
+Policy ego_policy
+Policy[] agent_policies
 ---
 # Result
 bool success
