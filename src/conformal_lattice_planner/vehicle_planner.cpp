@@ -26,77 +26,81 @@ namespace planner {
 bst::optional<size_t> VehiclePlanner::findLeader(
     const size_t target, const std::vector<size_t>& others) const {
 
-  // Get the target vehicle.
-  SharedPtr<Actor> target_actor = world_->GetActor(target);
-  SharedPtr<Waypoint> target_waypoint =
-    map_->GetWaypoint(target_actor->GetTransform().location);
+  return boost::none;
 
-  SharedPtr<Actor> leader = nullptr;
-  double min_distance_diff = numeric_limits<double>::max();
+  //// Get the target vehicle.
+  //SharedPtr<Actor> target_actor = world_->GetActor(target);
+  //SharedPtr<Waypoint> target_waypoint =
+  //  map_->GetWaypoint(target_actor->GetTransform().location);
 
-  // Loop through other actors to find the leader.
-  for (const auto& other : others) {
-    SharedPtr<Actor> actor = world_->GetActor(other);
-    SharedPtr<Waypoint> waypoint =
-      map_->GetWaypoint(actor->GetTransform().location);
+  //SharedPtr<Actor> leader = nullptr;
+  //double min_distance_diff = numeric_limits<double>::max();
 
-    // Continue if the vehicle is not on the same road or
-    // the same lane with the target.
-    if (waypoint->GetRoadId() != target_waypoint->GetRoadId() ||
-        waypoint->GetLaneId() != target_waypoint->GetLaneId()) continue;
+  //// Loop through other actors to find the leader.
+  //for (const auto& other : others) {
+  //  SharedPtr<Actor> actor = world_->GetActor(other);
+  //  SharedPtr<Waypoint> waypoint =
+  //    map_->GetWaypoint(actor->GetTransform().location);
 
-    // Continue if the vehicle is behind the target.
-    // TODO: Is GetDistance() really doing what I hope for?
-    if (waypoint->GetDistance() < target_waypoint->GetDistance()) continue;
+  //  // Continue if the vehicle is not on the same road or
+  //  // the same lane with the target.
+  //  if (waypoint->GetRoadId() != target_waypoint->GetRoadId() ||
+  //      waypoint->GetLaneId() != target_waypoint->GetLaneId()) continue;
 
-    // Check if this leader is closer.
-    const double diff = waypoint->GetDistance() - target_waypoint->GetDistance();
-    if (diff < min_distance_diff) {
-      min_distance_diff = diff;
-      leader = actor;
-    }
-  }
+  //  // Continue if the vehicle is behind the target.
+  //  // TODO: Is GetDistance() really doing what I hope for?
+  //  if (waypoint->GetDistance() < target_waypoint->GetDistance()) continue;
 
-  if (leader) return leader->GetId();
-  else return bst::none;
+  //  // Check if this leader is closer.
+  //  const double diff = waypoint->GetDistance() - target_waypoint->GetDistance();
+  //  if (diff < min_distance_diff) {
+  //    min_distance_diff = diff;
+  //    leader = actor;
+  //  }
+  //}
+
+  //if (leader) return leader->GetId();
+  //else return bst::none;
 }
 
 boost::optional<size_t> VehiclePlanner::findFollower(
     const size_t target, const std::vector<size_t>& others) const {
 
-  // Get the target vehicle.
-  SharedPtr<Actor> target_actor = world_->GetActor(target);
-  SharedPtr<Waypoint> target_waypoint =
-    map_->GetWaypoint(target_actor->GetTransform().location);
+  return boost::none;
 
-  SharedPtr<Actor> follower = nullptr;
-  double min_distance_diff = numeric_limits<double>::max();
+  //// Get the target vehicle.
+  //SharedPtr<Actor> target_actor = world_->GetActor(target);
+  //SharedPtr<Waypoint> target_waypoint =
+  //  map_->GetWaypoint(target_actor->GetTransform().location);
 
-  // Loop through other actors to find the leader.
-  for (const auto& other : others) {
-    SharedPtr<Actor> actor = world_->GetActor(other);
-    SharedPtr<Waypoint> waypoint =
-      map_->GetWaypoint(actor->GetTransform().location);
+  //SharedPtr<Actor> follower = nullptr;
+  //double min_distance_diff = numeric_limits<double>::max();
 
-    // Continue if the vehicle is not on the same road or
-    // the same lane with the target.
-    if (waypoint->GetRoadId() != target_waypoint->GetRoadId() ||
-        waypoint->GetLaneId() != target_waypoint->GetLaneId()) continue;
+  //// Loop through other actors to find the leader.
+  //for (const auto& other : others) {
+  //  SharedPtr<Actor> actor = world_->GetActor(other);
+  //  SharedPtr<Waypoint> waypoint =
+  //    map_->GetWaypoint(actor->GetTransform().location);
 
-    // Continue if the vehicle is behind the target.
-    // TODO: Is GetDistance() really doing what I hope for?
-    if (waypoint->GetDistance() > target_waypoint->GetDistance()) continue;
+  //  // Continue if the vehicle is not on the same road or
+  //  // the same lane with the target.
+  //  if (waypoint->GetRoadId() != target_waypoint->GetRoadId() ||
+  //      waypoint->GetLaneId() != target_waypoint->GetLaneId()) continue;
 
-    // Check if this leader is closer.
-    const double diff = target_waypoint->GetDistance() - waypoint->GetDistance();
-    if (diff < min_distance_diff) {
-      min_distance_diff = diff;
-      follower = actor;
-    }
-  }
+  //  // Continue if the vehicle is behind the target.
+  //  // TODO: Is GetDistance() really doing what I hope for?
+  //  if (waypoint->GetDistance() > target_waypoint->GetDistance()) continue;
 
-  if (follower) return follower->GetId();
-  else return bst::none;
+  //  // Check if this leader is closer.
+  //  const double diff = target_waypoint->GetDistance() - waypoint->GetDistance();
+  //  if (diff < min_distance_diff) {
+  //    min_distance_diff = diff;
+  //    follower = actor;
+  //  }
+  //}
+
+  //if (follower) return follower->GetId();
+  //else return bst::none;
 }
 
 } // End namespace planner.

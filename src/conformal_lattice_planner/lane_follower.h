@@ -47,8 +47,8 @@ public:
 
 private:
 
-  SharedPtr<Waypoint> findNextWaypoint(
-      const SharedPtr<Waypoint>& waypoint, const double distance);
+  SharedPtr<CarlaWaypoint> findNextWaypoint(
+      const SharedPtr<CarlaWaypoint>& waypoint, const double distance);
 
 };
 

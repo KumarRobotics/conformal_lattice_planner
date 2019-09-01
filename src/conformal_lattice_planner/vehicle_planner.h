@@ -40,15 +40,15 @@ class VehiclePlanner {
 protected:
 
   /// Lift the carla classes into the class namespace.
-  using Client        = carla::client::Client;
-  using World         = carla::client::World;
-  using Map           = carla::client::Map;
-  using Waypoint      = carla::client::Waypoint;
-  using Actor         = carla::client::Actor;
-  using Vehicle       = carla::client::Vehicle;
-  using WorldSnapshot = carla::client::WorldSnapshot;
-  using ActorSnapshot = carla::client::ActorSnapshot;
-  using Transform     = carla::geom::Transform;
+  using CarlaClient        = carla::client::Client;
+  using CarlaWorld         = carla::client::World;
+  using CarlaMap           = carla::client::Map;
+  using CarlaWaypoint      = carla::client::Waypoint;
+  using CarlaActor         = carla::client::Actor;
+  using CarlaVehicle       = carla::client::Vehicle;
+  using CarlaWorldSnapshot = carla::client::WorldSnapshot;
+  using CarlaActorSnapshot = carla::client::ActorSnapshot;
+  using CarlaTransform     = carla::geom::Transform;
 
   template<typename T>
   using SharedPtr = carla::SharedPtr<T>;
@@ -57,15 +57,15 @@ protected:
 
   const double time_step_;
 
-  SharedPtr<World> world_;
-  SharedPtr<Map> map_;
+  SharedPtr<CarlaWorld> world_;
+  SharedPtr<CarlaMap> map_;
 
 public:
 
   VehiclePlanner(const double time_step) :
     time_step_(time_step){}
 
-  void updateWorld(const SharedPtr<World>& world) {
+  void updateWorld(const SharedPtr<CarlaWorld>& world) {
     world_ = world;
     map_ = world_->GetMap();
   }

@@ -38,8 +38,8 @@ void LaneFollower::plan(
     const std::vector<size_t>& others) {
 
   // Get the target vehicle.
-  SharedPtr<Vehicle> target_vehicle =
-    bst::static_pointer_cast<Vehicle>(world_->GetActor(target));
+  SharedPtr<CarlaVehicle> target_vehicle =
+    bst::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed
@@ -49,7 +49,7 @@ void LaneFollower::plan(
   const double speed_limit = target_vehicle->GetSpeedLimit() / 3.6;
   const double target_desired_speed = std::min(speed_limit, policy_speed);
 
-  SharedPtr<Waypoint> target_waypoint =
+  SharedPtr<CarlaWaypoint> target_waypoint =
     map_->GetWaypoint(target_vehicle->GetTransform().location);
 
   //printf("target location: x:%f y:%f z:%f r:%f p:%f y:%f\n",
@@ -64,13 +64,11 @@ void LaneFollower::plan(
   printf("speed limit: %f\n", speed_limit);
   printf("target desired speed: %f\n", target_desired_speed);
 
-  if (speed_limit == 0.0) return;
-
   // Get the leader vehicle.
-  SharedPtr<Vehicle> lead_vehicle = nullptr;
+  SharedPtr<CarlaVehicle> lead_vehicle = nullptr;
   bst::optional<size_t> leader =  findLeader(target, others);
   if (leader) {
-    lead_vehicle = bst::static_pointer_cast<Vehicle>(world_->GetActor(*leader));
+    lead_vehicle = bst::static_pointer_cast<CarlaVehicle>(world_->GetActor(*leader));
   }
 
   // Compute the acceleration of the target vehicle
@@ -81,7 +79,7 @@ void LaneFollower::plan(
     const double lead_speed = lead_vehicle->GetVelocity().Length();
     // Following distance.
     // TODO: What if the lead vehicle is on a different section of road.
-    SharedPtr<Waypoint> lead_waypoint =
+    SharedPtr<CarlaWaypoint> lead_waypoint =
       map_->GetWaypoint(lead_vehicle->GetTransform().location);
     const double following_distance = lead_waypoint->GetDistance() -
                                       target_waypoint->GetDistance();
@@ -98,8 +96,8 @@ void LaneFollower::plan(
 
   // Compute the reference transfrom.
   double distance_travelled = target_speed*time_step_ + 0.5*target_accel*time_step_*time_step_;
-  SharedPtr<Waypoint> reference_waypoint = findNextWaypoint(target_waypoint, distance_travelled);
-  const Transform reference_transform = reference_waypoint->GetTransform();
+  SharedPtr<CarlaWaypoint> reference_waypoint = findNextWaypoint(target_waypoint, distance_travelled);
+  const CarlaTransform reference_transform = reference_waypoint->GetTransform();
 
   // Update the vehicle speed and transform.
   target_vehicle->SetTransform(reference_transform);
@@ -108,15 +106,15 @@ void LaneFollower::plan(
   return;
 }
 
-LaneFollower::SharedPtr<LaneFollower::Waypoint>
+LaneFollower::SharedPtr<LaneFollower::CarlaWaypoint>
   LaneFollower::findNextWaypoint(
-    const SharedPtr<Waypoint>& waypoint, const double distance) {
+    const SharedPtr<CarlaWaypoint>& waypoint, const double distance) {
 
   const cg::Vector3D waypoint_direction = waypoint->GetTransform().GetForwardVector();
 
   // Get candidate next waypoints at a certain distance from the given waypoint.
-  std::vector<SharedPtr<Waypoint>> candidates = waypoint->GetNext(distance);
-  SharedPtr<Waypoint> next_waypoint = nullptr;
+  std::vector<SharedPtr<CarlaWaypoint>> candidates = waypoint->GetNext(distance);
+  SharedPtr<CarlaWaypoint> next_waypoint = nullptr;
   double best_score = -5.0;
 
   //std::printf("current waypoint:\n");
