@@ -20,7 +20,9 @@
 #include <random>
 #include <cmath>
 #include <unordered_map>
+#include <unordered_set>
 
+#include <boost/functional/hash.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/convert.h>
@@ -34,6 +36,9 @@
 #include <carla/client/Waypoint.h>
 #include <carla/geom/Transform.h>
 #include <carla/sensor/data/Image.h>
+
+#include <conformal_lattice_planner/waypoint_lattice.h>
+#include <conformal_lattice_planner/utils.h>
 
 using namespace std;
 namespace bst = boost;
@@ -63,16 +68,17 @@ visualization_msgs::MarkerPtr createWaypointMsg(
   waypoints_msg->lifetime = ros::Duration(0.0);
   waypoints_msg->frame_locked = false;
   waypoints_msg->pose.orientation.w = 1.0;
-  waypoints_msg->scale.x = 1.0;
-  waypoints_msg->scale.y = 1.0;
-  waypoints_msg->scale.z = 1.0;
+  waypoints_msg->scale.x = 0.5;
+  waypoints_msg->scale.y = 0.5;
+  waypoints_msg->scale.z = 0.5;
   waypoints_msg->color = color;
 
   for (const auto& wp : waypoints) {
+    cg::Transform transform = utils::convertTransform(wp->GetTransform());
     geometry_msgs::Point pt;
-    pt.x = wp->GetTransform().location.x;
-    pt.y = wp->GetTransform().location.y;
-    pt.z = wp->GetTransform().location.z;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
 
     waypoints_msg->points.push_back(pt);
     waypoints_msg->colors.push_back(color);
@@ -117,10 +123,11 @@ visualization_msgs::MarkerPtr createJunctionMsg(
   junctions_msg->color = color;
 
   for (const auto& wp : waypoints) {
+    cg::Transform transform = utils::convertTransform(wp->GetTransform());
     geometry_msgs::Point pt;
-    pt.x = wp->GetTransform().location.x;
-    pt.y = wp->GetTransform().location.y;
-    pt.z = wp->GetTransform().location.z;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
 
     junctions_msg->points.push_back(pt);
     junctions_msg->colors.push_back(color);
@@ -162,14 +169,14 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
   vehicle_msg->scale.z = 1.5;
   vehicle_msg->color = fixed_color;
 
-  cg::Transform transform = vehicle->GetTransform();
+  cg::Transform transform = utils::convertTransform(vehicle->GetTransform());
   vehicle_msg->pose.position.x = transform.location.x;
   vehicle_msg->pose.position.y = transform.location.y;
   vehicle_msg->pose.position.z = transform.location.z;
   tf2::Quaternion tf2_quat;
   tf2_quat.setRPY(
       transform.rotation.roll/180.0*M_PI,
-      -transform.rotation.pitch/180.0*M_PI,
+      transform.rotation.pitch/180.0*M_PI,
       transform.rotation.yaw/180.0*M_PI);
   tf2::convert(tf2_quat, vehicle_msg->pose.orientation);
 
@@ -182,7 +189,7 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
 
   geometry_msgs::TransformStampedPtr transform_msg(
       new geometry_msgs::TransformStamped);
-  cg::Transform transform = vehicle->GetTransform();
+  cg::Transform transform = utils::convertTransform(vehicle->GetTransform());
 
   transform_msg->header.stamp = ros::Time::now();
   transform_msg->header.frame_id = "map";
@@ -195,7 +202,7 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
   tf2::Quaternion tf2_quat;
   tf2_quat.setRPY(
       transform.rotation.roll/180.0*M_PI,
-      -transform.rotation.pitch/180.0*M_PI,
+      transform.rotation.pitch/180.0*M_PI,
       transform.rotation.yaw/180.0*M_PI);
   transform_msg->transform.rotation.x = tf2_quat.x();
   transform_msg->transform.rotation.y = tf2_quat.y();
@@ -232,6 +239,188 @@ sensor_msgs::ImagePtr createImageMsg(const carla::SharedPtr<csd::Image>& img) {
   }
 
   return image_msg;
+}
+
+visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
+    const bst::shared_ptr<const planner::WaypointNode>& lattice_entry) {
+
+  std_msgs::ColorRGBA color;
+  color.r = 0.2;
+  color.g = 0.8;
+  color.b = 0.2;
+  color.a = 1.0;
+
+  //printf("create traffice lattice node and edge msg.\n");
+  visualization_msgs::MarkerPtr lattice_node_msg(new visualization_msgs::Marker);
+  visualization_msgs::MarkerPtr lattice_edge_msg(new visualization_msgs::Marker);
+
+  lattice_node_msg->header.stamp = ros::Time::now();
+  lattice_node_msg->header.frame_id = "map";
+  lattice_node_msg->ns = "traffic_lattice_node";
+  lattice_node_msg->id = 0;
+  lattice_node_msg->type = visualization_msgs::Marker::SPHERE_LIST;
+  lattice_node_msg->action = visualization_msgs::Marker::ADD;
+  lattice_node_msg->lifetime = ros::Duration(0.0);
+  lattice_node_msg->frame_locked = false;
+  lattice_node_msg->pose.orientation.w = 1.0;
+  lattice_node_msg->scale.x = 1.0;
+  lattice_node_msg->scale.y = 1.0;
+  lattice_node_msg->scale.z = 1.0;
+  lattice_node_msg->color = color;
+
+  lattice_edge_msg->header.stamp = ros::Time::now();
+  lattice_edge_msg->header.frame_id = "map";
+  lattice_edge_msg->ns = "traffic_lattice_edge";
+  lattice_edge_msg->id = 0;
+  lattice_edge_msg->type = visualization_msgs::Marker::LINE_LIST;
+  lattice_edge_msg->action = visualization_msgs::Marker::ADD;
+  lattice_edge_msg->lifetime = ros::Duration(0.0);
+  lattice_edge_msg->frame_locked = false;
+  lattice_edge_msg->pose.orientation.w = 1.0;
+  lattice_edge_msg->scale.x = 0.1;
+  lattice_edge_msg->scale.y = 0.0;
+  lattice_edge_msg->scale.z = 0.0;
+  lattice_edge_msg->color = color;
+
+  std::unordered_set<size_t> processed_waypoints;
+  std::unordered_set<size_t> drawed_waypoints;
+  std::unordered_set<size_t> drawed_waypoint_pairs;
+  std::queue<bst::shared_ptr<const planner::WaypointNode>> unprocessed_nodes;
+  unprocessed_nodes.push(lattice_entry);
+
+  //printf("Fill in the nodes and edges.\n");
+  while (!unprocessed_nodes.empty()) {
+    //printf("unprocessed nodes #: %lu\n", unprocessed_nodes.size());
+    // Get the center point to be processed.
+    bst::shared_ptr<const planner::WaypointNode> center = unprocessed_nodes.front();
+    unprocessed_nodes.pop();
+    processed_waypoints.insert(center->waypoint()->GetId());
+
+    //printf("center: %lu\n", center->waypoint()->GetId());
+    //for (const auto& pt : unprocessed_nodes) std::printf("%lu\n", pt->waypoint()->GetId());
+
+    cg::Transform center_transform = utils::convertTransform(center->waypoint()->GetTransform());
+    geometry_msgs::Point center_pt;
+    center_pt.x = center_transform.location.x;
+    center_pt.y = center_transform.location.y;
+    center_pt.z = center_transform.location.z;
+
+    // Add the front node.
+    bst::shared_ptr<const planner::WaypointNode> front = center->front();
+    if (front) {
+      cg::Transform transform = utils::convertTransform(front->waypoint()->GetTransform());
+      geometry_msgs::Point pt;
+      pt.x = transform.location.x;
+      pt.y = transform.location.y;
+      pt.z = transform.location.z;
+
+      if (processed_waypoints.count(front->waypoint()->GetId()) == 0) {
+        //printf("Add front: %lu\n", front->waypoint()->GetId());
+        unprocessed_nodes.push(front);
+      }
+
+      if (drawed_waypoints.count(front->waypoint()->GetId()) == 0) {
+        lattice_node_msg->points.push_back(pt);
+        lattice_node_msg->colors.push_back(color);
+        drawed_waypoints.insert(front->waypoint()->GetId());
+      }
+
+      size_t pair_id0 = 0, pair_id1 = 0;
+      utils::hashCombine(pair_id0, center->waypoint()->GetId(), front->waypoint()->GetId());
+      utils::hashCombine(pair_id1, front->waypoint()->GetId(), center->waypoint()->GetId());
+      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
+        lattice_edge_msg->points.push_back(center_pt);
+        lattice_edge_msg->points.push_back(pt);
+        lattice_edge_msg->colors.push_back(color);
+        lattice_edge_msg->colors.push_back(color);
+
+        drawed_waypoint_pairs.insert(pair_id0);
+        drawed_waypoint_pairs.insert(pair_id1);
+      }
+    }
+
+    // Add the left node.
+    bst::shared_ptr<const planner::WaypointNode> left = center->left();
+    if (left) {
+      cg::Transform transform = utils::convertTransform(left->waypoint()->GetTransform());
+      geometry_msgs::Point pt;
+      pt.x = transform.location.x;
+      pt.y = transform.location.y;
+      pt.z = transform.location.z;
+
+      if (processed_waypoints.count(left->waypoint()->GetId()) == 0) {
+        //printf("Add left: %lu\n", left->waypoint()->GetId());
+        unprocessed_nodes.push(left);
+      }
+
+      if (drawed_waypoints.count(left->waypoint()->GetId()) == 0) {
+        lattice_node_msg->points.push_back(pt);
+        lattice_node_msg->colors.push_back(color);
+        drawed_waypoints.insert(left->waypoint()->GetId());
+      }
+
+      size_t pair_id0 = 0, pair_id1 = 0;
+      utils::hashCombine(pair_id0, center->waypoint()->GetId(), left->waypoint()->GetId());
+      utils::hashCombine(pair_id1, left->waypoint()->GetId(), center->waypoint()->GetId());
+      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
+        lattice_edge_msg->points.push_back(center_pt);
+        lattice_edge_msg->points.push_back(pt);
+        lattice_edge_msg->colors.push_back(color);
+        lattice_edge_msg->colors.push_back(color);
+
+        drawed_waypoint_pairs.insert(pair_id0);
+        drawed_waypoint_pairs.insert(pair_id1);
+      }
+    }
+
+    // Add the right node.
+    bst::shared_ptr<const planner::WaypointNode> right = center->right();
+    if (right) {
+      cg::Transform transform = utils::convertTransform(right->waypoint()->GetTransform());
+      geometry_msgs::Point pt;
+      pt.x = transform.location.x;
+      pt.y = transform.location.y;
+      pt.z = transform.location.z;
+
+      if (processed_waypoints.count(right->waypoint()->GetId()) == 0) {
+        //printf("Add right: %lu\n", right->waypoint()->GetId());
+        unprocessed_nodes.push(right);
+      }
+
+      if (drawed_waypoints.count(right->waypoint()->GetId()) == 0) {
+        lattice_node_msg->points.push_back(pt);
+        lattice_node_msg->colors.push_back(color);
+        drawed_waypoints.insert(right->waypoint()->GetId());
+      }
+
+      size_t pair_id0 = 0, pair_id1 = 0;
+      utils::hashCombine(pair_id0, center->waypoint()->GetId(), right->waypoint()->GetId());
+      utils::hashCombine(pair_id1, right->waypoint()->GetId(), center->waypoint()->GetId());
+      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
+        lattice_edge_msg->points.push_back(center_pt);
+        lattice_edge_msg->points.push_back(pt);
+        lattice_edge_msg->colors.push_back(color);
+        lattice_edge_msg->colors.push_back(color);
+
+        drawed_waypoint_pairs.insert(pair_id0);
+        drawed_waypoint_pairs.insert(pair_id1);
+      }
+    }
+  }
+
+  //std::printf("sphere list size: %lu, %lu\n",
+  //    drawed_waypoints.size(),
+  //    lattice_node_msg->points.size());
+  //std::printf("line list size: %lu, %lu\n",
+  //    drawed_waypoint_pairs.size(),
+  //    lattice_edge_msg->points.size());
+
+  visualization_msgs::MarkerArrayPtr traffic_lattice_msg(
+      new visualization_msgs::MarkerArray);
+  traffic_lattice_msg->markers.push_back(*lattice_node_msg);
+  traffic_lattice_msg->markers.push_back(*lattice_edge_msg);
+
+  return traffic_lattice_msg;
 }
 
 } // End namespace carla.

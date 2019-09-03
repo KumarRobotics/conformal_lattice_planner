@@ -46,6 +46,7 @@
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 #include <conformal_lattice_planner/Policy.h>
+#include <conformal_lattice_planner/waypoint_lattice.h>
 
 using namespace std;
 namespace bst = boost;
@@ -69,6 +70,8 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const carla::SharedPtr<cc::Actor>&, const std::string&);
 sensor_msgs::ImagePtr createImageMsg(
     const carla::SharedPtr<csd::Image>&);
+visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
+    const bst::shared_ptr<const planner::WaypointNode>&);
 
 class CarlaSimulatorNode : private bst::noncopyable {
 
@@ -79,17 +82,28 @@ public:
 
 private:
 
+
+  /// Policy of the ego vehicle (ego_id->ego_desired_speed).
+  std::pair<size_t, double> ego_policy_;
+
+  /// Policies of agents.
+  std::unordered_map<size_t, double> agent_policies_;
+
+  /// Used to keep track of the traffic around the ego vehicle,
+  /// so that we can add new agents and remove agents that are far
+  /// from the ego vehicle efficiently.
+  bst::shared_ptr<planner::WaypointLattice> traffic_lattice_;
+
+  /// Indicates if the ego planner action server has returned success.
+  bool ego_ready_ = true;
+
+  /// Indicates if the agents' planner action server has returned success.
+  bool agents_ready_ = true;
+
+  /// Carla interface.
   SharedPtr<cc::World> world_ = nullptr;
   SharedPtr<cc::Client> client_ = nullptr;
   SharedPtr<cc::Sensor> following_cam_ = nullptr;
-  //size_t ego_;
-  //std::unordered_set<size_t> agents_;
-
-  std::pair<size_t, double> ego_policy_;
-  std::unordered_map<size_t, double> agent_policies_;
-
-  bool ego_ready_ = true;
-  bool agents_ready_ = true;
 
   /// ROS interface.
   mutable ros::NodeHandle nh_;
@@ -97,6 +111,7 @@ private:
   mutable ros::Publisher map_pub_;
   mutable ros::Publisher ego_marker_pub_;
   mutable ros::Publisher agents_marker_pub_;
+  mutable ros::Publisher traffic_lattice_pub_;
 
   mutable image_transport::ImageTransport img_transport_;
   mutable image_transport::Publisher following_img_pub_;
@@ -185,6 +200,8 @@ bool CarlaSimulatorNode::initialize() {
   // Create publishers.
   map_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("town_map", 1, true);
   ego_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_object", 1, true);
+  agents_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("agent_objects", 1, true);
+  traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
 
   // Get the world.
   string host = "localhost";
@@ -199,7 +216,6 @@ bool CarlaSimulatorNode::initialize() {
   ros::Duration(2.0).sleep();
 
   // Applying the world settings.
-  // TODO: Read the variables from the parameter server.
   double fixed_delta_seconds = 0.05;
   bool no_rendering_mode = true;
   bool synchronous_mode = true;
@@ -263,6 +279,7 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
   bool all_param_exist = true;
 
+  // \c blueprint_library has all actor models we can create.
   SharedPtr<cc::BlueprintLibrary> blueprint_library =
     world_->GetBlueprintLibrary();
 
@@ -271,7 +288,6 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
   all_param_exist &= nh_.param<std::string>(
       "vehicle_name", vehicle_name, "vehicle.audi.tt");
   auto ego_blueprint = blueprint_library->at(vehicle_name);
-  //auto ego_blueprint = (*vehicle_library)[0];
 
   // Load ego vehicle initial position.
   array<double, 3> ego_pt{0, 0, 0};
@@ -293,7 +309,7 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
       min_distance_sq = distance_sq;
     }
   }
-  ROS_DEBUG_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
+  ROS_INFO_NAMED("carla_simulator", "Initial Ego x:%f y:%f z:%f r:%f p:%f y:%f",
       ego_transform.location.x, ego_transform.location.y, ego_transform.location.z,
       ego_transform.rotation.roll, ego_transform.rotation.pitch, ego_transform.rotation.yaw);
 
@@ -313,13 +329,19 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     cg::Transform camera_transform = cg::Transform{
       cg::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
       cg::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
-    SharedPtr<cc::Actor> cam_actor = world_->SpawnActor(camera_blueprint, camera_transform, ego_actor.get());
+    SharedPtr<cc::Actor> cam_actor = world_->SpawnActor(
+        camera_blueprint, camera_transform, ego_actor.get());
     following_cam_ = boost::static_pointer_cast<cc::Sensor>(cam_actor);
     following_cam_->Listen(bst::bind(&CarlaSimulatorNode::publishImage, this, _1));
 
     // Create the image publisher for the following camera.
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
+
+  // Initialize the traffic lattice.
+  SharedPtr<cc::Waypoint> ego_waypoint =
+    world_->GetMap()->GetWaypoint(ego_transform.location);
+  traffic_lattice_ = bst::make_shared<planner::WaypointLattice>(ego_waypoint, 200.0, 4.0);
 
   // TODO: Spawn target vehicles.
 
@@ -353,11 +375,15 @@ void CarlaSimulatorNode::publishMap() const {
 
 void CarlaSimulatorNode::publishTraffic() const {
 
+  // Publish the traffic lattice.
+  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
+
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
   tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_policy_.first), "ego")));
 
   // TODO: Publish the agents' markers.
+
   return;
 }
 

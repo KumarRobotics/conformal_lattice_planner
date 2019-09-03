@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(conformal_lattice_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-#set(CMAKE_CXX_COMPILER /usr/bin/clang++-7)
 add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
+#add_compile_options(-std=c++14 -Wall -fmax-errors=5 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
