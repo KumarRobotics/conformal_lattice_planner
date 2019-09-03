@@ -54,6 +54,10 @@ void hashCombine(size_t& seed, T val, Args... args) {
  * some are harder to recognize, like \c carla::client::Waypoint::GetLeft(),
  * which actually returns a right waypoint in the right hand coordinate systems.
  *
+ * The conversion is done by flipping the positive y-axis. Therefore the y
+ * coordinate is inverted in translation. The roll and yaw are inverted in
+ * euler angles.
+ *
  * @{
  */
 void convertLocationInPlace(carla::geom::Location& in) {
