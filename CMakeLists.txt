@@ -163,6 +163,7 @@ set(CARLA_LIBS
 add_library(all_planning
   src/conformal_lattice_planner/vehicle_planner.cpp
   src/conformal_lattice_planner/lane_follower.cpp
+  src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(all_planning
   ${CARLA_LIBS}
@@ -197,6 +198,7 @@ add_dependencies(all_planning
 add_executable(carla_simulator_node
   src/ros/nodes/carla_simulator_node.cpp
   src/ros/nodes/convert_to_visualization_msgs.cpp
+  src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(carla_simulator_node
   ${CARLA_LIBS}
@@ -209,6 +211,7 @@ add_dependencies(carla_simulator_node
 
 add_executable(ego_lane_following_node
   src/ros/nodes/ego_lane_following_node.cpp
+  src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(ego_lane_following_node
   all_planning

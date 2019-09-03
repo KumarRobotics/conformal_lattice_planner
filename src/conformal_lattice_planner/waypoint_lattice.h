@@ -34,6 +34,8 @@
 #include <carla/client/Waypoint.h>
 #include <carla/geom/Transform.h>
 
+#include <conformal_lattice_planner/utils.h>
+
 namespace planner {
 
 class WaypointNode {
@@ -131,6 +133,11 @@ public:
 
 }; // End class WaypointNode.
 
+/**
+ * \brief Conformal lattice compliant to the road structure.
+ *
+ * See \c WaypointNode to find the interface required for the \c Node template.
+ */
 template<typename Node>
 class Lattice {
 
@@ -162,18 +169,64 @@ protected:
 
 public:
 
+  /**
+   * \brief Constructor of the class.
+   *
+   * \param[in] start The starting point of the lattice.
+   * \param[in] range The desired range of the lattice.
+   * \param[in] longitudinal_resolution
+   *            The distance between two consecutive nodes of the lattice on the same lane.
+   */
   Lattice(const boost::shared_ptr<CarlaWaypoint>& start,
           const double range,
           const double longitudinal_resolution);
 
+  /// Get the entry node of the lattice, which has distance 0.0.
   boost::shared_ptr<const Node> latticeEntry() const {
     return lattice_entry_;
   }
 
+  /// Get the exit node of the lattice, which corresponds to the range of the lattice.
   boost::shared_ptr<const Node> latticeExit() const {
     return lattice_exit_;
   }
 
+  /**
+   * \brief Extend the range of the lattice.
+   *
+   * \param[in] The new range of the lattice. If this is less than
+   *            the current range, no operation is performed.
+   */
+  void extend(const double range);
+
+  /**
+   * \brief Shorten the range of the current lattice.
+   *
+   * \param[in] The new range of the lattice. If this is more than
+   *            the current range, no operation is performed.
+   */
+  void shorten(const double range);
+
+  /**
+   * @name Node Query
+   *
+   * This group of functions search for a target node relative
+   * to the given \c query waypoint on the lattice. In the case that nothing
+   * is found (e.g. the given \c range exceeds the range of the lattice),
+   * \c nullptr is returned. The interface of the functions follows the same
+   * pattern:
+   *
+   * \c query The query waypoint.
+   * \c range The range to search ahead or back.
+   *
+   * \note Functions like \c leftFront() is different from \c frontLeft().
+   * \c leftFront() finds the left waypoint first and then searches forward.
+   * \c frontLeft() searches forward first and then finds the left waypoint.
+   * If neither of the functions returns \c nullptr, they should return the
+   * same node on the lattice.
+   *
+   */
+  /// @{
   boost::shared_ptr<const Node> front(
       const boost::shared_ptr<const CarlaWaypoint>& query,
       const double range) const;
@@ -213,16 +266,9 @@ public:
   boost::shared_ptr<const Node> backRight(
       const boost::shared_ptr<const CarlaWaypoint>& query,
       const double range) const;
+  /// @}
 
 protected:
-
-  const size_t hashRoadLaneIds(const uint32_t road_id,
-                               const int32_t lane_id) const {
-    size_t seed = 0;
-    boost::hash_combine(seed, road_id);
-    boost::hash_combine(seed, lane_id);
-    return seed;
-  }
 
   void updateWaypointToNodeTable(
       const size_t waypoint_id,
@@ -234,8 +280,10 @@ protected:
   void updateRoadlaneToWaypointsTable(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
 
-    const size_t roadlane_id = hashRoadLaneIds(
-        waypoint->GetRoadId(), waypoint->GetLaneId());
+    //const size_t roadlane_id = hashRoadLaneIds(
+    //    waypoint->GetRoadId(), waypoint->GetLaneId());
+    size_t roadlane_id = 0;
+    utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
 
     // Initialize this entry in the table.
     if (roadlane_to_waypoints_table_.find(roadlane_id) ==
@@ -577,8 +625,10 @@ boost::shared_ptr<Node> Lattice<Node>::closestNode(
   // Otherwise, we have to do a bit more work.
   // Compare the given waypoint with the waypoints on the same road+lane.
   // Find the closest waypoint node on the same road+lane.
-  const size_t roadlane_id = hashRoadLaneIds(
-      waypoint->GetRoadId(), waypoint->GetLaneId());
+  //const size_t roadlane_id = hashRoadLaneIds(
+  //    waypoint->GetRoadId(), waypoint->GetLaneId());
+  size_t roadlane_id = 0;
+  utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
 
   if (roadlane_to_waypoints_table_.find(roadlane_id) !=
       roadlane_to_waypoints_table_.end()) {

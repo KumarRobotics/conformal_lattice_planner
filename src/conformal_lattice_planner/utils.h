@@ -60,40 +60,17 @@ void hashCombine(size_t& seed, T val, Args... args) {
  *
  * @{
  */
-void convertLocationInPlace(carla::geom::Location& in) {
-  in.y = -in.y;
-  return;
-}
+void convertLocationInPlace(carla::geom::Location& in);
 
-carla::geom::Location convertLocation(const carla::geom::Location& in) {
-  carla::geom::Location out = in;
-  convertLocationInPlace(out);
-  return out;
-}
+carla::geom::Location convertLocation(const carla::geom::Location& in);
 
-void convertRotationInPlace(carla::geom::Rotation& in) {
-  in.roll = -in.roll;
-  in.yaw = -in.yaw;
-  return;
-}
+void convertRotationInPlace(carla::geom::Rotation& in);
 
-carla::geom::Rotation convertRotation(const carla::geom::Rotation& in) {
-  carla::geom::Rotation out = in;
-  convertRotationInPlace(out);
-  return out;
-}
+carla::geom::Rotation convertRotation(const carla::geom::Rotation& in);
 
-void convertTransformInPlace(carla::geom::Transform& in) {
-  convertRotationInPlace(in.rotation);
-  convertLocationInPlace(in.location);
-  return;
-}
+void convertTransformInPlace(carla::geom::Transform& in);
 
-carla::geom::Transform convertTransform(const carla::geom::Transform& in) {
-  carla::geom::Transform out = in;
-  convertTransformInPlace(out);
-  return out;
-}
+carla::geom::Transform convertTransform(const carla::geom::Transform& in);
 /**@}*/
 
 } // End namespace utils.
