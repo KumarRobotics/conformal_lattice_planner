@@ -29,6 +29,7 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/pointer_cast.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/core/noncopyable.hpp>
 
 #include <carla/client/World.h>
 #include <carla/client/Map.h>
@@ -39,7 +40,7 @@
 
 namespace planner {
 
-class WaypointNode {
+class WaypointNode : private boost::noncopyable {
 
 protected:
 
@@ -140,7 +141,7 @@ public:
  * See \c WaypointNode to find the interface required for the \c Node template.
  */
 template<typename Node>
-class Lattice {
+class Lattice : private boost::noncopyable {
 
 protected:
 
