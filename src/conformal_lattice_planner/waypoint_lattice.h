@@ -317,6 +317,18 @@ protected:
     else return nullptr;
   }
 
+  void extendFront(const boost::shared_ptr<Node>& node,
+                   const double range,
+                   std::queue<boost::shared_ptr<Node>>& nodes_queue);
+
+  void extendLeft(const boost::shared_ptr<Node>& node,
+                  const double range,
+                  std::queue<boost::shared_ptr<Node>>& nodes_queue);
+
+  void extendRight(const boost::shared_ptr<Node>& node,
+                   const double range,
+                   std::queue<boost::shared_ptr<Node>>& nodes_queue);
+
 }; // End class Lattice.
 
 template<typename Node>
@@ -356,73 +368,9 @@ Lattice<Node>::Lattice(
     boost::shared_ptr<Node> node = nodes_queue.front();
     nodes_queue.pop();
 
-    // Front waypoint.
-    boost::shared_ptr<CarlaWaypoint> front_waypoint =
-      findFrontWaypoint(node->waypoint(), longitudinal_resolution_);
-
-    if (front_waypoint) {
-      // Find the front node correspoinding to the front waypoint if it exists.
-      boost::shared_ptr<Node> front_node = closestNode(front_waypoint, 0.2);
-
-      if (!front_node) {
-        // This front node does not exist yet.
-        front_node = boost::make_shared<Node>(front_waypoint);
-        front_node->distance() = node->distance() + longitudinal_resolution_;
-
-        // Add the new node to the tables.
-        updateWaypointToNodeTable(front_waypoint->GetId(), front_node);
-        updateRoadlaneToWaypointsTable(front_waypoint);
-
-        // Add this new node to the queue if it is not beyond the max range.
-        if (front_node->distance() < range) {
-          nodes_queue.push(front_node);
-          // Keep track of the lattice exit, which is the node with the maximum distance.
-          if (front_node->distance() > lattice_exit_->distance())
-            lattice_exit_ = front_node;
-        }
-      }
-
-      // If this front node is (will be) added to the graph, it is set to the
-      // front node of the current node.
-      if (front_node->distance() < range)
-        node->front() = front_node;
-    }
-
-    // In the same way of finding the front node, searching for the left node and right node.
-
-    // Left waypoint.
-    boost::shared_ptr<CarlaWaypoint> left_waypoint =
-      findLeftWaypoint(node->waypoint());
-
-    if (left_waypoint) {
-      boost::shared_ptr<Node> left_node = closestNode(left_waypoint, 0.2);
-      if (!left_node) {
-        left_node = boost::make_shared<Node>(left_waypoint);
-        left_node->distance() = node->distance();
-
-        updateWaypointToNodeTable(left_waypoint->GetId(), left_node);
-        updateRoadlaneToWaypointsTable(left_waypoint);
-        nodes_queue.push(left_node);
-      }
-      node->left() = left_node;
-    }
-
-    // Right waypoint.
-    boost::shared_ptr<CarlaWaypoint> right_waypoint =
-      findRightWaypoint(node->waypoint());
-
-    if (right_waypoint) {
-      boost::shared_ptr<Node> right_node = closestNode(right_waypoint, 0.2);
-      if (!right_node) {
-        right_node = boost::make_shared<Node>(right_waypoint);
-        right_node->distance() = node->distance();
-
-        updateWaypointToNodeTable(right_waypoint->GetId(), right_node);
-        updateRoadlaneToWaypointsTable(right_waypoint);
-        nodes_queue.push(right_node);
-      }
-      node->right() = right_node;
-    }
+    extendFront(node, range, nodes_queue);
+    extendLeft(node, range, nodes_queue);
+    extendRight(node, range, nodes_queue);
   }
 
   // All nodes that has been added now must have front, left, and right neighbors.
@@ -436,6 +384,109 @@ Lattice<Node>::Lattice(
   }
 
   //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::extendFront(
+    const boost::shared_ptr<Node>& node,
+    const double range,
+    std::queue<boost::shared_ptr<Node>>& nodes_queue) {
+
+  // Find the front waypoint.
+  boost::shared_ptr<CarlaWaypoint> front_waypoint =
+    findFrontWaypoint(node->waypoint(), longitudinal_resolution_);
+
+  if (front_waypoint) {
+    // Find the front node correspoinding to the front waypoint if it exists.
+    boost::shared_ptr<Node> front_node = closestNode(front_waypoint, 0.2);
+
+    if (!front_node) {
+      // This front node does not exist yet.
+      front_node = boost::make_shared<Node>(front_waypoint);
+      front_node->distance() = node->distance() + longitudinal_resolution_;
+
+      // Add this new node to the queue if it is not beyond the max range.
+      if (front_node->distance() < range) {
+        // Add the new node to the tables.
+        updateWaypointToNodeTable(front_waypoint->GetId(), front_node);
+        updateRoadlaneToWaypointsTable(front_waypoint);
+        // Add the new node to the queue.
+        nodes_queue.push(front_node);
+      }
+    }
+
+    // If this front node is added to the graph, it is set to the
+    // front node of the current node.
+    if (waypoint_to_node_table_.find(front_node->waypoint()->GetId()) !=
+        waypoint_to_node_table_.end()) {
+      node->front() = front_node;
+      // Keep track of the lattice exit, which is the node with the maximum distance.
+      if (front_node->distance() > lattice_exit_->distance())
+        lattice_exit_ = front_node;
+    }
+  }
+
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::extendLeft(
+    const boost::shared_ptr<Node>& node,
+    const double range,
+    std::queue<boost::shared_ptr<Node>>& nodes_queue) {
+  // Find the left waypoint.
+  boost::shared_ptr<CarlaWaypoint> left_waypoint =
+    findLeftWaypoint(node->waypoint());
+
+  if (left_waypoint) {
+    // Find the left node corresponds to the waypoint.
+    boost::shared_ptr<Node> left_node = closestNode(left_waypoint, 0.2);
+
+    if (!left_node) {
+      // This left node does not exist yet, add it to the tables and queue.
+      left_node = boost::make_shared<Node>(left_waypoint);
+      left_node->distance() = node->distance();
+
+      updateWaypointToNodeTable(left_waypoint->GetId(), left_node);
+      updateRoadlaneToWaypointsTable(left_waypoint);
+      nodes_queue.push(left_node);
+    }
+
+    // Set the left node of the input node.
+    node->left() = left_node;
+  }
+
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::extendRight(
+    const boost::shared_ptr<Node>& node,
+    const double range,
+    std::queue<boost::shared_ptr<Node>>& nodes_queue) {
+
+  // Find the right waypoint.
+  boost::shared_ptr<CarlaWaypoint> right_waypoint =
+    findRightWaypoint(node->waypoint());
+
+  if (right_waypoint) {
+    // Find the right node corresponds to the waypoint.
+    boost::shared_ptr<Node> right_node = closestNode(right_waypoint, 0.2);
+
+    if (!right_node) {
+      // This right node does not exist yet, add it to the tables and queue.
+      right_node = boost::make_shared<Node>(right_waypoint);
+      right_node->distance() = node->distance();
+
+      updateWaypointToNodeTable(right_waypoint->GetId(), right_node);
+      updateRoadlaneToWaypointsTable(right_waypoint);
+      nodes_queue.push(right_node);
+    }
+
+    // Set the right node of the input node.
+    node->right() = right_node;
+  }
   return;
 }
 
