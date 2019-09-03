@@ -23,6 +23,7 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
+#include <algorithm>
 
 #include <boost/format.hpp>
 #include <boost/smart_ptr.hpp>
@@ -277,6 +278,11 @@ protected:
     return;
   }
 
+  void reduceWaypointToNodeTable(const size_t waypoint_id) {
+    waypoint_to_node_table_.erase(waypoint_id);
+    return;
+  }
+
   void augmentRoadlaneToWaypointsTable(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
 
@@ -292,6 +298,26 @@ protected:
 
     // Add the waypoint ID to this road+lane.
     roadlane_to_waypoints_table_[roadlane_id].push_back(waypoint->GetId());
+    return;
+  }
+
+  void reduceRoadlaneToWaypointsTable(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
+
+    size_t roadlane_id = 0;
+    utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
+
+    if (roadlane_to_waypoints_table_.find(roadlane_id) !=
+        roadlane_to_waypoints_table_.end()) {
+      std::vector<size_t>& waypoints = roadlane_to_waypoints_table_[roadlane_id];
+      std::vector<size_t>::iterator end_iter = std::remove_if(
+          waypoints.begin(), waypoints.end(),
+          [&waypoint](const size_t id)->bool{
+            return (id == waypoint->GetId());
+          });
+
+      waypoints.erase(end_iter, waypoints.end());
+    }
     return;
   }
 
@@ -317,6 +343,8 @@ protected:
     else return nullptr;
   }
 
+  /// @name Functions required by \c extend() and \c shorten()
+  /// @{
   void extendFront(const boost::shared_ptr<Node>& node,
                    const double range,
                    std::queue<boost::shared_ptr<Node>>& nodes_queue);
@@ -328,6 +356,9 @@ protected:
   void extendRight(const boost::shared_ptr<Node>& node,
                    const double range,
                    std::queue<boost::shared_ptr<Node>>& nodes_queue);
+
+  void updateNodeDistance();
+  /// @}
 
 }; // End class Lattice.
 
@@ -362,12 +393,16 @@ Lattice<Node>::Lattice(
   // Construct the lattice.
   extend(range);
 
-  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
   return;
 }
 
 template<typename Node>
 void Lattice<Node>::extend(const double range) {
+
+  // If the current range of the lattice exceeds the given range,
+  // no operation is performed.
+  if (lattice_exit_->distance()-lattice_entry_->distance() >= range)
+    return;
 
   // A queue of nodes to be explored, starting from the current
   // lattice exit.
@@ -391,6 +426,131 @@ void Lattice<Node>::extend(const double range) {
     if (node->front().lock()) {
       const size_t front_waypoint_id = (node->front()).lock()->waypoint()->GetId();
       waypoint_to_node_table_[front_waypoint_id]->back() = node;
+    }
+  }
+
+  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::shorten(const double range) {
+  // If the current lattice range is already smaller than the given range,
+  // no operation is performed.
+  if (lattice_exit_->distance()-lattice_entry_->distance() <= range)
+    return;
+
+  // The distance before which nodes should be removed.
+  const double safe_distance =
+    lattice_exit_->distance() - lattice_entry_->distance() - range;
+
+  // Save the ids for the waypoint to be removed.
+  std::unordered_set<size_t> removed_waypoint_ids;
+  // Save the nodes to be processed.
+  std::queue<boost::shared_ptr<Node>> nodes_queue;
+
+  removed_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
+  nodes_queue.push(lattice_entry_);
+
+  while (!nodes_queue.empty()) {
+    // Get the next node to be processed.
+    boost::shared_ptr<Node> node = nodes_queue.front();
+    nodes_queue.pop();
+
+    // If this node is the current lattice entry, we have to update
+    // the lattice entry to its front node.
+    if (node->waypoint()->GetId() == lattice_entry_->waypoint()->GetId() &&
+        node->front().lock()) {
+      lattice_entry_ = node->front().lock();
+    }
+
+    // Add the left node.
+    if (node->left().lock()) {
+      boost::shared_ptr<Node> left_node = node->left().lock();
+      if (removed_waypoint_ids.count(left_node->waypoint()->GetId()) == 0) {
+        removed_waypoint_ids.insert(left_node->waypoint()->GetId());
+        nodes_queue.push(left_node);
+      }
+    }
+
+    // Add the right node.
+    if (node->right().lock()) {
+      boost::shared_ptr<Node> right_node = node->right().lock();
+      if (removed_waypoint_ids.count(right_node->waypoint()->GetId()) == 0) {
+        removed_waypoint_ids.insert(right_node->waypoint()->GetId());
+        nodes_queue.push(right_node);
+      }
+    }
+
+    // Some special care is required for the front node.
+    // We need to determine when to stop.
+    if (node->front().lock()) {
+      boost::shared_ptr<Node> front_node = node->front().lock();
+      if (front_node->distance() < safe_distance &&
+          removed_waypoint_ids.count(front_node->waypoint()->GetId()) == 0) {
+        removed_waypoint_ids.insert(front_node->waypoint()->GetId());
+        nodes_queue.push(front_node);
+      }
+    }
+  }
+
+  // Removed the nodes that have been recorded.
+  for (const size_t waypoint_id : removed_waypoint_ids) {
+    reduceRoadlaneToWaypointsTable(waypoint_to_node_table_[waypoint_id]->waypoint());
+    reduceWaypointToNodeTable(waypoint_id);
+  }
+
+  // Update the distance of all remaining nodes starting
+  // from the \c lattice_entry_.
+  updateNodeDistance();
+
+  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::updateNodeDistance() {
+
+  std::unordered_set<size_t> updated_waypoint_ids;
+  std::queue<boost::shared_ptr<Node>> nodes_queue;
+
+  lattice_entry_->distance() = 0.0;
+  nodes_queue.push(lattice_entry_);
+  updated_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
+
+  while (!nodes_queue.empty()) {
+    // Get the next node to be processed.
+    boost::shared_ptr<Node> node = nodes_queue.front();
+    nodes_queue.pop();
+
+    // Update the left node.
+    if (node->left().lock()) {
+      boost::shared_ptr<Node> left_node = node->left().lock();
+      if (updated_waypoint_ids.count(left_node->waypoint()->GetId()) == 0) {
+        updated_waypoint_ids.insert(left_node->waypoint()->GetId());
+        nodes_queue.push(left_node);
+        left_node->distance() = node->distance();
+      }
+    }
+
+    // Update the right node.
+    if (node->right().lock()) {
+      boost::shared_ptr<Node> right_node = node->right().lock();
+      if (updated_waypoint_ids.count(right_node->waypoint()->GetId()) == 0) {
+        updated_waypoint_ids.insert(right_node->waypoint()->GetId());
+        nodes_queue.push(right_node);
+        right_node->distance() = node->distance();
+      }
+    }
+
+    // Update the front node.
+    if (node->front().lock()) {
+      boost::shared_ptr<Node> front_node = node->front().lock();
+      if (updated_waypoint_ids.count(front_node->waypoint()->GetId()) == 0) {
+        updated_waypoint_ids.insert(front_node->waypoint()->GetId());
+        nodes_queue.push(front_node);
+        front_node->distance() = node->distance() + longitudinal_resolution_;
+      }
     }
   }
 
