@@ -270,14 +270,14 @@ public:
 
 protected:
 
-  void updateWaypointToNodeTable(
+  void augmentWaypointToNodeTable(
       const size_t waypoint_id,
       const boost::shared_ptr<Node>& node) {
     waypoint_to_node_table_[waypoint_id] = node;
     return;
   }
 
-  void updateRoadlaneToWaypointsTable(
+  void augmentRoadlaneToWaypointsTable(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
 
     //const size_t roadlane_id = hashRoadLaneIds(
@@ -356,12 +356,23 @@ Lattice<Node>::Lattice(
   lattice_entry_ = start_node;
   lattice_exit_ = start_node;
 
-  updateWaypointToNodeTable(start->GetId(), start_node);
-  updateRoadlaneToWaypointsTable(start);
+  augmentWaypointToNodeTable(start->GetId(), start_node);
+  augmentRoadlaneToWaypointsTable(start);
 
-  // A queue of nodes to be explored.
+  // Construct the lattice.
+  extend(range);
+
+  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+  return;
+}
+
+template<typename Node>
+void Lattice<Node>::extend(const double range) {
+
+  // A queue of nodes to be explored, starting from the current
+  // lattice exit.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
-  nodes_queue.push(start_node);
+  nodes_queue.push(lattice_exit_);
 
   while (!nodes_queue.empty()) {
     // Get the next node to explore and remove it from the queue.
@@ -383,7 +394,6 @@ Lattice<Node>::Lattice(
     }
   }
 
-  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
   return;
 }
 
@@ -409,8 +419,8 @@ void Lattice<Node>::extendFront(
       // Add this new node to the queue if it is not beyond the max range.
       if (front_node->distance() < range) {
         // Add the new node to the tables.
-        updateWaypointToNodeTable(front_waypoint->GetId(), front_node);
-        updateRoadlaneToWaypointsTable(front_waypoint);
+        augmentWaypointToNodeTable(front_waypoint->GetId(), front_node);
+        augmentRoadlaneToWaypointsTable(front_waypoint);
         // Add the new node to the queue.
         nodes_queue.push(front_node);
       }
@@ -448,8 +458,8 @@ void Lattice<Node>::extendLeft(
       left_node = boost::make_shared<Node>(left_waypoint);
       left_node->distance() = node->distance();
 
-      updateWaypointToNodeTable(left_waypoint->GetId(), left_node);
-      updateRoadlaneToWaypointsTable(left_waypoint);
+      augmentWaypointToNodeTable(left_waypoint->GetId(), left_node);
+      augmentRoadlaneToWaypointsTable(left_waypoint);
       nodes_queue.push(left_node);
     }
 
@@ -479,8 +489,8 @@ void Lattice<Node>::extendRight(
       right_node = boost::make_shared<Node>(right_waypoint);
       right_node->distance() = node->distance();
 
-      updateWaypointToNodeTable(right_waypoint->GetId(), right_node);
-      updateRoadlaneToWaypointsTable(right_waypoint);
+      augmentWaypointToNodeTable(right_waypoint->GetId(), right_node);
+      augmentRoadlaneToWaypointsTable(right_waypoint);
       nodes_queue.push(right_node);
     }
 
