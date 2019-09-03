@@ -195,18 +195,30 @@ public:
   /**
    * \brief Extend the range of the lattice.
    *
-   * \param[in] The new range of the lattice. If this is less than
-   *            the current range, no operation is performed.
+   * \param[in] range The new range of the lattice. If this is less than
+   *                  the current range, no operation is performed.
    */
   void extend(const double range);
 
   /**
    * \brief Shorten the range of the current lattice.
    *
-   * \param[in] The new range of the lattice. If this is more than
-   *            the current range, no operation is performed.
+   * \param[in] range The new range of the lattice. If this is more than
+   *                  the current range, no operation is performed.
    */
   void shorten(const double range);
+
+  /**
+   * \brief Shift the lattice forward by some distance.
+   *
+   * \param[in] movement How much distance to shift the lattice forward.
+   */
+  void shift(const double movement) {
+    const double range = lattice_exit_->distance() - lattice_entry_->distance();
+    extend(range + movement);
+    shorten(range);
+    return;
+  }
 
   /**
    * @name Node Query
@@ -577,7 +589,7 @@ void Lattice<Node>::extendFront(
       front_node->distance() = node->distance() + longitudinal_resolution_;
 
       // Add this new node to the queue if it is not beyond the max range.
-      if (front_node->distance() < range) {
+      if (front_node->distance() <= range) {
         // Add the new node to the tables.
         augmentWaypointToNodeTable(front_waypoint->GetId(), front_node);
         augmentRoadlaneToWaypointsTable(front_waypoint);
