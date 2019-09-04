@@ -301,6 +301,25 @@ public:
 
 protected:
 
+  /**
+   * \brief Hide the default constructor.
+   *
+   * A default constructor does not make sense if this class is used directly
+   * by an end user. However, a derived class might need this to implement
+   * its constructor. It is then the derived class's constructor's
+   * responsibility to initialize the variables in this (base) class.
+   *
+   * FIXME: Is there a better solution for this situation?
+   *        Idealy, I would like to reuse the custom constructor of this class
+   *        in the derived class's constructor to avoid duplication of code.
+   *        The second best answer in the following link can be an option:
+   *        <https://stackoverflow.com/questions/3821064/call-a-base-class-constructor-later-not-in-the-initializer-list-in-c>
+   */
+  Lattice() = default;
+
+  /// Used by copy assigment operator.
+  void swap(Lattice& other);
+
   /// @name Maintaining the tables within the class.
   /// @{
   void augmentWaypointToNodeTable(
@@ -395,10 +414,6 @@ protected:
 
   void updateNodeDistance();
   /// @}
-
-private:
-
-  void swap(Lattice& other);
 
 }; // End class Lattice.
 
