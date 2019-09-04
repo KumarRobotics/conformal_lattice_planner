@@ -17,6 +17,7 @@
 #pragma once
 
 #include <limits>
+#include <utility>
 #include <stdexcept>
 #include <unordered_set>
 #include <algorithm>
@@ -57,6 +58,61 @@ Lattice<Node>::Lattice(
   // Construct the lattice.
   extend(range);
 
+  return;
+}
+
+template<typename Node>
+Lattice<Node>::Lattice(const Lattice<Node>& other) :
+  roadlane_to_waypoints_table_(other.roadlane_to_waypoints_table_),
+  longitudinal_resolution_(other.longitudinal_resolution_){
+
+  // Copy the \c waypoint_to_node_table_. Make sure this object
+  // owns its own copy of the nodes pointed by shared pointers.
+  for (const auto& item : other.waypoint_to_node_table_) {
+    waypoint_to_node_table_[item.first] = boost::make_shared<Node>(*(item.second));
+  }
+
+  // For each node in the table, make sure the connected nodes are pointing
+  // to the copy stored within this object.
+  for (auto& item : waypoint_to_node_table_) {
+    if (item.second->front().lock()) {
+      const size_t front_node = item.second->front().lock()->waypoint()->GetId();
+      item.second->front() = waypoint_to_node_table_[front_node];
+    }
+    if (item.second->back().lock()) {
+      const size_t back_node = item.second->back().lock()->waypoint()->GetId();
+      item.second->back() = waypoint_to_node_table_[back_node];
+    }
+    if (item.second->left().lock()) {
+      const size_t left_node = item.second->left().lock()->waypoint()->GetId();
+      item.second->left() = waypoint_to_node_table_[left_node];
+    }
+    if (item.second->right().lock()) {
+      const size_t right_node = item.second->right().lock()->waypoint()->GetId();
+      item.second->right() = waypoint_to_node_table_[right_node];
+    }
+  }
+
+  // Redirect the entry and exit pointers.
+  lattice_entry_ = waypoint_to_node_table_[other.lattice_entry_->waypoint()->GetId()];
+  lattice_exit_ = waypoint_to_node_table_[other.lattice_exit_->waypoint()->GetId()];
+
+  return;
+}
+
+template<typename Node>
+Lattice<Node>& Lattice<Node>::operator=(Lattice<Node> other) {
+  this->swap(other);
+  return *this;
+}
+
+template<typename Node>
+void Lattice<Node>::swap(Lattice<Node>& other) {
+  std::swap(lattice_entry_, other.lattice_entry);
+  std::swap(lattice_exit_, other.lattice_exit);
+  std::swap(waypoint_to_node_table_, other.waypoint_to_node_table_);
+  std::swap(roadlane_to_waypoints_table_, other.roadlane_to_waypoints_table_);
+  std::swap(longitudinal_resolution_, other.longitudinal_resolution_);
   return;
 }
 

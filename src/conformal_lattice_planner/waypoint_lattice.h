@@ -23,7 +23,6 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/pointer_cast.hpp>
-#include <boost/core/noncopyable.hpp>
 
 #include <carla/client/World.h>
 #include <carla/client/Map.h>
@@ -34,7 +33,17 @@
 
 namespace planner {
 
-class WaypointNode : private boost::noncopyable {
+/**
+ * \brief Keeps track of the waypoints on a lattice.
+ *
+ * \note The copy constructor of this class performs a shallow copy,
+ *       i.e. only the shared and weak pointers are copied. This makes
+ *       sense since the class copy constructor won't know which piece
+ *       of memory the pointers should point to. In case one would like
+ *       to redirect the pointers in the class to other objects, use
+ *       the accessor interfaces.
+ */
+class WaypointNode {
 
 protected:
 
@@ -42,6 +51,7 @@ protected:
 
 protected:
 
+  /// Carla waypoint of this node.
   boost::shared_ptr<CarlaWaypoint> waypoint_ = nullptr;
 
   /**
@@ -52,9 +62,16 @@ protected:
    */
   double distance_ = 0.0;
 
+  /// Front node.
   boost::weak_ptr<WaypointNode> front_;
+
+  /// Back node.
   boost::weak_ptr<WaypointNode> back_;
+
+  /// Left node.
   boost::weak_ptr<WaypointNode> left_;
+
+  /// Right node.
   boost::weak_ptr<WaypointNode> right_;
 
 public:
@@ -135,7 +152,7 @@ public:
  * See \c WaypointNode to find the interface required for the \c Node template.
  */
 template<typename Node>
-class Lattice : private boost::noncopyable {
+class Lattice {
 
 protected:
 
@@ -161,7 +178,7 @@ protected:
   std::unordered_map<size_t, std::vector<size_t>> roadlane_to_waypoints_table_;
 
   /// Range resolution in the longitudinal direction.
-  const double longitudinal_resolution_;
+  double longitudinal_resolution_;
 
 public:
 
@@ -176,6 +193,12 @@ public:
   Lattice(const boost::shared_ptr<CarlaWaypoint>& start,
           const double range,
           const double longitudinal_resolution);
+
+  /// Copy constructor.
+  Lattice(const Lattice& other);
+
+  /// Copy assignment operator.
+  Lattice& operator=(Lattice other);
 
   /// Get the entry node of the lattice, which has distance 0.0.
   boost::shared_ptr<const Node> latticeEntry() const {
@@ -372,6 +395,10 @@ protected:
 
   void updateNodeDistance();
   /// @}
+
+private:
+
+  void swap(Lattice& other);
 
 }; // End class Lattice.
 
