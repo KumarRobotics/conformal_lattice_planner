@@ -30,6 +30,7 @@
 #include <carla/geom/Transform.h>
 
 #include <conformal_lattice_planner/utils.h>
+#include <conformal_lattice_planner/lattice_node.h>
 
 namespace planner {
 
@@ -43,7 +44,7 @@ namespace planner {
  *       to redirect the pointers in the class to other objects, use
  *       the accessor interfaces.
  */
-class WaypointNode {
+class WaypointNode : public LatticeNode<WaypointNode> {
 
 protected:
 
@@ -62,18 +63,6 @@ protected:
    */
   double distance_ = 0.0;
 
-  /// Front node.
-  boost::weak_ptr<WaypointNode> front_;
-
-  /// Back node.
-  boost::weak_ptr<WaypointNode> back_;
-
-  /// Left node.
-  boost::weak_ptr<WaypointNode> left_;
-
-  /// Right node.
-  boost::weak_ptr<WaypointNode> right_;
-
 public:
 
   WaypointNode() = default;
@@ -81,70 +70,125 @@ public:
   WaypointNode(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
-  /** @name Accessors
-   *
-   * \c front(), \c back(), \c left(), \c right() returns reference
-   * of the boost weak pointers stored in the object, so that one can
-   * update the weak pointers directly.
-   */
-  /// @{
-
   boost::shared_ptr<CarlaWaypoint>& waypoint() {
     return waypoint_;
   }
-
-  double& distance() { return distance_; }
-
-  boost::weak_ptr<WaypointNode>& front() {
-    return front_;
-  }
-
-  boost::weak_ptr<WaypointNode>& back() {
-    return back_;
-  }
-
-  boost::weak_ptr<WaypointNode>& left() {
-    return left_;
-  }
-
-  boost::weak_ptr<WaypointNode>& right() {
-    return right_;
-  }
-
-  /// @}
-
-  /** @name const Accessors
-   *
-   * \c front(), \c back(), \c left(), \c right() returns boost shared pointers
-   * pointering to const \c WaypointNode objects.
-   */
-  /// @{
 
   boost::shared_ptr<const CarlaWaypoint> waypoint() const {
     return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
   }
 
+  double& distance() { return distance_; }
+
   const double distance() const { return distance_; }
+};
 
-  boost::shared_ptr<const WaypointNode> front() const {
-    return boost::const_pointer_cast<const WaypointNode>(front_.lock());
-  }
-
-  boost::shared_ptr<const WaypointNode> back() const {
-    return boost::const_pointer_cast<const WaypointNode>(back_.lock());
-  }
-
-  boost::shared_ptr<const WaypointNode> left() const {
-    return boost::const_pointer_cast<const WaypointNode>(left_.lock());
-  }
-
-  boost::shared_ptr<const WaypointNode> right() const {
-    return boost::const_pointer_cast<const WaypointNode>(right_.lock());
-  }
-
-  /// @}
-
-}; // End class WaypointNode.
+//class WaypointNode {
+//
+//protected:
+//
+//  using CarlaWaypoint = carla::client::Waypoint;
+//
+//private:
+//  /// Should be redefined by derived classes.
+//  using This = WaypointNode;
+//
+//protected:
+//
+//  /// Carla waypoint of this node.
+//  boost::shared_ptr<CarlaWaypoint> waypoint_ = nullptr;
+//
+//  /**
+//   * The distance of this waypoint in the lattice.
+//   *
+//   * Note this is different than the \c s attribute of a carla waypoint,
+//   * which is the distance of the waypoint on the road it belongs to.
+//   */
+//  double distance_ = 0.0;
+//
+//  /// Front node.
+//  boost::weak_ptr<This> front_;
+//
+//  /// Back node.
+//  boost::weak_ptr<This> back_;
+//
+//  /// Left node.
+//  boost::weak_ptr<This> left_;
+//
+//  /// Right node.
+//  boost::weak_ptr<This> right_;
+//
+//public:
+//
+//  WaypointNode() = default;
+//
+//  WaypointNode(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
+//    waypoint_(waypoint) {}
+//
+//  /** @name Accessors
+//   *
+//   * \c front(), \c back(), \c left(), \c right() returns reference
+//   * of the boost weak pointers stored in the object, so that one can
+//   * update the weak pointers directly.
+//   */
+//  /// @{
+//
+//  boost::shared_ptr<CarlaWaypoint>& waypoint() {
+//    return waypoint_;
+//  }
+//
+//  double& distance() { return distance_; }
+//
+//  boost::weak_ptr<This>& front() {
+//    return front_;
+//  }
+//
+//  boost::weak_ptr<This>& back() {
+//    return back_;
+//  }
+//
+//  boost::weak_ptr<This>& left() {
+//    return left_;
+//  }
+//
+//  boost::weak_ptr<This>& right() {
+//    return right_;
+//  }
+//
+//  /// @}
+//
+//  /** @name const Accessors
+//   *
+//   * \c front(), \c back(), \c left(), \c right() returns boost shared pointers
+//   * pointering to const \c WaypointNode objects.
+//   */
+//  /// @{
+//
+//  boost::shared_ptr<const CarlaWaypoint> waypoint() const {
+//    return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
+//  }
+//
+//  const double distance() const { return distance_; }
+//
+//  boost::shared_ptr<const This> front() const {
+//    return boost::const_pointer_cast<const This>(front_.lock());
+//  }
+//
+//  boost::shared_ptr<const This> back() const {
+//    return boost::const_pointer_cast<const This>(back_.lock());
+//  }
+//
+//  boost::shared_ptr<const This> left() const {
+//    return boost::const_pointer_cast<const This>(left_.lock());
+//  }
+//
+//  boost::shared_ptr<const This> right() const {
+//    return boost::const_pointer_cast<const This>(right_.lock());
+//  }
+//
+//  /// @}
+//
+//}; // End class WaypointNode.
 
 /**
  * \brief Conformal lattice compliant to the road structure.
