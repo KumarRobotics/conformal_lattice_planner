@@ -100,6 +100,14 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
+      Marker Topic: /carla/carla_simulator/agent_objects
+      Name: Agents
+      Namespaces:
+        Vehicles: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
       Marker Topic: /carla/carla_simulator/traffic_lattice
       Name: Traffic Lattice
       Namespaces:
@@ -147,14 +155,14 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 100
+      Distance: 50
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -25
+        X: -10
         Y: 0
         Z: -1.5
       Focal Shape Fixed Size: true
@@ -366,4 +374,4 @@ Window Geometry:
     collapsed: true
   Width: 1285
   X: 488
-  Y: 61
+  Y: 27

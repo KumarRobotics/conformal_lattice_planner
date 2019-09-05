@@ -34,10 +34,10 @@ Lattice<Node>::Lattice(
     const double longitudinal_resolution) :
   longitudinal_resolution_(longitudinal_resolution) {
 
-  if (range <= 5*longitudinal_resolution_) {
+  if (range <= longitudinal_resolution_) {
     throw std::runtime_error(
         (boost::format("The given range [%1%] is too small."
-                       "Resolution should be at least 5xlongitudinal_resolution.") % range).str());
+                       "Range should be at least 1xlongitudinal_resolution.") % range).str());
   }
 
   if (longitudinal_resolution_ > 5.0) {

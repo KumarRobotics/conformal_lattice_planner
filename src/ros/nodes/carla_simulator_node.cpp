@@ -317,7 +317,7 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
   SharedPtr<cc::Actor> ego_actor = world_->SpawnActor(ego_blueprint, ego_transform);
 
   ego_policy_.first = ego_actor->GetId();
-  ego_policy_.second = 29.0576; // 65mph
+  ego_policy_.second = 25.0; // 65mph
 
   // Spawn a camera following the ego vehicle.
   if (!no_rendering_mode) {
@@ -344,6 +344,11 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
   traffic_lattice_ = bst::make_shared<planner::WaypointLattice>(ego_waypoint, 200.0, 4.0);
 
   // TODO: Spawn target vehicles.
+  {
+    SharedPtr<const cc::Waypoint> waypoint = traffic_lattice_->front(ego_waypoint, 30.0)->waypoint();
+    SharedPtr<cc::Actor> actor = world_->SpawnActor(ego_blueprint, waypoint->GetTransform());
+    agent_policies_[actor->GetId()] = 20.0;
+  }
 
   return;
 }
@@ -354,6 +359,11 @@ void CarlaSimulatorNode::startVehicles() {
   ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*15.0);
 
   // TODO: Set the velocity for the agents.
+  for (const auto& agent : agent_policies_) {
+    SharedPtr<cc::Actor> actor = world_->GetActor(agent.first);
+    actor->SetVelocity(actor->GetTransform().GetForwardVector()*15.0);
+  }
+
   return;
 }
 
@@ -383,6 +393,14 @@ void CarlaSimulatorNode::publishTraffic() const {
   tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_policy_.first), "ego")));
 
   // TODO: Publish the agents' markers.
+  visualization_msgs::MarkerArrayPtr agent_objects_msg(new visualization_msgs::MarkerArray);
+  for (const auto& agent : agent_policies_) {
+    visualization_msgs::MarkerPtr agent_object_msg =
+      createVehicleMarkerMsg(world_->GetActor(agent.first));
+    agent_objects_msg->markers.push_back(*agent_object_msg);
+  }
+
+  agents_marker_pub_.publish(agent_objects_msg);
 
   return;
 }
