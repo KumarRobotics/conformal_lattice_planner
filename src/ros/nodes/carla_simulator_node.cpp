@@ -47,6 +47,7 @@
 #include <conformal_lattice_planner/AgentPlanAction.h>
 #include <conformal_lattice_planner/Policy.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
+//#include <conformal_lattice_planner/traffic_lattice.h>
 
 using namespace std;
 namespace bst = boost;
@@ -54,6 +55,7 @@ namespace cc = carla::client;
 namespace cg = carla::geom;
 namespace crpc = carla::rpc;
 namespace cs = carla::sensor;
+namespace cr = carla::road;
 namespace csd = carla::sensor::data;
 namespace clp = conformal_lattice_planner;
 
@@ -72,6 +74,8 @@ sensor_msgs::ImagePtr createImageMsg(
     const carla::SharedPtr<csd::Image>&);
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
     const bst::shared_ptr<const planner::WaypointNode>&);
+visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
+    const std::unordered_map<uint32_t, cr::Road>&);
 
 class CarlaSimulatorNode : private bst::noncopyable {
 
@@ -92,7 +96,7 @@ private:
   /// Used to keep track of the traffic around the ego vehicle,
   /// so that we can add new agents and remove agents that are far
   /// from the ego vehicle efficiently.
-  bst::shared_ptr<planner::WaypointLattice> traffic_lattice_;
+  //bst::shared_ptr<planner::TrafficLattice> traffic_lattice_;
 
   /// Indicates if the ego planner action server has returned success.
   bool ego_ready_ = true;
@@ -112,6 +116,7 @@ private:
   mutable ros::Publisher ego_marker_pub_;
   mutable ros::Publisher agents_marker_pub_;
   mutable ros::Publisher traffic_lattice_pub_;
+  mutable ros::Publisher road_ids_pub_;
 
   mutable image_transport::ImageTransport img_transport_;
   mutable image_transport::Publisher following_img_pub_;
@@ -150,6 +155,9 @@ private:
 
   /// Publish the following image.
   void publishImage(const SharedPtr<cs::SensorData>& data) const;
+
+  /// Publish the IDs of all roads.
+  void publishRoadIds() const;
 
   /**
    * @name Ego action callbacks
@@ -202,6 +210,7 @@ bool CarlaSimulatorNode::initialize() {
   ego_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_object", 1, true);
   agents_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("agent_objects", 1, true);
   traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
+  road_ids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("road_ids", 1, true);
 
   // Get the world.
   string host = "localhost";
@@ -248,6 +257,10 @@ bool CarlaSimulatorNode::initialize() {
   // Publish the map.
   ROS_INFO_NAMED("carla_simulator", "publish global map.");
   publishMap();
+
+  // Publish the roads.
+  ROS_INFO_NAMED("carla_simulator", "publish road IDs.");
+  publishRoadIds();
 
   // Initialize the ego vehicle.
   ROS_INFO_NAMED("carla_simulator", "spawn the vehicles.");
@@ -338,17 +351,18 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  // Initialize the traffic lattice.
   SharedPtr<cc::Waypoint> ego_waypoint =
     world_->GetMap()->GetWaypoint(ego_transform.location);
-  traffic_lattice_ = bst::make_shared<planner::WaypointLattice>(ego_waypoint, 200.0, 4.0);
+  bst::shared_ptr<planner::WaypointLattice> waypoint_lattice =
+    bst::make_shared<planner::WaypointLattice>(ego_waypoint, 100.0, 4.0);
 
   // TODO: Spawn target vehicles.
-  {
-    SharedPtr<const cc::Waypoint> waypoint = traffic_lattice_->front(ego_waypoint, 30.0)->waypoint();
-    SharedPtr<cc::Actor> actor = world_->SpawnActor(ego_blueprint, waypoint->GetTransform());
-    agent_policies_[actor->GetId()] = 20.0;
-  }
+
+  SharedPtr<const cc::Waypoint> agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+  cg::Transform agent_transform = agent_waypoint->GetTransform();
+  agent_transform.location.z += 1.2;
+  SharedPtr<cc::Actor> agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+  agent_policies_[agent_actor->GetId()] = 20.0;
 
   return;
 }
@@ -386,7 +400,7 @@ void CarlaSimulatorNode::publishMap() const {
 void CarlaSimulatorNode::publishTraffic() const {
 
   // Publish the traffic lattice.
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
+  //traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
 
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
@@ -402,6 +416,20 @@ void CarlaSimulatorNode::publishTraffic() const {
 
   agents_marker_pub_.publish(agent_objects_msg);
 
+  // Initialize the traffic lattice.
+  //vector<SharedPtr<const cc::Vehicle>> vehicles;
+  //vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(ego_policy_.first)));
+  //vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(agent_policies_.begin()->first)));
+  //bst::shared_ptr<planner::TrafficLattice> traffic_lattice =
+  //  bst::make_shared<planner::TrafficLattice>(vehicles, world_->GetMap());
+
+  return;
+}
+
+void CarlaSimulatorNode::publishRoadIds() const {
+  visualization_msgs::MarkerArrayPtr road_ids_msg = createRoadIdsMsg(
+      world_->GetMap()->GetMap().GetMap().GetRoads());
+  road_ids_pub_.publish(road_ids_msg);
   return;
 }
 

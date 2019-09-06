@@ -37,6 +37,7 @@
 #include <carla/geom/Transform.h>
 #include <carla/sensor/data/Image.h>
 
+//#include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
 #include <conformal_lattice_planner/utils.h>
 
@@ -46,6 +47,7 @@ namespace cc = carla::client;
 namespace cg = carla::geom;
 namespace crpc = carla::rpc;
 namespace csd = carla::sensor::data;
+namespace cr = carla::road;
 
 namespace carla {
 
@@ -68,9 +70,9 @@ visualization_msgs::MarkerPtr createWaypointMsg(
   waypoints_msg->lifetime = ros::Duration(0.0);
   waypoints_msg->frame_locked = false;
   waypoints_msg->pose.orientation.w = 1.0;
-  waypoints_msg->scale.x = 0.5;
-  waypoints_msg->scale.y = 0.5;
-  waypoints_msg->scale.z = 0.5;
+  waypoints_msg->scale.x = 1.0;
+  waypoints_msg->scale.y = 1.0;
+  waypoints_msg->scale.z = 1.0;
   waypoints_msg->color = color;
 
   for (const auto& wp : waypoints) {
@@ -421,6 +423,55 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
   traffic_lattice_msg->markers.push_back(*lattice_edge_msg);
 
   return traffic_lattice_msg;
+}
+
+visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
+    const std::unordered_map<uint32_t, cr::Road>& roads) {
+
+  std_msgs::ColorRGBA color;
+  color.r = 1.0;
+  color.g = 1.0;
+  color.b = 1.0;
+  color.a = 1.0;
+
+  visualization_msgs::MarkerArrayPtr roads_msg(
+      new visualization_msgs::MarkerArray);
+
+  for (const auto& item : roads) {
+
+    const uint32_t id = item.first;
+    const cr::Road& road = item.second;
+
+    //if (road.GetJunctionId() != -1) continue;
+
+    const double length = road.GetLength();
+    cg::Location location = road.GetDirectedPointIn(length/2.0).location;
+    std::printf("road:%lu length:%f\n", road.GetId(), length);
+    //utils::convertLocationInPlace(location);
+
+    visualization_msgs::MarkerPtr road_msg(new visualization_msgs::Marker);
+    road_msg->header.stamp = ros::Time::now();
+    road_msg->header.frame_id = "map";
+    road_msg->ns = "road";
+    road_msg->id = id;
+    road_msg->type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    road_msg->action = visualization_msgs::Marker::ADD;
+    road_msg->lifetime = ros::Duration(0.0);
+    road_msg->frame_locked = false;
+    road_msg->pose.orientation.w = 1.0;
+    road_msg->pose.position.x = location.x;
+    road_msg->pose.position.y = location.y;
+    road_msg->pose.position.z = location.z;
+    road_msg->scale.x = 4.0;
+    road_msg->scale.y = 4.0;
+    road_msg->scale.z = 4.0;
+    road_msg->color = color;
+    road_msg->text = std::to_string(id);
+
+    roads_msg->markers.push_back(*road_msg);
+  }
+
+  return roads_msg;
 }
 
 } // End namespace carla.
