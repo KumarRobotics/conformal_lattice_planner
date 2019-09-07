@@ -20,7 +20,7 @@
 #include <carla/road/Lane.h>
 #include <conformal_lattice_planner/loop_router.h>
 
-namespace planner {
+namespace router {
 
 LoopRouter::LoopRouter() :
   road_sequence_({47, 558, 48, 887, 49, 717, 50, 42, 276, 43, 35, 636, 36,
@@ -80,13 +80,12 @@ boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::frontWaypoint(
 
 boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::leftWaypoint(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-  // Left hand coordinate system again. Right is left.
-  boost::shared_ptr<CarlaWaypoint> left_waypoint = waypoint->GetRight();
+  boost::shared_ptr<CarlaWaypoint> left_waypoint = waypoint->GetLeft();
   if (!left_waypoint) return nullptr;
 
   bool valid = true;
   // We can do a lane change at left here.
-  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Right) |
+  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Left) |
            (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Both);
   // The left waypoint is drivable.
   valid &= left_waypoint->GetType() == carla::road::Lane::LaneType::Driving;
@@ -97,13 +96,12 @@ boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::leftWaypoint(
 
 boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::rightWaypoint(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-  // Left hand coordinate system again. Left is right.
-  boost::shared_ptr<CarlaWaypoint> right_waypoint = waypoint->GetLeft();
+  boost::shared_ptr<CarlaWaypoint> right_waypoint = waypoint->GetRight();
   if (!right_waypoint) return nullptr;
 
   bool valid = true;
   // We can do a lane change at right here.
-  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Left) |
+  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Right) |
            (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Both);
   // The left waypoint is drivable.
   valid &= right_waypoint->GetType() == carla::road::Lane::LaneType::Driving;
@@ -112,4 +110,4 @@ boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::rightWaypoint(
   else return nullptr;
 }
 
-};
+} // End namespace router.

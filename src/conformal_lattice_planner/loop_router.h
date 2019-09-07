@@ -19,7 +19,7 @@
 #include <vector>
 #include <conformal_lattice_planner/router.h>
 
-namespace planner {
+namespace router {
 
 class LoopRouter : public Router {
 
@@ -70,4 +70,4 @@ public:
 
 }; // End class LoopRouter.
 
-} // End namespace planner.
+} // End namespace router.

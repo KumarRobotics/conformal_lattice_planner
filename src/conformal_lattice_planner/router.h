@@ -20,7 +20,7 @@
 #include <boost/optional.hpp>
 #include <carla/client/Waypoint.h>
 
-namespace planner {
+namespace router {
 
 class Router {
 
@@ -59,4 +59,4 @@ public:
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const = 0;
 }; // End class Router.
 
-} // End namespace planner.
+} // End namespace router.
