@@ -49,9 +49,12 @@
 #include <conformal_lattice_planner/router.h>
 #include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
-//#include <conformal_lattice_planner/traffic_lattice.h>
+#include <conformal_lattice_planner/traffic_lattice.h>
 
 using namespace std;
+using namespace planner;
+using namespace router;
+
 namespace bst = boost;
 namespace cc = carla::client;
 namespace cg = carla::geom;
@@ -74,10 +77,12 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const carla::SharedPtr<cc::Actor>&, const std::string&);
 sensor_msgs::ImagePtr createImageMsg(
     const carla::SharedPtr<csd::Image>&);
-visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const bst::shared_ptr<const planner::WaypointNode>&);
 visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
     const std::unordered_map<uint32_t, cr::Road>&);
+visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
+    const bst::shared_ptr<const WaypointNode>&);
+visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
+    const bst::shared_ptr<const WaypointNodeWithVehicle>&);
 
 class CarlaSimulatorNode : private bst::noncopyable {
 
@@ -353,18 +358,49 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  //SharedPtr<cc::Waypoint> ego_waypoint =
-  //  world_->GetMap()->GetWaypoint(ego_transform.location);
-  //bst::shared_ptr<planner::WaypointLattice> waypoint_lattice =
-  //  bst::make_shared<planner::WaypointLattice>(ego_waypoint, 100.0, 4.0);
+  SharedPtr<cc::Waypoint> ego_waypoint =
+    world_->GetMap()->GetWaypoint(ego_transform.location);
+  boost::shared_ptr<LoopRouter> router(new LoopRouter);
+  boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
+    boost::make_shared<WaypointLattice<LoopRouter>>(
+        ego_waypoint, 100.0, 2.0, router);
 
   // TODO: Spawn target vehicles.
+  {
+    SharedPtr<const cc::Waypoint> agent_waypoint = nullptr;
+    cg::Transform agent_transform;
+    SharedPtr<cc::Actor> agent_actor = nullptr;
 
-  //SharedPtr<const cc::Waypoint> agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
-  //cg::Transform agent_transform = agent_waypoint->GetTransform();
-  //agent_transform.location.z += 1.2;
-  //SharedPtr<cc::Actor> agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
-  //agent_policies_[agent_actor->GetId()] = 20.0;
+    agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->rightFront(ego_waypoint, 50.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->rightBack(agent_waypoint, 40.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->rightFront(agent_waypoint, 10.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(agent_waypoint, 20.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+  }
 
   return;
 }
@@ -401,16 +437,27 @@ void CarlaSimulatorNode::publishMap() const {
 
 void CarlaSimulatorNode::publishTraffic() const {
 
+  vector<SharedPtr<const cc::Vehicle>> vehicles;
+  boost::shared_ptr<cc::Vehicle> ego_vehicle =
+    boost::static_pointer_cast<cc::Vehicle>(
+        world_->GetActor(ego_policy_.first));
+  vehicles.push_back(ego_vehicle);
+  for (const auto& agent : agent_policies_) {
+    vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(
+          world_->GetActor(agent.first)));
+  }
+
+  boost::shared_ptr<LoopRouter> router(new LoopRouter);
+  bst::shared_ptr<TrafficLattice<LoopRouter>> traffic_lattice =
+    bst::make_shared<TrafficLattice<LoopRouter>>(vehicles, world_->GetMap(), router);
+
+  //boost::shared_ptr<LoopRouter> router(new LoopRouter);
+  //boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
+  //  boost::make_shared<WaypointLattice<LoopRouter>>(
+  //      world_->GetMap()->GetWaypoint(ego_vehicle->GetTransform().location), 100.0, 2.0, router);
+
   // Publish the traffic lattice.
-  boost::shared_ptr<cc::Actor> ego_actor = world_->GetActor(ego_policy_.first);
-  boost::shared_ptr<cc::Waypoint> ego_waypoint = world_->GetMap()->GetWaypoint(ego_actor->GetTransform().location);
-
-  boost::shared_ptr<planner::LoopRouter> router(new planner::LoopRouter);
-  boost::shared_ptr<planner::WaypointLattice<planner::LoopRouter>> waypoint_lattice =
-    boost::make_shared<planner::WaypointLattice<planner::LoopRouter>>(
-        ego_waypoint, 3000.0, 5.0, router);
-
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(waypoint_lattice->latticeEntry()));
+  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice->latticeEntry()));
 
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
@@ -425,13 +472,6 @@ void CarlaSimulatorNode::publishTraffic() const {
   }
 
   agents_marker_pub_.publish(agent_objects_msg);
-
-  // Initialize the traffic lattice.
-  //vector<SharedPtr<const cc::Vehicle>> vehicles;
-  //vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(ego_policy_.first)));
-  //vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(agent_policies_.begin()->first)));
-  //bst::shared_ptr<planner::TrafficLattice> traffic_lattice =
-  //  bst::make_shared<planner::TrafficLattice>(vehicles, world_->GetMap());
 
   return;
 }
