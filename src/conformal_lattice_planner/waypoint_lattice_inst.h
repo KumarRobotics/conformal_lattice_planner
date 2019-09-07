@@ -27,11 +27,13 @@
 
 namespace planner {
 
-template<typename Node>
-Lattice<Node>::Lattice(
+template<typename Node, typename Router>
+Lattice<Node, Router>::Lattice(
     const boost::shared_ptr<CarlaWaypoint>& start,
     const double range,
-    const double longitudinal_resolution) :
+    const double longitudinal_resolution,
+    const boost::shared_ptr<Router>& router) :
+  router_(router),
   longitudinal_resolution_(longitudinal_resolution) {
 
   if (range <= longitudinal_resolution_) {
@@ -40,11 +42,11 @@ Lattice<Node>::Lattice(
                        "Range should be at least 1xlongitudinal_resolution.") % range).str());
   }
 
-  if (longitudinal_resolution_ > 5.0) {
-    throw std::runtime_error(
-        (boost::format("The given longitudinal resolution [%1%] is too large."
-                       "Resolution should be within (0m, 5.0).") % longitudinal_resolution_).str());
-  }
+  //if (longitudinal_resolution_ > 5.0) {
+  //  throw std::runtime_error(
+  //      (boost::format("The given longitudinal resolution [%1%] is too large."
+  //                     "Resolution should be within (0m, 5.0).") % longitudinal_resolution_).str());
+  //}
 
   // Create the start node.
   boost::shared_ptr<Node> start_node = boost::make_shared<Node>(start);
@@ -61,10 +63,11 @@ Lattice<Node>::Lattice(
   return;
 }
 
-template<typename Node>
-Lattice<Node>::Lattice(const Lattice<Node>& other) :
+template<typename Node, typename Router>
+Lattice<Node, Router>::Lattice(const Lattice<Node, Router>& other) :
+  router_(other.router_),
   roadlane_to_waypoints_table_(other.roadlane_to_waypoints_table_),
-  longitudinal_resolution_(other.longitudinal_resolution_){
+  longitudinal_resolution_(other.longitudinal_resolution_) {
 
   // Copy the \c waypoint_to_node_table_. Make sure this object
   // owns its own copy of the nodes pointed by shared pointers.
@@ -100,24 +103,19 @@ Lattice<Node>::Lattice(const Lattice<Node>& other) :
   return;
 }
 
-template<typename Node>
-Lattice<Node>& Lattice<Node>::operator=(Lattice<Node> other) {
-  this->swap(other);
-  return *this;
-}
-
-template<typename Node>
-void Lattice<Node>::swap(Lattice<Node>& other) {
+template<typename Node, typename Router>
+void Lattice<Node, Router>::swap(Lattice<Node, Router>& other) {
   std::swap(lattice_entry_, other.lattice_entry);
   std::swap(lattice_exit_, other.lattice_exit);
   std::swap(waypoint_to_node_table_, other.waypoint_to_node_table_);
   std::swap(roadlane_to_waypoints_table_, other.roadlane_to_waypoints_table_);
   std::swap(longitudinal_resolution_, other.longitudinal_resolution_);
+  std::swap(router_, other.router_);
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::extend(const double range) {
+template<typename Node, typename Router>
+void Lattice<Node, Router>::extend(const double range) {
 
   // If the current range of the lattice exceeds the given range,
   // no operation is performed.
@@ -153,8 +151,8 @@ void Lattice<Node>::extend(const double range) {
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::shorten(const double range) {
+template<typename Node, typename Router>
+void Lattice<Node, Router>::shorten(const double range) {
   // If the current lattice range is already smaller than the given range,
   // no operation is performed.
   if (lattice_exit_->distance()-lattice_entry_->distance() <= range)
@@ -228,8 +226,8 @@ void Lattice<Node>::shorten(const double range) {
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::updateNodeDistance() {
+template<typename Node, typename Router>
+void Lattice<Node, Router>::updateNodeDistance() {
 
   std::unordered_set<size_t> updated_waypoint_ids;
   std::queue<boost::shared_ptr<Node>> nodes_queue;
@@ -277,8 +275,8 @@ void Lattice<Node>::updateNodeDistance() {
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::extendFront(
+template<typename Node, typename Router>
+void Lattice<Node, Router>::extendFront(
     const boost::shared_ptr<Node>& node,
     const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
@@ -320,8 +318,8 @@ void Lattice<Node>::extendFront(
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::extendLeft(
+template<typename Node, typename Router>
+void Lattice<Node, Router>::extendLeft(
     const boost::shared_ptr<Node>& node,
     const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
@@ -350,8 +348,8 @@ void Lattice<Node>::extendLeft(
   return;
 }
 
-template<typename Node>
-void Lattice<Node>::extendRight(
+template<typename Node, typename Router>
+void Lattice<Node, Router>::extendRight(
     const boost::shared_ptr<Node>& node,
     const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
@@ -380,8 +378,8 @@ void Lattice<Node>::extendRight(
   return;
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::front(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::front(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -404,8 +402,8 @@ boost::shared_ptr<const Node> Lattice<Node>::front(
   return node;
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::back(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::back(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -428,8 +426,8 @@ boost::shared_ptr<const Node> Lattice<Node>::back(
   return node;
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::leftFront(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::leftFront(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -443,8 +441,8 @@ boost::shared_ptr<const Node> Lattice<Node>::leftFront(
   return front(left_node->waypoint(), range);
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::frontLeft(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::frontLeft(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -458,8 +456,8 @@ boost::shared_ptr<const Node> Lattice<Node>::frontLeft(
   return front_node->left();
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::leftBack(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::leftBack(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -473,8 +471,8 @@ boost::shared_ptr<const Node> Lattice<Node>::leftBack(
   return back(left_node->waypoint(), range);
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::backLeft(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::backLeft(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -488,8 +486,8 @@ boost::shared_ptr<const Node> Lattice<Node>::backLeft(
   return back_node->left();
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::rightFront(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::rightFront(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -503,8 +501,8 @@ boost::shared_ptr<const Node> Lattice<Node>::rightFront(
   return front(right_node->waypoint(), range);
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::frontRight(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::frontRight(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -518,8 +516,8 @@ boost::shared_ptr<const Node> Lattice<Node>::frontRight(
   return front_node->right();
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::rightBack(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::rightBack(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -533,8 +531,8 @@ boost::shared_ptr<const Node> Lattice<Node>::rightBack(
   return back(right_node->waypoint(), range);
 }
 
-template<typename Node>
-boost::shared_ptr<const Node> Lattice<Node>::backRight(
+template<typename Node, typename Router>
+boost::shared_ptr<const Node> Lattice<Node, Router>::backRight(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -548,8 +546,8 @@ boost::shared_ptr<const Node> Lattice<Node>::backRight(
   return back_node->right();
 }
 
-template<typename Node>
-boost::shared_ptr<Node> Lattice<Node>::closestNode(
+template<typename Node, typename Router>
+boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double tolerance) const {
 
@@ -601,77 +599,77 @@ boost::shared_ptr<Node> Lattice<Node>::closestNode(
   return nullptr;
 }
 
-template<typename Node>
-boost::shared_ptr<typename Lattice<Node>::CarlaWaypoint>
-  Lattice<Node>::findFrontWaypoint(
-    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-    const double range) const {
-
-  if (range > 5.0) {
-    throw std::runtime_error(
-        (boost::format("The given range [%1%] is large than 5.0m,"
-                       "which may results in an inaccurate front waypoint") % range).str());
-  }
-
-  // Direction of the given waypoint.
-  //const CarlaVector3D direction = waypoint->GetTransform().GetForwardVector();
-
-  // The front waypoint to be returned.
-  boost::shared_ptr<CarlaWaypoint> front_waypoint = nullptr;
-  //double best_score = -10.0;
-
-  // Get some candidates using the carla API.
-  std::vector<boost::shared_ptr<CarlaWaypoint>> candidates = waypoint->GetNext(range);
-
-  //if (candidates.size() > 1) {
-  //  std::printf("current waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
-  //      waypoint->GetRoadId(), waypoint->GetLaneId(), waypoint->IsJunction(), waypoint->GetLaneChange());
-  //  for (const auto& candidate : candidates)
-  //    std::printf("candidate front waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
-  //        candidate->GetRoadId(), candidate->GetLaneId(), candidate->IsJunction(), candidate->GetLaneChange());
-  //}
-
-  // The basic idea is to loop through all candidate next waypoint.
-  // Find the candidate that is at the front (in the sense of lane following)
-  // of the current waypoint.
-  for (const auto& candidate : candidates) {
-
-    // Ignore the candidate if it is not drivable.
-    if (candidate->GetType() != CarlaLane::LaneType::Driving) continue;
-
-    // If we find a match candidate by ID, this is it.
-    if (candidate->GetRoadId() == waypoint->GetRoadId() &&
-        candidate->GetLaneId() == waypoint->GetLaneId()) {
-      front_waypoint = candidate;
-      break;
-    }
-
-    // FIXME: This might not be correct.
-    // Use the lane property to find the next waypoint.
-    // Based on the experiments, this can prevent the case of using the waypoint
-    // on the off ramp as the next waypoint.
-    if (std::abs(candidate->GetLaneId()) == std::abs(waypoint->GetLaneId())) {
-      front_waypoint = candidate;
-      break;
-    }
-
-    // If we cannot find a match based on the IDs,
-    // the forward direction of the waypoint is used.
-    // The candidate whose forward direction matches the given waypoint
-    // is the one we want.
-    //const CarlaVector3D candidate_direction = candidate->GetTransform().GetForwardVector();
-    //const double score =
-    //  direction.x*candidate_direction.x +
-    //  direction.y*candidate_direction.y +
-    //  direction.z*candidate_direction.z;
-
-    //if (score > best_score) {
-    //  best_score = score;
-    //  front_waypoint = candidate;
-    //}
-  }
-
-  return front_waypoint;
-}
+//template<typename Node>
+//boost::shared_ptr<typename Lattice<Node>::CarlaWaypoint>
+//  Lattice<Node>::findFrontWaypoint(
+//    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+//    const double range) const {
+//
+//  if (range > 5.0) {
+//    throw std::runtime_error(
+//        (boost::format("The given range [%1%] is large than 5.0m,"
+//                       "which may results in an inaccurate front waypoint") % range).str());
+//  }
+//
+//  // Direction of the given waypoint.
+//  //const CarlaVector3D direction = waypoint->GetTransform().GetForwardVector();
+//
+//  // The front waypoint to be returned.
+//  boost::shared_ptr<CarlaWaypoint> front_waypoint = nullptr;
+//  //double best_score = -10.0;
+//
+//  // Get some candidates using the carla API.
+//  std::vector<boost::shared_ptr<CarlaWaypoint>> candidates = waypoint->GetNext(range);
+//
+//  //if (candidates.size() > 1) {
+//  //  std::printf("current waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
+//  //      waypoint->GetRoadId(), waypoint->GetLaneId(), waypoint->IsJunction(), waypoint->GetLaneChange());
+//  //  for (const auto& candidate : candidates)
+//  //    std::printf("candidate front waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
+//  //        candidate->GetRoadId(), candidate->GetLaneId(), candidate->IsJunction(), candidate->GetLaneChange());
+//  //}
+//
+//  // The basic idea is to loop through all candidate next waypoint.
+//  // Find the candidate that is at the front (in the sense of lane following)
+//  // of the current waypoint.
+//  for (const auto& candidate : candidates) {
+//
+//    // Ignore the candidate if it is not drivable.
+//    if (candidate->GetType() != CarlaLane::LaneType::Driving) continue;
+//
+//    // If we find a match candidate by ID, this is it.
+//    if (candidate->GetRoadId() == waypoint->GetRoadId() &&
+//        candidate->GetLaneId() == waypoint->GetLaneId()) {
+//      front_waypoint = candidate;
+//      break;
+//    }
+//
+//    // FIXME: This might not be correct.
+//    // Use the lane property to find the next waypoint.
+//    // Based on the experiments, this can prevent the case of using the waypoint
+//    // on the off ramp as the next waypoint.
+//    if (std::abs(candidate->GetLaneId()) == std::abs(waypoint->GetLaneId())) {
+//      front_waypoint = candidate;
+//      break;
+//    }
+//
+//    // If we cannot find a match based on the IDs,
+//    // the forward direction of the waypoint is used.
+//    // The candidate whose forward direction matches the given waypoint
+//    // is the one we want.
+//    //const CarlaVector3D candidate_direction = candidate->GetTransform().GetForwardVector();
+//    //const double score =
+//    //  direction.x*candidate_direction.x +
+//    //  direction.y*candidate_direction.y +
+//    //  direction.z*candidate_direction.z;
+//
+//    //if (score > best_score) {
+//    //  best_score = score;
+//    //  front_waypoint = candidate;
+//    //}
+//  }
+//
+//  return front_waypoint;
+//}
 
 } // End namespace planner.

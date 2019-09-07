@@ -88,7 +88,7 @@ public:
  *
  * See \c WaypointNode to find the interface required for the \c Node template.
  */
-template<typename Node>
+template<typename Node, typename Router>
 class Lattice {
 
 protected:
@@ -101,6 +101,9 @@ protected:
   using CarlaVector3D  = carla::geom::Vector3D;
 
 protected:
+
+  /// Router used to query the roads and waypoints.
+  boost::shared_ptr<Router> router_;
 
   /// A beginning node of the lattice, i.e. a (not the) node with distance 0.0.
   boost::shared_ptr<Node> lattice_entry_;
@@ -126,16 +129,21 @@ public:
    * \param[in] range The desired range of the lattice.
    * \param[in] longitudinal_resolution
    *            The distance between two consecutive nodes of the lattice on the same lane.
+   * \param[in] router Used to tell roads and waypoints.
    */
   Lattice(const boost::shared_ptr<CarlaWaypoint>& start,
           const double range,
-          const double longitudinal_resolution);
+          const double longitudinal_resolution,
+          const boost::shared_ptr<Router>& router);
 
   /// Copy constructor.
   Lattice(const Lattice& other);
 
   /// Copy assignment operator.
-  Lattice& operator=(Lattice other);
+  Lattice& operator=(Lattice other) {
+    this->swap(other);
+    return *this;
+  }
 
   /// Get the entry node of the lattice, which has distance 0.0.
   boost::shared_ptr<const Node> latticeEntry() const {
@@ -321,20 +329,18 @@ protected:
   /// @{
   boost::shared_ptr<CarlaWaypoint> findFrontWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-      const double range) const;
+      const double range) const {
+    return router_->frontWaypoint(waypoint, range);
+  }
 
   boost::shared_ptr<CarlaWaypoint> findLeftWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-    boost::shared_ptr<CarlaWaypoint> left_waypoint = waypoint->GetRight();
-    if (left_waypoint && left_waypoint->GetType()==CarlaLane::LaneType::Driving) return left_waypoint;
-    else return nullptr;
+    return router_->leftWaypoint(waypoint);
   }
 
   boost::shared_ptr<CarlaWaypoint> findRightWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-    boost::shared_ptr<CarlaWaypoint> right_waypoint = waypoint->GetLeft();
-    if (right_waypoint && right_waypoint->GetType()==CarlaLane::LaneType::Driving) return right_waypoint;
-    else return nullptr;
+    return router_->rightWaypoint(waypoint);
   }
 
   void extendFront(const boost::shared_ptr<Node>& node,
@@ -354,7 +360,8 @@ protected:
 
 }; // End class Lattice.
 
-using WaypointLattice = Lattice<WaypointNode>;
+template<typename Router>
+using WaypointLattice = Lattice<WaypointNode, Router>;
 } // End namespace planner.
 
 #include <conformal_lattice_planner/waypoint_lattice_inst.h>

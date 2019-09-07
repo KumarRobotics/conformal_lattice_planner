@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(conformal_lattice_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
-#add_compile_options(-std=c++14 -Wall -fmax-errors=5 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
+#add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
+add_compile_options(-std=c++14 -Wall -fmax-errors=3 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -164,6 +164,8 @@ add_library(all_planning
   src/conformal_lattice_planner/vehicle_planner.cpp
   src/conformal_lattice_planner/lane_follower.cpp
   src/conformal_lattice_planner/utils.cpp
+  #src/conformal_lattice_planner/router.cpp
+  src/conformal_lattice_planner/loop_router.cpp
 )
 target_link_libraries(all_planning
   ${CARLA_LIBS}
@@ -201,6 +203,7 @@ add_executable(carla_simulator_node
   src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(carla_simulator_node
+  all_planning
   ${CARLA_LIBS}
   ${catkin_LIBRARIES}
 )
