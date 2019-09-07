@@ -46,6 +46,8 @@
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 #include <conformal_lattice_planner/Policy.h>
+#include <conformal_lattice_planner/router.h>
+#include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
 //#include <conformal_lattice_planner/traffic_lattice.h>
 
@@ -351,18 +353,18 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  SharedPtr<cc::Waypoint> ego_waypoint =
-    world_->GetMap()->GetWaypoint(ego_transform.location);
-  bst::shared_ptr<planner::WaypointLattice> waypoint_lattice =
-    bst::make_shared<planner::WaypointLattice>(ego_waypoint, 100.0, 4.0);
+  //SharedPtr<cc::Waypoint> ego_waypoint =
+  //  world_->GetMap()->GetWaypoint(ego_transform.location);
+  //bst::shared_ptr<planner::WaypointLattice> waypoint_lattice =
+  //  bst::make_shared<planner::WaypointLattice>(ego_waypoint, 100.0, 4.0);
 
   // TODO: Spawn target vehicles.
 
-  SharedPtr<const cc::Waypoint> agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
-  cg::Transform agent_transform = agent_waypoint->GetTransform();
-  agent_transform.location.z += 1.2;
-  SharedPtr<cc::Actor> agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
-  agent_policies_[agent_actor->GetId()] = 20.0;
+  //SharedPtr<const cc::Waypoint> agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+  //cg::Transform agent_transform = agent_waypoint->GetTransform();
+  //agent_transform.location.z += 1.2;
+  //SharedPtr<cc::Actor> agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+  //agent_policies_[agent_actor->GetId()] = 20.0;
 
   return;
 }
@@ -400,7 +402,15 @@ void CarlaSimulatorNode::publishMap() const {
 void CarlaSimulatorNode::publishTraffic() const {
 
   // Publish the traffic lattice.
-  //traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
+  boost::shared_ptr<cc::Actor> ego_actor = world_->GetActor(ego_policy_.first);
+  boost::shared_ptr<cc::Waypoint> ego_waypoint = world_->GetMap()->GetWaypoint(ego_actor->GetTransform().location);
+
+  boost::shared_ptr<planner::LoopRouter> router(new planner::LoopRouter);
+  boost::shared_ptr<planner::WaypointLattice<planner::LoopRouter>> waypoint_lattice =
+    boost::make_shared<planner::WaypointLattice<planner::LoopRouter>>(
+        ego_waypoint, 3000.0, 5.0, router);
+
+  traffic_lattice_pub_.publish(createTrafficLatticeMsg(waypoint_lattice->latticeEntry()));
 
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));

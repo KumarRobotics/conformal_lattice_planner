@@ -292,7 +292,8 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
 
   //printf("Fill in the nodes and edges.\n");
   while (!unprocessed_nodes.empty()) {
-    //printf("unprocessed nodes #: %lu\n", unprocessed_nodes.size());
+
+    //printf("processed/unprocessed waypoints #: %lu/%lu\n", processed_waypoints.size(), unprocessed_nodes.size());
     // Get the center point to be processed.
     bst::shared_ptr<const planner::WaypointNode> center = unprocessed_nodes.front();
     unprocessed_nodes.pop();
@@ -319,6 +320,7 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
       if (processed_waypoints.count(front->waypoint()->GetId()) == 0) {
         //printf("Add front: %lu\n", front->waypoint()->GetId());
         unprocessed_nodes.push(front);
+        processed_waypoints.insert(front->waypoint()->GetId());
       }
 
       if (drawed_waypoints.count(front->waypoint()->GetId()) == 0) {
@@ -353,6 +355,7 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
       if (processed_waypoints.count(left->waypoint()->GetId()) == 0) {
         //printf("Add left: %lu\n", left->waypoint()->GetId());
         unprocessed_nodes.push(left);
+        processed_waypoints.insert(left->waypoint()->GetId());
       }
 
       if (drawed_waypoints.count(left->waypoint()->GetId()) == 0) {
@@ -387,6 +390,7 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
       if (processed_waypoints.count(right->waypoint()->GetId()) == 0) {
         //printf("Add right: %lu\n", right->waypoint()->GetId());
         unprocessed_nodes.push(right);
+        processed_waypoints.insert(right->waypoint()->GetId());
       }
 
       if (drawed_waypoints.count(right->waypoint()->GetId()) == 0) {
@@ -442,11 +446,10 @@ visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
     const uint32_t id = item.first;
     const cr::Road& road = item.second;
 
-    //if (road.GetJunctionId() != -1) continue;
-
     const double length = road.GetLength();
+    // Weird enough, the return location is already in right hand coordinate system.
     cg::Location location = road.GetDirectedPointIn(length/2.0).location;
-    std::printf("road:%lu length:%f\n", road.GetId(), length);
+    //std::printf("road:%lu length:%f\n", road.GetId(), length);
     //utils::convertLocationInPlace(location);
 
     visualization_msgs::MarkerPtr road_msg(new visualization_msgs::Marker);
