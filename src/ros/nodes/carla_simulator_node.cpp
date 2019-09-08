@@ -67,22 +67,28 @@ namespace clp = conformal_lattice_planner;
 namespace carla {
 
 /// Prototypes for creating visualization msgs.
+sensor_msgs::ImagePtr createImageMsg(
+    const carla::SharedPtr<csd::Image>&);
+
 visualization_msgs::MarkerPtr createWaypointMsg(
     const vector<carla::SharedPtr<cc::Waypoint>>&);
 visualization_msgs::MarkerPtr createJunctionMsg(
     const cc::Map::TopologyList&);
+
 visualization_msgs::MarkerPtr createVehicleMarkerMsg(
     const carla::SharedPtr<cc::Actor>&);
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const carla::SharedPtr<cc::Actor>&, const std::string&);
-sensor_msgs::ImagePtr createImageMsg(
-    const carla::SharedPtr<csd::Image>&);
-visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
-    const std::unordered_map<uint32_t, cr::Road>&);
+
 visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
     const bst::shared_ptr<const WaypointNode>&);
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
     const bst::shared_ptr<const WaypointNodeWithVehicle>&);
+
+visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
+    const std::unordered_map<uint32_t, cr::Road>&);
+visualization_msgs::MarkerArrayPtr createVehicleIdsMsg(
+    const std::unordered_map<size_t, cg::Transform>&);
 
 class CarlaSimulatorNode : private bst::noncopyable {
 
@@ -124,6 +130,7 @@ private:
   mutable ros::Publisher agents_marker_pub_;
   mutable ros::Publisher traffic_lattice_pub_;
   mutable ros::Publisher road_ids_pub_;
+  mutable ros::Publisher vehicle_ids_pub_;
 
   mutable image_transport::ImageTransport img_transport_;
   mutable image_transport::Publisher following_img_pub_;
@@ -218,6 +225,7 @@ bool CarlaSimulatorNode::initialize() {
   agents_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("agent_objects", 1, true);
   traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
   road_ids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("road_ids", 1, true);
+  vehicle_ids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("vehicle_ids", 1, true);
 
   // Get the world.
   string host = "localhost";
@@ -463,7 +471,7 @@ void CarlaSimulatorNode::publishTraffic() const {
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
   tf_broadcaster_.sendTransform(*(createVehicleTransformMsg(world_->GetActor(ego_policy_.first), "ego")));
 
-  // TODO: Publish the agents' markers.
+  // Publish the agents' markers.
   visualization_msgs::MarkerArrayPtr agent_objects_msg(new visualization_msgs::MarkerArray);
   for (const auto& agent : agent_policies_) {
     visualization_msgs::MarkerPtr agent_object_msg =
@@ -472,6 +480,13 @@ void CarlaSimulatorNode::publishTraffic() const {
   }
 
   agents_marker_pub_.publish(agent_objects_msg);
+
+  // Publish the IDs of all vehicles.
+  std::unordered_map<size_t, cg::Transform> vehicle_transforms;
+  for (const auto& vehicle : vehicles)
+    vehicle_transforms[vehicle->GetId()] = vehicle->GetTransform();
+
+  vehicle_ids_pub_.publish(createVehicleIdsMsg(vehicle_transforms));
 
   return;
 }

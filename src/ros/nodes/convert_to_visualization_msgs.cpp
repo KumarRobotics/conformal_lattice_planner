@@ -673,4 +673,46 @@ visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
   return roads_msg;
 }
 
+visualization_msgs::MarkerArrayPtr createVehicleIdsMsg(
+    const std::unordered_map<size_t, cg::Transform>& vehicles) {
+
+  std_msgs::ColorRGBA color;
+  color.r = 1.0;
+  color.g = 1.0;
+  color.b = 1.0;
+  color.a = 1.0;
+
+  visualization_msgs::MarkerArrayPtr vehicles_msg(
+      new visualization_msgs::MarkerArray);
+
+  for (const auto& vehicle : vehicles) {
+    const size_t id = vehicle.first;
+    cg::Location location = vehicle.second.location;
+    utils::convertLocationInPlace(location);
+
+    visualization_msgs::MarkerPtr vehicle_msg(new visualization_msgs::Marker);
+    vehicle_msg->header.stamp = ros::Time::now();
+    vehicle_msg->header.frame_id = "map";
+    vehicle_msg->ns = "vehicles";
+    vehicle_msg->id = id;
+    vehicle_msg->type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    vehicle_msg->action = visualization_msgs::Marker::ADD;
+    vehicle_msg->lifetime = ros::Duration(0.0);
+    vehicle_msg->frame_locked = false;
+    vehicle_msg->pose.orientation.w = 1.0;
+    vehicle_msg->pose.position.x = location.x;
+    vehicle_msg->pose.position.y = location.y;
+    vehicle_msg->pose.position.z = location.z + 1.5;
+    vehicle_msg->scale.x = 2.0;
+    vehicle_msg->scale.y = 2.0;
+    vehicle_msg->scale.z = 2.0;
+    vehicle_msg->color = color;
+    vehicle_msg->text = std::to_string(id);
+
+    vehicles_msg->markers.push_back(*vehicle_msg);
+  }
+
+  return vehicles_msg;
+}
+
 } // End namespace carla.
