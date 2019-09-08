@@ -89,6 +89,160 @@ TrafficLattice<Router>::TrafficLattice(
 }
 
 template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::front(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // head of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleHeadNode(vehicle);
+  return frontVehicle(start);
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::back(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // back of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleRearNode(vehicle);
+  return backVehicle(start);
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::leftFront(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // head of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleHeadNode(vehicle);
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  // Find the left node of the start.
+  // If there is no left node, there is no left front vehicle.
+  boost::shared_ptr<const Node> left = start->left();
+  if (!left) return boost::none;
+
+  if (!left->vehicle()) {
+    // If there is no vehicle at the left node, the case is easy.
+    // Just search forward from this left node to find the front vehicle.
+    return frontVehicle(left);
+  } else {
+    // If there is a vehicle at the left node, this is the left front vehicle,
+    // since the head of this vehicle must be at least the same distance with
+    // the head of the query vehicle.
+    const size_t left_vehicle = *(left->vehicle());
+    const double distance = vehicleRearNode(left_vehicle)->distance() -
+                            start->distance();
+    return std::make_pair(left_vehicle, distance);
+  }
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::leftBack(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // rear of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleRearNode(vehicle);
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  // Find the left node of the start.
+  // If there is no left node, there is no left back vehicle.
+  boost::shared_ptr<const Node> left = start->left();
+  if (!left) return boost::none;
+
+  if (!left->vehicle()) {
+    // If there is no vehicle at the left node, the case is easy.
+    // Just search backward from this left node to find the back vehicle.
+    return backVehicle(left);
+  } else {
+    // If there is a vehicle at the left node, this is the left back vehicle,
+    // since the rear of this vehicle must be at least the same distance with
+    // the rear of the query vehicle.
+    const size_t left_vehicle = *(left->vehicle());
+    const double distance = start->distance() -
+                            vehicleHeadNode(left_vehicle)->distance();
+    return std::make_pair(left_vehicle, distance);
+  }
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::rightFront(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // head of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleHeadNode(vehicle);
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  // Find the right node of the start.
+  // If there is no right node, there is no right front vehicle.
+  boost::shared_ptr<const Node> right = start->right();
+  if (!right) return boost::none;
+
+  if (!right->vehicle()) {
+    // If there is no vehicle at the right node, the case is easy.
+    // Just search forward from this right node to find the front vehicle.
+    return frontVehicle(right);
+  } else {
+    // If there is a vehicle at the right node, this is the right front vehicle,
+    // since the head of this vehicle must be at least the same distance with
+    // the head of the query vehicle.
+    const size_t right_vehicle = *(right->vehicle());
+    const double distance = vehicleRearNode(right_vehicle)->distance() -
+                            start->distance();
+    return std::make_pair(right_vehicle, distance);
+  }
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::rightBack(const size_t vehicle) const {
+
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::out_of_range("Given vehicle is not on lattice");
+
+  // Find the node in the lattice which corresponds to the
+  // rear of the vehicle.
+  boost::shared_ptr<const Node> start = vehicleRearNode(vehicle);
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  // Find the right node of the start.
+  // If there is no right node, there is no right back vehicle.
+  boost::shared_ptr<const Node> right = start->right();
+  if (!right) return boost::none;
+
+  if (!right->vehicle()) {
+    // If there is no vehicle at the right node, the case is easy.
+    // Just search backward from this right node to find the back vehicle.
+    return backVehicle(right);
+  } else {
+    // If there is a vehicle at the right node, this is the right back vehicle,
+    // since the rear of this vehicle must be at least the same distance with
+    // the rear of the query vehicle.
+    const size_t right_vehicle = *(right->vehicle());
+    const double distance = start->distance() -
+                            vehicleHeadNode(right_vehicle)->distance();
+    return std::make_pair(right_vehicle, distance);
+  }
+}
+
+template<typename Router>
 void TrafficLattice<Router>::baseConstructor(
     const boost::shared_ptr<CarlaWaypoint>& start,
     const double range,
@@ -265,8 +419,6 @@ bool TrafficLattice<Router>::registerVehicles(
   return true;
 }
 
-
-
 template<typename Router>
 std::deque<size_t> TrafficLattice<Router>::sortRoads(
     const std::unordered_set<size_t>& roads) const {
@@ -366,4 +518,45 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   //    waypoint_location.x, waypoint_location.y, waypoint_location.z);
   return map_->GetWaypoint(waypoint_location);
 }
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::frontVehicle(
+      const boost::shared_ptr<const Node>& start) const {
+
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  boost::shared_ptr<const Node> front = start->front();
+  while (front) {
+    // If we found a vehicle at the front node, this is it.
+    if (front->vehicle())
+      return std::make_pair(*(front->vehicle()), front->distance()-start->distance());
+    // Otherwise, keep moving forward.
+    front = front->front();
+  }
+
+  // There is no front vehicle from the given node.
+  return boost::none;
+}
+
+template<typename Router>
+boost::optional<std::pair<size_t, double>>
+  TrafficLattice<Router>::backVehicle(
+      const boost::shared_ptr<const Node>& start) const {
+
+  if (!start) throw std::runtime_error("Node no longer exists.");
+
+  boost::shared_ptr<const Node> back = start->back();
+  while (back) {
+    // If we found a vehicle at the front node, this is it.
+    if (back->vehicle())
+      return std::make_pair(*(back->vehicle()), start->distance()-back->distance());
+    // Otherwise, keep moving backward.
+    back = back->back();
+  }
+
+  // There is no back vehicle from the given node.
+  return boost::none;
+}
+
 } // End namespace planner.

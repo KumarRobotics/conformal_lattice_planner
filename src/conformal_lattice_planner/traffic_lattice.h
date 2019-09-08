@@ -129,6 +129,24 @@ public:
       const boost::shared_ptr<CarlaMap>& map,
       const boost::shared_ptr<Router>& router);
 
+  /// Find the front vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> front(const size_t vehicle) const;
+
+  /// Find the back vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> back(const size_t vehicle) const;
+
+  /// Find the left front vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> leftFront(const size_t vehicle) const;
+
+  /// Find the left back vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> leftBack(const size_t vehicle) const;
+
+  /// Find the right front vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> rightFront(const size_t vehicle) const;
+
+  /// Find the right back vehicle of the given one.
+  boost::optional<std::pair<size_t, double>> rightBack(const size_t vehicle) const;
+
   /// Lift the base latticeEntry() function to the derived class.
   using Base::latticeEntry;
   /// Lift the base latticeExit() function to the derived class.
@@ -198,6 +216,22 @@ protected:
     const CarlaRoad& road = map_->GetMap().GetMap().GetRoad(waypoint->GetRoadId());
     if (waypoint->GetLaneId() > 0) return road.GetLength() - waypoint->GetDistance();
     else return waypoint->GetDistance();
+  }
+
+  /// Find a front vehicle starting from a given node.
+  boost::optional<std::pair<size_t, double>>
+    frontVehicle(const boost::shared_ptr<const Node>& start) const;
+
+  /// Find a back vehicle starting from a given node.
+  boost::optional<std::pair<size_t, double>>
+    backVehicle(const boost::shared_ptr<const Node>& start) const;
+
+  boost::shared_ptr<const Node> vehicleHeadNode(const size_t vehicle) const {
+    return vehicle_to_nodes_table_.find(vehicle)->second.back().lock();
+  }
+
+  boost::shared_ptr<const Node> vehicleRearNode(const size_t vehicle) const {
+    return vehicle_to_nodes_table_.find(vehicle)->second.front().lock();
   }
 
 }; // End class \c TrafficLattice.
