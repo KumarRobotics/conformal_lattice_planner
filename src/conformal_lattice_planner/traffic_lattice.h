@@ -16,10 +16,7 @@
 
 #pragma once
 
-//#ifndef LIBCARLA_WITH_GTEST
-//  #define LIBCARLA_WITH_GTEST
-//#endif
-
+#include <cstdint>
 #include <tuple>
 #include <boost/optional.hpp>
 #include <carla/client/Vehicle.h>
@@ -146,6 +143,15 @@ public:
 
   /// Find the right back vehicle of the given one.
   boost::optional<std::pair<size_t, double>> rightBack(const size_t vehicle) const;
+
+  /// Delete a vehicle on the current lattice.
+  int32_t deleteVehicle(const size_t vehicle);
+
+  /// Add a vehicle on the current lattice.
+  int32_t addVehicle(const VehicleTuple& vehicle);
+
+  /// Return the IDs of the vehicles that are currently being tracked.
+  std::unordered_set<size_t> vehicles() const;
 
   /// Lift the base latticeEntry() function to the derived class.
   using Base::latticeEntry;

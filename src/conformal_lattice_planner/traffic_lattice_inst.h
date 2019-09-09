@@ -243,6 +243,79 @@ boost::optional<std::pair<size_t, double>>
 }
 
 template<typename Router>
+int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
+  // If the vehicle is not being tracked, there is nothing to be deleted.
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) return 0;
+
+  // Otherwise, we have to first unregister the vehicle at the
+  // corresponding nodes. Then remove the vehicle from the table.
+  for (auto& node : vehicle_to_nodes_table_[vehicle])
+    if (node.lock()) node.lock()->vehicle() = boost::none;
+
+  vehicle_to_nodes_table_.erase(vehicle);
+  return 1;
+}
+
+template<typename Router>
+int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
+
+  // Get the ID, transform, and bounding box of the vehicle to be added.
+  size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
+  std::tie(id, transform, bounding_box) = vehicle;
+
+  // If the vehicle is already on the lattice, the vehicle won't be
+  // updated with the new position. The function API is provided to
+  // add a new vehicle only.
+  if (vehicle_to_nodes_table_.count(id) != 0) return 0;
+
+  // Find the waypoints (head and rear) of this vehicle.
+  boost::shared_ptr<const CarlaWaypoint> head_waypoint =
+    vehicleHeadWaypoint(transform, bounding_box);
+  boost::shared_ptr<const CarlaWaypoint> rear_waypoint =
+    vehicleRearWaypoint(transform, bounding_box);
+
+  // Find the nodes occupied by this vehicle.
+  boost::shared_ptr<Node> head_node = this->closestNode(
+      head_waypoint, this->longitudinal_resolution_/2.0);
+  boost::shared_ptr<Node> rear_node = this->closestNode(
+      rear_waypoint, this->longitudinal_resolution_/2.0);
+
+  // If we can not add the whole vehicle onto the lattice, we won't add it.
+  if (!head_node || !rear_node) return 0;
+
+  std::vector<boost::weak_ptr<Node>> nodes;
+  boost::shared_ptr<Node> next_node = rear_node;
+  while (next_node->waypoint()->GetId() != head_node->waypoint()->GetId()) {
+    nodes.emplace_back(next_node);
+    if (next_node->front().lock()) next_node = next_node->front().lock();
+    // We won't add this vehicle onto the lattice if the nodes between
+    // head and rear are not connected.
+    else return 0;
+  }
+  nodes.emplace_back(head_node);
+
+  // If there is already a vehicle on any of the found nodes,
+  // it indicates there is a collision.
+  for (auto& node : nodes) {
+    if (node.lock()->vehicle()) return -1;
+    else node.lock()->vehicle() = id;
+  }
+
+  // Update the \c vehicle_to_nodes_table_.
+  vehicle_to_nodes_table_[id] = nodes;
+  return 1;
+}
+
+template<typename Router>
+std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
+  std::unordered_set<size_t> vehicles;
+  for (const auto& item : vehicle_to_nodes_table_)
+    vehicles.insert(item.first);
+
+  return vehicles;
+}
+
+template<typename Router>
 void TrafficLattice<Router>::baseConstructor(
     const boost::shared_ptr<CarlaWaypoint>& start,
     const double range,
@@ -373,47 +446,11 @@ bool TrafficLattice<Router>::registerVehicles(
   vehicle_to_nodes_table_.clear();
 
   for (const auto& vehicle : vehicles) {
-
-    // Extract the stuff in the tuple
-    size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
-    std::tie(id, transform, bounding_box) = vehicle;
-
-    // Find the waypoints (head and rear) of this vehicle.
-    boost::shared_ptr<const CarlaWaypoint> head_waypoint =
-      vehicleHeadWaypoint(transform, bounding_box);
-    boost::shared_ptr<const CarlaWaypoint> rear_waypoint =
-      vehicleRearWaypoint(transform, bounding_box);
-
-    // Find the nodes occupied by this vehicle.
-    boost::shared_ptr<Node> head_node = this->closestNode(
-        head_waypoint, this->longitudinal_resolution_/2.0);
-    boost::shared_ptr<Node> rear_node = this->closestNode(
-        rear_waypoint, this->longitudinal_resolution_/2.0);
-    if (!head_node || !rear_node)  {
-      throw std::runtime_error("Cannot find nodes on lattice close to the vehicle.");
-    }
-
-    std::vector<boost::weak_ptr<Node>> nodes;
-    boost::shared_ptr<Node> next_node = rear_node;
-    while (next_node->waypoint()->GetId() != head_node->waypoint()->GetId()) {
-      nodes.emplace_back(next_node);
-      if (next_node->front().lock())
-        next_node = next_node->front().lock();
-      else
-        throw std::runtime_error("The head and rear nodes for the vehicle are not connected in the lattice.");
-    }
-    nodes.emplace_back(head_node);
-
-    // If there is already a vehicle on any of the found nodes,
-    // it indicates there is a collision. Otherwise, we register
-    // the vehicle onto this node.
-    for (auto& node : nodes) {
-      if (node.lock()->vehicle()) return false;
-      else node.lock()->vehicle() = id;
-    }
-
-    // Update the \c vehicle_to_nodes_table_.
-    vehicle_to_nodes_table_[id] = nodes;
+    const int32_t valid = addVehicle(vehicle);
+    if (valid == 0)
+      throw std::runtime_error("The given vehicle is outside the traffic lattice.");
+    else if (valid == -1)
+      return false;
   }
 
   return true;
