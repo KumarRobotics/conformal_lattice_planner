@@ -106,16 +106,17 @@ private:
   /// Policies of agents.
   std::unordered_map<size_t, double> agent_policies_;
 
-  /// Used to keep track of the traffic around the ego vehicle,
-  /// so that we can add new agents and remove agents that are far
-  /// from the ego vehicle efficiently.
-  //bst::shared_ptr<planner::TrafficLattice> traffic_lattice_;
-
   /// Indicates if the ego planner action server has returned success.
   bool ego_ready_ = true;
 
   /// Indicates if the agents' planner action server has returned success.
   bool agents_ready_ = true;
+
+  /// Loop router, the router is predefined on Town04.
+  boost::shared_ptr<LoopRouter> loop_router_;
+
+  /// Traffic lattice.
+  boost::shared_ptr<TrafficLattice<LoopRouter>> traffic_lattice_;
 
   /// Carla interface.
   SharedPtr<cc::World> world_ = nullptr;
@@ -129,6 +130,7 @@ private:
   mutable ros::Publisher ego_marker_pub_;
   mutable ros::Publisher agents_marker_pub_;
   mutable ros::Publisher traffic_lattice_pub_;
+  mutable ros::Publisher waypoint_lattice_pub_;
   mutable ros::Publisher road_ids_pub_;
   mutable ros::Publisher vehicle_ids_pub_;
 
@@ -155,6 +157,8 @@ private:
   //cg::Transform spawnEgo(const bool no_rendering_mode = true);
   void spawnVehicles(const bool no_rendering_mode = true);
   void startVehicles();
+  void updateVehicles();
+  void updateTrafficLattice();
 
   /// Manage agents around the ego vehicle.
   /// Add agents if there is empty space around the ego.
@@ -224,6 +228,7 @@ bool CarlaSimulatorNode::initialize() {
   ego_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_object", 1, true);
   agents_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("agent_objects", 1, true);
   traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
+  waypoint_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("waypoint_lattice", 1, true);
   road_ids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("road_ids", 1, true);
   vehicle_ids_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("vehicle_ids", 1, true);
 
@@ -290,6 +295,16 @@ bool CarlaSimulatorNode::initialize() {
   // Publish the ego vehicle marker.
   ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
   publishTraffic();
+
+  // Update the vehicles and publish the traffic again.
+  for (size_t i = 0; i < 5; ++i) {
+    ros::Duration(1.0).sleep();
+    updateVehicles();
+    world_->Tick();
+    updateTrafficLattice();
+    ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
+    publishTraffic();
+  }
 
   // Wait for the planner servers.
   ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
@@ -371,39 +386,92 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
   boost::shared_ptr<LoopRouter> router(new LoopRouter);
   boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
     boost::make_shared<WaypointLattice<LoopRouter>>(
-        ego_waypoint, 100.0, 2.0, router);
+        ego_waypoint, 100.0, 1.0, router);
+
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice->latticeEntry()));
+
+  //ros::Duration(5.0).sleep();
+  //waypoint_lattice->extend(200.0);
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice->latticeEntry()));
 
   // TODO: Spawn target vehicles.
   {
+    SharedPtr<const cc::Waypoint> waypoint0 = ego_waypoint;
+    SharedPtr<const cc::Waypoint> waypoint1 = ego_waypoint->GetRight();
+    SharedPtr<const cc::Waypoint> waypoint2 = waypoint1->GetRight();
+    SharedPtr<const cc::Waypoint> waypoint3 = waypoint2->GetRight();
+
     SharedPtr<const cc::Waypoint> agent_waypoint = nullptr;
     cg::Transform agent_transform;
     SharedPtr<cc::Actor> agent_actor = nullptr;
 
-    agent_waypoint = waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+    agent_waypoint = waypoint_lattice->front(waypoint0, 30.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
     agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
     agent_policies_[agent_actor->GetId()] = 20.0;
 
-    agent_waypoint = waypoint_lattice->rightFront(ego_waypoint, 50.0)->waypoint();
+    agent_waypoint = waypoint_lattice->front(waypoint0, 50.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
     agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
     agent_policies_[agent_actor->GetId()] = 20.0;
 
-    agent_waypoint = waypoint_lattice->rightBack(agent_waypoint, 40.0)->waypoint();
+    agent_waypoint = waypoint_lattice->front(waypoint0, 70.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
     agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
     agent_policies_[agent_actor->GetId()] = 20.0;
 
-    agent_waypoint = waypoint_lattice->rightFront(agent_waypoint, 10.0)->waypoint();
+    agent_waypoint = waypoint_lattice->front(waypoint1, 10.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
     agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
     agent_policies_[agent_actor->GetId()] = 20.0;
 
-    agent_waypoint = waypoint_lattice->front(agent_waypoint, 20.0)->waypoint();
+    agent_waypoint = waypoint_lattice->front(waypoint1, 30.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint1, 51.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint2, 20.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint2, 50.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint2, 80.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint3, 20.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint3, 48.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
+
+    agent_waypoint = waypoint_lattice->front(waypoint3, 70.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
     agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
@@ -424,6 +492,23 @@ void CarlaSimulatorNode::startVehicles() {
     actor->SetVelocity(actor->GetTransform().GetForwardVector()*15.0);
   }
 
+  // Create the router.
+  loop_router_.reset(new LoopRouter);
+
+  // Create the traffic lattice.
+  vector<SharedPtr<const cc::Vehicle>> vehicles;
+  boost::shared_ptr<cc::Vehicle> ego_vehicle =
+    boost::static_pointer_cast<cc::Vehicle>(
+        world_->GetActor(ego_policy_.first));
+  vehicles.push_back(ego_vehicle);
+  for (const auto& agent : agent_policies_) {
+    vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(
+          world_->GetActor(agent.first)));
+  }
+
+  traffic_lattice_ = bst::make_shared<TrafficLattice<LoopRouter>>(
+      vehicles, world_->GetMap(), loop_router_);
+
   return;
 }
 
@@ -443,9 +528,10 @@ void CarlaSimulatorNode::publishMap() const {
   return;
 }
 
-void CarlaSimulatorNode::publishTraffic() const {
+void CarlaSimulatorNode::updateVehicles() {
 
-  vector<SharedPtr<const cc::Vehicle>> vehicles;
+  // Get all vehicles.
+  vector<SharedPtr<cc::Vehicle>> vehicles;
   boost::shared_ptr<cc::Vehicle> ego_vehicle =
     boost::static_pointer_cast<cc::Vehicle>(
         world_->GetActor(ego_policy_.first));
@@ -455,17 +541,53 @@ void CarlaSimulatorNode::publishTraffic() const {
           world_->GetActor(agent.first)));
   }
 
-  boost::shared_ptr<LoopRouter> router(new LoopRouter);
-  bst::shared_ptr<TrafficLattice<LoopRouter>> traffic_lattice =
-    bst::make_shared<TrafficLattice<LoopRouter>>(vehicles, world_->GetMap(), router);
+  // Move each vehicle forward by 1.25m.
+  for (auto& vehicle : vehicles) {
+    SharedPtr<cc::Waypoint> waypoint =
+      world_->GetMap()->GetWaypoint(vehicle->GetTransform().location);
+    SharedPtr<cc::Waypoint> next_waypoint = loop_router_->frontWaypoint(waypoint, 5.0);
+    vehicle->SetTransform(next_waypoint->GetTransform());
+  }
 
-  //boost::shared_ptr<LoopRouter> router(new LoopRouter);
-  //boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
-  //  boost::make_shared<WaypointLattice<LoopRouter>>(
-  //      world_->GetMap()->GetWaypoint(ego_vehicle->GetTransform().location), 100.0, 2.0, router);
+  return;
+}
 
-  // Publish the traffic lattice.
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice->latticeEntry()));
+void CarlaSimulatorNode::updateTrafficLattice() {
+
+  // Get all vehicles.
+  vector<SharedPtr<const cc::Vehicle>> vehicles;
+
+  boost::shared_ptr<cc::Vehicle> ego_vehicle =
+    boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(ego_policy_.first));
+  vehicles.push_back(ego_vehicle);
+
+  for (const auto& agent : agent_policies_) {
+    vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(
+          world_->GetActor(agent.first)));
+  }
+
+  std::unordered_set<size_t> disappear_vehicles;
+  traffic_lattice_->moveTrafficForward(vehicles, disappear_vehicles);
+
+  std::printf("disappear vehicle: ");
+  for (const auto& id : disappear_vehicles)
+    std::printf("%lu ", id);
+  std::printf("\n");
+
+  return;
+}
+
+void CarlaSimulatorNode::publishTraffic() const {
+
+  vector<SharedPtr<cc::Vehicle>> vehicles;
+  boost::shared_ptr<cc::Vehicle> ego_vehicle =
+    boost::static_pointer_cast<cc::Vehicle>(
+        world_->GetActor(ego_policy_.first));
+  vehicles.push_back(ego_vehicle);
+  for (const auto& agent : agent_policies_) {
+    vehicles.push_back(boost::static_pointer_cast<cc::Vehicle>(
+          world_->GetActor(agent.first)));
+  }
 
   // Publish the ego marker and tf.
   ego_marker_pub_.publish(createVehicleMarkerMsg(world_->GetActor(ego_policy_.first)));
@@ -488,6 +610,8 @@ void CarlaSimulatorNode::publishTraffic() const {
 
   vehicle_ids_pub_.publish(createVehicleIdsMsg(vehicle_transforms));
 
+  // Publish the traffic lattice.
+  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
   return;
 }
 
