@@ -266,9 +266,9 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
   lattice_node_msg->lifetime = ros::Duration(0.0);
   lattice_node_msg->frame_locked = false;
   lattice_node_msg->pose.orientation.w = 1.0;
-  lattice_node_msg->scale.x = 1.0;
-  lattice_node_msg->scale.y = 1.0;
-  lattice_node_msg->scale.z = 1.0;
+  lattice_node_msg->scale.x = 0.5;
+  lattice_node_msg->scale.y = 0.5;
+  lattice_node_msg->scale.z = 0.5;
   lattice_node_msg->color = color;
 
   lattice_edge_msg->header.stamp = ros::Time::now();
