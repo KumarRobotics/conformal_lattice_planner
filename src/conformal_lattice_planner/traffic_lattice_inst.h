@@ -28,7 +28,8 @@ template<typename Router>
 TrafficLattice<Router>::TrafficLattice(
     const std::vector<VehicleTuple>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
-    const boost::shared_ptr<Router>& router) : map_(map) {
+    const boost::shared_ptr<Router>& router,
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) : map_(map) {
 
   this->router_ = router;
 
@@ -45,9 +46,11 @@ TrafficLattice<Router>::TrafficLattice(
   baseConstructor(start_waypoint, range, 1.0, router);
 
   // Register the vehicles onto the lattice nodes.
-  if(!registerVehicles(vehicles)) {
+  std::unordered_set<size_t> remove_vehicles;
+  if(!registerVehicles(vehicles, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
+  if (disappear_vehicles) disappear_vehicles = remove_vehicles;
 
   return;
 }
@@ -56,7 +59,8 @@ template<typename Router>
 TrafficLattice<Router>::TrafficLattice(
     const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
-    const boost::shared_ptr<Router>& router) : map_(map) {
+    const boost::shared_ptr<Router>& router,
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) : map_(map) {
 
   this->router_ = router;
 
@@ -81,9 +85,11 @@ TrafficLattice<Router>::TrafficLattice(
   baseConstructor(start_waypoint, range, 1.0, router);
 
   // Register the vehicles onto the lattice nodes.
-  if(!registerVehicles(vehicle_tuples)) {
+  std::unordered_set<size_t> remove_vehicles;
+  if(!registerVehicles(vehicle_tuples, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
+  if (disappear_vehicles) disappear_vehicles = remove_vehicles;
 
   return;
 }
@@ -243,6 +249,15 @@ boost::optional<std::pair<size_t, double>>
 }
 
 template<typename Router>
+std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
+  std::unordered_set<size_t> vehicles;
+  for (const auto& item : vehicle_to_nodes_table_)
+    vehicles.insert(item.first);
+
+  return vehicles;
+}
+
+template<typename Router>
 int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
   // If the vehicle is not being tracked, there is nothing to be deleted.
   if (vehicle_to_nodes_table_.count(vehicle) == 0) return 0;
@@ -307,12 +322,75 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
 }
 
 template<typename Router>
-std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
-  std::unordered_set<size_t> vehicles;
-  for (const auto& item : vehicle_to_nodes_table_)
-    vehicles.insert(item.first);
+bool TrafficLattice<Router>::moveTrafficForward(
+    const std::vector<VehicleTuple>& vehicles,
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
 
-  return vehicles;
+  // We require there is an update for every vehicle that is
+  // currently being tracked, not more or less.
+  std::unordered_set<size_t> existing_vehicles;
+  for (const auto& item : vehicle_to_nodes_table_)
+    existing_vehicles.insert(item.first);
+
+  std::unordered_set<size_t> update_vehicles;
+  for (const auto& item : vehicles)
+    update_vehicles.insert(std::get<0>(item));
+
+  if (existing_vehicles != update_vehicles) {
+    std::printf("existing vehicles: ");
+    for (const auto id : existing_vehicles) std::printf("%lu ", id);
+    std::printf("\n update vehicles: ");
+    for (const auto id : update_vehicles) std::printf("%lu ", id);
+    std::printf("\n");
+    throw std::runtime_error("The vehicles to update do not match the exisiting vehicles");
+  }
+
+  // Clear all vehicles for the moment, will add them back later.
+  for (auto& item : vehicle_to_nodes_table_) {
+    for (auto& node : item.second) {
+      if (node.lock()) node.lock()->vehicle() = boost::none;
+    }
+  }
+  vehicle_to_nodes_table_.clear();
+
+  // Re-search for the start and range of the lattice.
+  boost::shared_ptr<CarlaWaypoint> update_start = nullptr;
+  double update_range = 0.0;
+  latticeStartAndRange(vehicles, update_start, update_range);
+
+  // Modify the lattice to agree with the new start and range.
+  boost::shared_ptr<Node> update_start_node = this->closestNode(
+      update_start, this->longitudinal_resolution_/2.0);
+  this->shorten(this->range()-update_start_node->distance());
+  this->extend(update_range);
+
+  // Register the vehicles onto the lattice.
+  std::unordered_set<size_t> remove_vehicles;
+  registerVehicles(vehicles, remove_vehicles);
+  if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
+
+  return true;
+}
+
+template<typename Router>
+bool TrafficLattice<Router>::moveTrafficForward(
+    const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
+
+  // Convert vehicle objects into tuples.
+  std::vector<VehicleTuple> vehicle_tuples;
+  for (const auto& vehicle : vehicles) {
+    vehicle_tuples.push_back(std::make_tuple(
+          vehicle->GetId(),
+          vehicle->GetTransform(),
+          vehicle->GetBoundingBox()));
+  }
+
+  std::unordered_set<size_t> remove_vehicles;
+  const bool valid = moveTrafficForward(vehicle_tuples, remove_vehicles);
+  if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
+
+  return valid;
 }
 
 template<typename Router>
@@ -381,8 +459,10 @@ void TrafficLattice<Router>::latticeStartAndRange(
   for (auto& road : road_to_vehicles_table) {
     std::sort(road.second.begin(), road.second.end(),
         [this, &vehicle_transforms](const size_t v0, const size_t v1)->bool{
-          const double d0 = waypointToRoadStartDistance(vehicleWaypoint(vehicle_transforms[v0]));
-          const double d1 = waypointToRoadStartDistance(vehicleWaypoint(vehicle_transforms[v1]));
+          const double d0 = waypointToRoadStartDistance(
+              vehicleWaypoint(vehicle_transforms[v0]));
+          const double d1 = waypointToRoadStartDistance(
+              vehicleWaypoint(vehicle_transforms[v1]));
           return d0 < d1;
         });
   }
@@ -440,19 +520,21 @@ void TrafficLattice<Router>::latticeStartAndRange(
 
 template<typename Router>
 bool TrafficLattice<Router>::registerVehicles(
-    const std::vector<VehicleTuple>& vehicles) {
+    const std::vector<VehicleTuple>& vehicles,
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
 
   // Clear the \c vehicle_to_node_table_.
   vehicle_to_nodes_table_.clear();
 
+  // Add vehicles onto the lattice, keep track of the disappearred/removed vehicles as well.
+  std::unordered_set<size_t> removed_vehicles;
   for (const auto& vehicle : vehicles) {
     const int32_t valid = addVehicle(vehicle);
-    if (valid == 0)
-      throw std::runtime_error("The given vehicle is outside the traffic lattice.");
-    else if (valid == -1)
-      return false;
+    if (valid == 0) removed_vehicles.insert(std::get<0>(vehicle));
+    else if (valid == -1) return false;
   }
 
+  if (disappear_vehicles) *disappear_vehicles = removed_vehicles;
   return true;
 }
 

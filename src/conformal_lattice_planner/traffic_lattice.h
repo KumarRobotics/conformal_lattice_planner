@@ -119,12 +119,14 @@ public:
   TrafficLattice(
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
-      const boost::shared_ptr<Router>& router);
+      const boost::shared_ptr<Router>& router,
+      boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   TrafficLattice(
       const std::vector<VehicleTuple>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
-      const boost::shared_ptr<Router>& router);
+      const boost::shared_ptr<Router>& router,
+      boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   /// Find the front vehicle of the given one.
   boost::optional<std::pair<size_t, double>> front(const size_t vehicle) const;
@@ -144,14 +146,24 @@ public:
   /// Find the right back vehicle of the given one.
   boost::optional<std::pair<size_t, double>> rightBack(const size_t vehicle) const;
 
+  /// Return the IDs of the vehicles that are currently being tracked.
+  std::unordered_set<size_t> vehicles() const;
+
   /// Delete a vehicle on the current lattice.
   int32_t deleteVehicle(const size_t vehicle);
 
   /// Add a vehicle on the current lattice.
   int32_t addVehicle(const VehicleTuple& vehicle);
 
-  /// Return the IDs of the vehicles that are currently being tracked.
-  std::unordered_set<size_t> vehicles() const;
+  /// Update the vehicle positions to the next time instance.
+  /// The object is no longer valid if this function returns false.
+  bool moveTrafficForward(
+      const std::vector<VehicleTuple>& vehicles,
+      boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
+
+  bool moveTrafficForward(
+      const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
+      boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   /// Lift the base latticeEntry() function to the derived class.
   using Base::latticeEntry;
@@ -210,7 +222,8 @@ protected:
    *       at an invalid state. One should not use the object anymore.
    */
   bool registerVehicles(
-      const std::vector<VehicleTuple>& vehicles);
+      const std::vector<VehicleTuple>& vehicles,
+      boost::optional<std::unordered_set<size_t>&> disappear_vehicles);
 
   /// Get the distance from the waypoint to the starting of the road.
   double waypointToRoadStartDistance(
