@@ -155,6 +155,13 @@ public:
     return lattice_exit_;
   }
 
+  /// Return the range of the lattice.
+  double range() const {
+    if (!lattice_entry_) throw std::runtime_error("Lattice entry does not exist.");
+    if (!lattice_exit_) throw std::runtime_error("Lattice exit does not exist.");
+    return lattice_exit_->distance() - lattice_entry_->distance();
+  }
+
   /**
    * \brief Extend the range of the lattice.
    *

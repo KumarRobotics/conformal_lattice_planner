@@ -42,12 +42,6 @@ Lattice<Node, Router>::Lattice(
                        "Range should be at least 1xlongitudinal_resolution.") % range).str());
   }
 
-  //if (longitudinal_resolution_ > 5.0) {
-  //  throw std::runtime_error(
-  //      (boost::format("The given longitudinal resolution [%1%] is too large."
-  //                     "Resolution should be within (0m, 5.0).") % longitudinal_resolution_).str());
-  //}
-
   // Create the start node.
   boost::shared_ptr<Node> start_node = boost::make_shared<Node>(start);
   start_node->distance() = 0.0;
@@ -122,10 +116,16 @@ void Lattice<Node, Router>::extend(const double range) {
   if (lattice_exit_->distance()-lattice_entry_->distance() >= range)
     return;
 
-  // A queue of nodes to be explored, starting from the current
-  // lattice exit.
+  // A queue of nodes to be explored.
+  // The queue is started from the lattice exit and all nodes that
+  // has the same distance with lattice.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
-  nodes_queue.push(lattice_exit_);
+  //nodes_queue.push(lattice_exit_);
+
+  for (auto& item : waypoint_to_node_table_) {
+    if (item.second->distance() >= lattice_exit_->distance())
+      nodes_queue.push(item.second);
+  }
 
   while (!nodes_queue.empty()) {
     // Get the next node to explore and remove it from the queue.
@@ -137,13 +137,25 @@ void Lattice<Node, Router>::extend(const double range) {
     extendRight(node, range, nodes_queue);
   }
 
-  // All nodes that has been added now must have front, left, and right neighbors.
-  // We still have to fill in the back neighbor of each node.
+  // Fix the edges in the lattice in order to ensure we didn't miss anything.
+  // FIXME: Lots of unnecessary work is done here.
   for (auto& item : waypoint_to_node_table_) {
     boost::shared_ptr<Node> node = item.second;
     if (node->front().lock()) {
       const size_t front_waypoint_id = (node->front()).lock()->waypoint()->GetId();
       waypoint_to_node_table_[front_waypoint_id]->back() = node;
+    }
+    if (node->back().lock()) {
+      const size_t back_waypoint_id = (node->back()).lock()->waypoint()->GetId();
+      waypoint_to_node_table_[back_waypoint_id]->front() = node;
+    }
+    if (node->left().lock()) {
+      const size_t left_waypoint_id = (node->left()).lock()->waypoint()->GetId();
+      waypoint_to_node_table_[left_waypoint_id]->right() = node;
+    }
+    if (node->right().lock()) {
+      const size_t right_waypoint_id = (node->right()).lock()->waypoint()->GetId();
+      waypoint_to_node_table_[right_waypoint_id]->left() = node;
     }
   }
 
@@ -598,78 +610,5 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
   // If we still cannot find anything, return nullptr.
   return nullptr;
 }
-
-//template<typename Node>
-//boost::shared_ptr<typename Lattice<Node>::CarlaWaypoint>
-//  Lattice<Node>::findFrontWaypoint(
-//    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-//    const double range) const {
-//
-//  if (range > 5.0) {
-//    throw std::runtime_error(
-//        (boost::format("The given range [%1%] is large than 5.0m,"
-//                       "which may results in an inaccurate front waypoint") % range).str());
-//  }
-//
-//  // Direction of the given waypoint.
-//  //const CarlaVector3D direction = waypoint->GetTransform().GetForwardVector();
-//
-//  // The front waypoint to be returned.
-//  boost::shared_ptr<CarlaWaypoint> front_waypoint = nullptr;
-//  //double best_score = -10.0;
-//
-//  // Get some candidates using the carla API.
-//  std::vector<boost::shared_ptr<CarlaWaypoint>> candidates = waypoint->GetNext(range);
-//
-//  //if (candidates.size() > 1) {
-//  //  std::printf("current waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
-//  //      waypoint->GetRoadId(), waypoint->GetLaneId(), waypoint->IsJunction(), waypoint->GetLaneChange());
-//  //  for (const auto& candidate : candidates)
-//  //    std::printf("candidate front waypoint: road:%d lane:%d junction:%d lane_change:%d\n",
-//  //        candidate->GetRoadId(), candidate->GetLaneId(), candidate->IsJunction(), candidate->GetLaneChange());
-//  //}
-//
-//  // The basic idea is to loop through all candidate next waypoint.
-//  // Find the candidate that is at the front (in the sense of lane following)
-//  // of the current waypoint.
-//  for (const auto& candidate : candidates) {
-//
-//    // Ignore the candidate if it is not drivable.
-//    if (candidate->GetType() != CarlaLane::LaneType::Driving) continue;
-//
-//    // If we find a match candidate by ID, this is it.
-//    if (candidate->GetRoadId() == waypoint->GetRoadId() &&
-//        candidate->GetLaneId() == waypoint->GetLaneId()) {
-//      front_waypoint = candidate;
-//      break;
-//    }
-//
-//    // FIXME: This might not be correct.
-//    // Use the lane property to find the next waypoint.
-//    // Based on the experiments, this can prevent the case of using the waypoint
-//    // on the off ramp as the next waypoint.
-//    if (std::abs(candidate->GetLaneId()) == std::abs(waypoint->GetLaneId())) {
-//      front_waypoint = candidate;
-//      break;
-//    }
-//
-//    // If we cannot find a match based on the IDs,
-//    // the forward direction of the waypoint is used.
-//    // The candidate whose forward direction matches the given waypoint
-//    // is the one we want.
-//    //const CarlaVector3D candidate_direction = candidate->GetTransform().GetForwardVector();
-//    //const double score =
-//    //  direction.x*candidate_direction.x +
-//    //  direction.y*candidate_direction.y +
-//    //  direction.z*candidate_direction.z;
-//
-//    //if (score > best_score) {
-//    //  best_score = score;
-//    //  front_waypoint = candidate;
-//    //}
-//  }
-//
-//  return front_waypoint;
-//}
 
 } // End namespace planner.
