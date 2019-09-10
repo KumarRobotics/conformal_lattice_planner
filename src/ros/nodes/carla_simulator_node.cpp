@@ -81,9 +81,9 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const carla::SharedPtr<cc::Actor>&, const std::string&);
 
 visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const bst::shared_ptr<const WaypointNode>&);
+    const bst::shared_ptr<const WaypointLattice<LoopRouter>>&);
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const bst::shared_ptr<const WaypointNodeWithVehicle>&);
+    const bst::shared_ptr<const TrafficLattice<LoopRouter>>&);
 
 visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
     const std::unordered_map<uint32_t, cr::Road>&);
@@ -388,11 +388,15 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     boost::make_shared<WaypointLattice<LoopRouter>>(
         ego_waypoint, 100.0, 1.0, router);
 
-  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice->latticeEntry()));
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice));
 
   //ros::Duration(5.0).sleep();
   //waypoint_lattice->extend(200.0);
-  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice->latticeEntry()));
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice));
+
+  //ros::Duration(5.0).sleep();
+  //waypoint_lattice->shorten(50.0);
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(waypoint_lattice));
 
   // TODO: Spawn target vehicles.
   {
@@ -611,7 +615,7 @@ void CarlaSimulatorNode::publishTraffic() const {
   vehicle_ids_pub_.publish(createVehicleIdsMsg(vehicle_transforms));
 
   // Publish the traffic lattice.
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_->latticeEntry()));
+  traffic_lattice_pub_.publish(createTrafficLatticeMsg(traffic_lattice_));
   return;
 }
 

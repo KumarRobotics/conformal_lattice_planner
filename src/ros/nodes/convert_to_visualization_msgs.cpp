@@ -37,6 +37,7 @@
 #include <carla/geom/Transform.h>
 #include <carla/sensor/data/Image.h>
 
+#include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
 #include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/utils.h>
@@ -48,7 +49,9 @@ namespace cg = carla::geom;
 namespace crpc = carla::rpc;
 namespace csd = carla::sensor::data;
 namespace cr = carla::road;
+
 using namespace planner;
+using namespace router;
 
 namespace carla {
 
@@ -245,7 +248,7 @@ sensor_msgs::ImagePtr createImageMsg(const carla::SharedPtr<csd::Image>& img) {
 }
 
 visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const bst::shared_ptr<const WaypointNode>& lattice_entry) {
+    const bst::shared_ptr<const WaypointLattice<LoopRouter>>& waypoint_lattice) {
 
   std_msgs::ColorRGBA color;
   color.r = 0.2;
@@ -285,142 +288,43 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
   lattice_edge_msg->scale.z = 0.0;
   lattice_edge_msg->color = color;
 
-  std::unordered_set<size_t> processed_waypoints;
-  std::unordered_set<size_t> drawed_waypoints;
-  std::unordered_set<size_t> drawed_waypoint_pairs;
-  std::queue<bst::shared_ptr<const WaypointNode>> unprocessed_nodes;
-  unprocessed_nodes.push(lattice_entry);
+  const std::unordered_map<size_t, boost::shared_ptr<const WaypointNode>> nodes = waypoint_lattice->nodes();
+  const std::vector<std::pair<size_t, size_t>> edges = waypoint_lattice->edges();
 
-  //printf("Fill in the nodes and edges.\n");
-  while (!unprocessed_nodes.empty()) {
+  for (const auto& item : nodes) {
+    const boost::shared_ptr<const WaypointNode>& node = item.second;
+    cg::Transform transform = utils::convertTransform(node->waypoint()->GetTransform());
+    geometry_msgs::Point pt;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
 
-    //printf("processed/unprocessed waypoints #: %lu/%lu\n", processed_waypoints.size(), unprocessed_nodes.size());
-    // Get the center point to be processed.
-    bst::shared_ptr<const WaypointNode> center = unprocessed_nodes.front();
-    unprocessed_nodes.pop();
-    processed_waypoints.insert(center->waypoint()->GetId());
-
-    //printf("center: %lu\n", center->waypoint()->GetId());
-    //for (const auto& pt : unprocessed_nodes) std::printf("%lu\n", pt->waypoint()->GetId());
-
-    cg::Transform center_transform = utils::convertTransform(center->waypoint()->GetTransform());
-    geometry_msgs::Point center_pt;
-    center_pt.x = center_transform.location.x;
-    center_pt.y = center_transform.location.y;
-    center_pt.z = center_transform.location.z;
-
-    // Add the front node.
-    bst::shared_ptr<const WaypointNode> front = center->front();
-    if (front) {
-      cg::Transform transform = utils::convertTransform(front->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(front->waypoint()->GetId()) == 0) {
-        //printf("Add front: %lu\n", front->waypoint()->GetId());
-        unprocessed_nodes.push(front);
-        processed_waypoints.insert(front->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(front->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        lattice_node_msg->colors.push_back(color);
-        drawed_waypoints.insert(front->waypoint()->GetId());
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), front->waypoint()->GetId());
-      utils::hashCombine(pair_id1, front->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
-
-    // Add the left node.
-    bst::shared_ptr<const WaypointNode> left = center->left();
-    if (left) {
-      cg::Transform transform = utils::convertTransform(left->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(left->waypoint()->GetId()) == 0) {
-        //printf("Add left: %lu\n", left->waypoint()->GetId());
-        unprocessed_nodes.push(left);
-        processed_waypoints.insert(left->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(left->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        lattice_node_msg->colors.push_back(color);
-        drawed_waypoints.insert(left->waypoint()->GetId());
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), left->waypoint()->GetId());
-      utils::hashCombine(pair_id1, left->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
-
-    // Add the right node.
-    bst::shared_ptr<const WaypointNode> right = center->right();
-    if (right) {
-      cg::Transform transform = utils::convertTransform(right->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(right->waypoint()->GetId()) == 0) {
-        //printf("Add right: %lu\n", right->waypoint()->GetId());
-        unprocessed_nodes.push(right);
-        processed_waypoints.insert(right->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(right->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        lattice_node_msg->colors.push_back(color);
-        drawed_waypoints.insert(right->waypoint()->GetId());
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), right->waypoint()->GetId());
-      utils::hashCombine(pair_id1, right->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
+    lattice_node_msg->points.push_back(pt);
+    lattice_node_msg->colors.push_back(color);
   }
 
-  //std::printf("sphere list size: %lu, %lu\n",
-  //    drawed_waypoints.size(),
-  //    lattice_node_msg->points.size());
-  //std::printf("line list size: %lu, %lu\n",
-  //    drawed_waypoint_pairs.size(),
-  //    lattice_edge_msg->points.size());
+  for (const auto& item : edges) {
+    const boost::shared_ptr<const WaypointNode>& node0 = nodes.find(item.first)->second;
+    const boost::shared_ptr<const WaypointNode>& node1 = nodes.find(item.second)->second;
+
+    cg::Transform transform0 = utils::convertTransform(node0->waypoint()->GetTransform());
+    cg::Transform transform1 = utils::convertTransform(node1->waypoint()->GetTransform());
+
+    geometry_msgs::Point pt0;
+    pt0.x = transform0.location.x;
+    pt0.y = transform0.location.y;
+    pt0.z = transform0.location.z;
+
+    geometry_msgs::Point pt1;
+    pt1.x = transform1.location.x;
+    pt1.y = transform1.location.y;
+    pt1.z = transform1.location.z;
+
+    lattice_edge_msg->points.push_back(pt0);
+    lattice_edge_msg->points.push_back(pt1);
+    lattice_edge_msg->colors.push_back(color);
+    lattice_edge_msg->colors.push_back(color);
+  }
 
   visualization_msgs::MarkerArrayPtr traffic_lattice_msg(
       new visualization_msgs::MarkerArray);
@@ -431,7 +335,7 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
 }
 
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const bst::shared_ptr<const WaypointNodeWithVehicle>& lattice_entry) {
+    const bst::shared_ptr<const TrafficLattice<LoopRouter>>& traffic_lattice) {
 
   std_msgs::ColorRGBA color;
   color.r = 0.4;
@@ -477,145 +381,44 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
   lattice_edge_msg->scale.z = 0.0;
   lattice_edge_msg->color = color;
 
-  std::unordered_set<size_t> processed_waypoints;
-  std::unordered_set<size_t> drawed_waypoints;
-  std::unordered_set<size_t> drawed_waypoint_pairs;
-  std::queue<bst::shared_ptr<const WaypointNodeWithVehicle>> unprocessed_nodes;
-  unprocessed_nodes.push(lattice_entry);
+  const std::unordered_map<size_t, boost::shared_ptr<const WaypointNodeWithVehicle>> nodes = traffic_lattice->nodes();
+  const std::vector<std::pair<size_t, size_t>> edges = traffic_lattice->edges();
 
-  //printf("Fill in the nodes and edges.\n");
-  while (!unprocessed_nodes.empty()) {
+  for (const auto& item : nodes) {
+    const boost::shared_ptr<const WaypointNodeWithVehicle>& node = item.second;
+    cg::Transform transform = utils::convertTransform(node->waypoint()->GetTransform());
+    geometry_msgs::Point pt;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
 
-    //printf("processed/unprocessed waypoints #: %lu/%lu\n", processed_waypoints.size(), unprocessed_nodes.size());
-    // Get the center point to be processed.
-    bst::shared_ptr<const WaypointNodeWithVehicle> center = unprocessed_nodes.front();
-    unprocessed_nodes.pop();
-    processed_waypoints.insert(center->waypoint()->GetId());
-
-    //printf("center: %lu\n", center->waypoint()->GetId());
-    //for (const auto& pt : unprocessed_nodes) std::printf("%lu\n", pt->waypoint()->GetId());
-
-    cg::Transform center_transform = utils::convertTransform(center->waypoint()->GetTransform());
-    geometry_msgs::Point center_pt;
-    center_pt.x = center_transform.location.x;
-    center_pt.y = center_transform.location.y;
-    center_pt.z = center_transform.location.z;
-
-    // Add the front node.
-    bst::shared_ptr<const WaypointNodeWithVehicle> front = center->front();
-    if (front) {
-      cg::Transform transform = utils::convertTransform(front->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(front->waypoint()->GetId()) == 0) {
-        //printf("Add front: %lu\n", front->waypoint()->GetId());
-        unprocessed_nodes.push(front);
-        processed_waypoints.insert(front->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(front->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        drawed_waypoints.insert(front->waypoint()->GetId());
-        if (front->vehicle()) lattice_node_msg->colors.push_back(special_color);
-        else lattice_node_msg->colors.push_back(color);
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), front->waypoint()->GetId());
-      utils::hashCombine(pair_id1, front->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
-
-    // Add the left node.
-    bst::shared_ptr<const WaypointNodeWithVehicle> left = center->left();
-    if (left) {
-      cg::Transform transform = utils::convertTransform(left->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(left->waypoint()->GetId()) == 0) {
-        //printf("Add left: %lu\n", left->waypoint()->GetId());
-        unprocessed_nodes.push(left);
-        processed_waypoints.insert(left->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(left->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        drawed_waypoints.insert(left->waypoint()->GetId());
-        if (left->vehicle()) lattice_node_msg->colors.push_back(special_color);
-        else lattice_node_msg->colors.push_back(color);
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), left->waypoint()->GetId());
-      utils::hashCombine(pair_id1, left->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
-
-    // Add the right node.
-    bst::shared_ptr<const WaypointNodeWithVehicle> right = center->right();
-    if (right) {
-      cg::Transform transform = utils::convertTransform(right->waypoint()->GetTransform());
-      geometry_msgs::Point pt;
-      pt.x = transform.location.x;
-      pt.y = transform.location.y;
-      pt.z = transform.location.z;
-
-      if (processed_waypoints.count(right->waypoint()->GetId()) == 0) {
-        //printf("Add right: %lu\n", right->waypoint()->GetId());
-        unprocessed_nodes.push(right);
-        processed_waypoints.insert(right->waypoint()->GetId());
-      }
-
-      if (drawed_waypoints.count(right->waypoint()->GetId()) == 0) {
-        lattice_node_msg->points.push_back(pt);
-        drawed_waypoints.insert(right->waypoint()->GetId());
-        if (right->vehicle()) lattice_node_msg->colors.push_back(special_color);
-        else lattice_node_msg->colors.push_back(color);
-      }
-
-      size_t pair_id0 = 0, pair_id1 = 0;
-      utils::hashCombine(pair_id0, center->waypoint()->GetId(), right->waypoint()->GetId());
-      utils::hashCombine(pair_id1, right->waypoint()->GetId(), center->waypoint()->GetId());
-      if (drawed_waypoint_pairs.count(pair_id0) == 0 && drawed_waypoint_pairs.count(pair_id1) == 0) {
-        lattice_edge_msg->points.push_back(center_pt);
-        lattice_edge_msg->points.push_back(pt);
-        lattice_edge_msg->colors.push_back(color);
-        lattice_edge_msg->colors.push_back(color);
-
-        drawed_waypoint_pairs.insert(pair_id0);
-        drawed_waypoint_pairs.insert(pair_id1);
-      }
-    }
+    lattice_node_msg->points.push_back(pt);
+    if (node->vehicle()) lattice_node_msg->colors.push_back(special_color);
+    else lattice_node_msg->colors.push_back(color);
   }
 
-  //std::printf("sphere list size: %lu, %lu\n",
-  //    drawed_waypoints.size(),
-  //    lattice_node_msg->points.size());
-  //std::printf("line list size: %lu, %lu\n",
-  //    drawed_waypoint_pairs.size(),
-  //    lattice_edge_msg->points.size());
+  for (const auto& item : edges) {
+    const boost::shared_ptr<const WaypointNodeWithVehicle>& node0 = nodes.find(item.first)->second;
+    const boost::shared_ptr<const WaypointNodeWithVehicle>& node1 = nodes.find(item.second)->second;
+
+    cg::Transform transform0 = utils::convertTransform(node0->waypoint()->GetTransform());
+    cg::Transform transform1 = utils::convertTransform(node1->waypoint()->GetTransform());
+
+    geometry_msgs::Point pt0;
+    pt0.x = transform0.location.x;
+    pt0.y = transform0.location.y;
+    pt0.z = transform0.location.z;
+
+    geometry_msgs::Point pt1;
+    pt1.x = transform1.location.x;
+    pt1.y = transform1.location.y;
+    pt1.z = transform1.location.z;
+
+    lattice_edge_msg->points.push_back(pt0);
+    lattice_edge_msg->points.push_back(pt1);
+    lattice_edge_msg->colors.push_back(color);
+    lattice_edge_msg->colors.push_back(color);
+  }
 
   visualization_msgs::MarkerArrayPtr traffic_lattice_msg(
       new visualization_msgs::MarkerArray);
