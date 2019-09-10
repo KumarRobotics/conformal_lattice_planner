@@ -167,8 +167,13 @@ public:
 
   /// Lift the base latticeEntry() function to the derived class.
   using Base::latticeEntry;
+
   /// Lift the base latticeExit() function to the derived class.
   using Base::latticeExit;
+
+  using Base::nodes;
+
+  using Base::edges;
 
 protected:
 
