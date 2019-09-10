@@ -155,6 +155,13 @@ public:
     return lattice_exit_;
   }
 
+  /// Return all nodes maintained by the lattice.
+  std::unordered_map<size_t, boost::shared_ptr<const Node>> nodes() const;
+
+  /// Return all the edges maintained by the lattice.
+  /// \note Edges are directed.
+  std::vector<std::pair<size_t, size_t>> edges() const;
+
   /// Return the range of the lattice.
   double range() const {
     if (!lattice_entry_) throw std::runtime_error("Lattice entry does not exist.");

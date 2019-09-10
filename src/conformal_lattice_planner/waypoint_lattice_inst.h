@@ -109,6 +109,50 @@ void Lattice<Node, Router>::swap(Lattice<Node, Router>& other) {
 }
 
 template<typename Node, typename Router>
+std::unordered_map<size_t, boost::shared_ptr<const Node>>
+  Lattice<Node, Router>::nodes() const {
+
+  std::unordered_map<size_t, boost::shared_ptr<const Node>> nodes;
+  for (const auto& item : waypoint_to_node_table_)
+    nodes[item.first] = item.second;
+
+  return nodes;
+}
+
+template<typename Node, typename Router>
+std::vector<std::pair<size_t, size_t>>
+  Lattice<Node, Router>::edges() const {
+
+  std::vector<std::pair<size_t, size_t>> edges;
+
+  for (const auto& item : waypoint_to_node_table_) {
+    const boost::shared_ptr<const Node> this_node = item.second;
+
+    if (this_node->front())
+      edges.push_back(std::make_pair(
+            this_node->waypoint()->GetId(),
+            this_node->front()->waypoint()->GetId()));
+
+    if (this_node->left())
+      edges.push_back(std::make_pair(
+            this_node->waypoint()->GetId(),
+            this_node->left()->waypoint()->GetId()));
+
+    if (this_node->right())
+      edges.push_back(std::make_pair(
+            this_node->waypoint()->GetId(),
+            this_node->right()->waypoint()->GetId()));
+
+    if (this_node->back())
+      edges.push_back(std::make_pair(
+            this_node->waypoint()->GetId(),
+            this_node->back()->waypoint()->GetId()));
+  }
+
+  return edges;
+}
+
+template<typename Node, typename Router>
 void Lattice<Node, Router>::extend(const double range) {
 
   // If the current range of the lattice exceeds the given range,
@@ -145,18 +189,18 @@ void Lattice<Node, Router>::extend(const double range) {
       const size_t front_waypoint_id = (node->front()).lock()->waypoint()->GetId();
       waypoint_to_node_table_[front_waypoint_id]->back() = node;
     }
-    if (node->back().lock()) {
-      const size_t back_waypoint_id = (node->back()).lock()->waypoint()->GetId();
-      waypoint_to_node_table_[back_waypoint_id]->front() = node;
-    }
-    if (node->left().lock()) {
-      const size_t left_waypoint_id = (node->left()).lock()->waypoint()->GetId();
-      waypoint_to_node_table_[left_waypoint_id]->right() = node;
-    }
-    if (node->right().lock()) {
-      const size_t right_waypoint_id = (node->right()).lock()->waypoint()->GetId();
-      waypoint_to_node_table_[right_waypoint_id]->left() = node;
-    }
+    //if (node->back().lock()) {
+    //  const size_t back_waypoint_id = (node->back()).lock()->waypoint()->GetId();
+    //  waypoint_to_node_table_[back_waypoint_id]->front() = node;
+    //}
+    //if (node->left().lock()) {
+    //  const size_t left_waypoint_id = (node->left()).lock()->waypoint()->GetId();
+    //  waypoint_to_node_table_[left_waypoint_id]->right() = node;
+    //}
+    //if (node->right().lock()) {
+    //  const size_t right_waypoint_id = (node->right()).lock()->waypoint()->GetId();
+    //  waypoint_to_node_table_[right_waypoint_id]->left() = node;
+    //}
   }
 
   //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
@@ -176,52 +220,10 @@ void Lattice<Node, Router>::shorten(const double range) {
 
   // Save the ids for the waypoint to be removed.
   std::unordered_set<size_t> removed_waypoint_ids;
-  // Save the nodes to be processed.
-  std::queue<boost::shared_ptr<Node>> nodes_queue;
 
-  removed_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
-  nodes_queue.push(lattice_entry_);
-
-  while (!nodes_queue.empty()) {
-    // Get the next node to be processed.
-    boost::shared_ptr<Node> node = nodes_queue.front();
-    nodes_queue.pop();
-
-    // If this node is the current lattice entry, we have to update
-    // the lattice entry to its front node.
-    if (node->waypoint()->GetId() == lattice_entry_->waypoint()->GetId() &&
-        node->front().lock()) {
-      lattice_entry_ = node->front().lock();
-    }
-
-    // Add the left node.
-    if (node->left().lock()) {
-      boost::shared_ptr<Node> left_node = node->left().lock();
-      if (removed_waypoint_ids.count(left_node->waypoint()->GetId()) == 0) {
-        removed_waypoint_ids.insert(left_node->waypoint()->GetId());
-        nodes_queue.push(left_node);
-      }
-    }
-
-    // Add the right node.
-    if (node->right().lock()) {
-      boost::shared_ptr<Node> right_node = node->right().lock();
-      if (removed_waypoint_ids.count(right_node->waypoint()->GetId()) == 0) {
-        removed_waypoint_ids.insert(right_node->waypoint()->GetId());
-        nodes_queue.push(right_node);
-      }
-    }
-
-    // Some special care is required for the front node.
-    // We need to determine when to stop.
-    if (node->front().lock()) {
-      boost::shared_ptr<Node> front_node = node->front().lock();
-      if (front_node->distance() < safe_distance &&
-          removed_waypoint_ids.count(front_node->waypoint()->GetId()) == 0) {
-        removed_waypoint_ids.insert(front_node->waypoint()->GetId());
-        nodes_queue.push(front_node);
-      }
-    }
+  for (const auto& node : waypoint_to_node_table_) {
+    if (node.second->distance() < safe_distance)
+      removed_waypoint_ids.insert(node.first);
   }
 
   // Removed the nodes that have been recorded.
@@ -230,13 +232,93 @@ void Lattice<Node, Router>::shorten(const double range) {
     reduceWaypointToNodeTable(waypoint_id);
   }
 
+  // Set the new lattice entry, which is the one with shortest distance.
+  lattice_entry_ = waypoint_to_node_table_.begin()->second;
+  for (const auto& node : waypoint_to_node_table_) {
+    if (node.second->distance() < lattice_entry_->distance())
+      lattice_entry_ = node.second;
+  }
+
   // Update the distance of all remaining nodes starting
   // from the \c lattice_entry_.
   updateNodeDistance();
-
-  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
   return;
 }
+
+//template<typename Node, typename Router>
+//void Lattice<Node, Router>::shorten(const double range) {
+//  // If the current lattice range is already smaller than the given range,
+//  // no operation is performed.
+//  if (lattice_exit_->distance()-lattice_entry_->distance() <= range)
+//    return;
+//
+//  // The distance before which nodes should be removed.
+//  const double safe_distance =
+//    lattice_exit_->distance() - lattice_entry_->distance() - range;
+//
+//  // Save the ids for the waypoint to be removed.
+//  std::unordered_set<size_t> removed_waypoint_ids;
+//  // Save the nodes to be processed.
+//  std::queue<boost::shared_ptr<Node>> nodes_queue;
+//
+//  removed_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
+//  nodes_queue.push(lattice_entry_);
+//
+//  while (!nodes_queue.empty()) {
+//    // Get the next node to be processed.
+//    boost::shared_ptr<Node> node = nodes_queue.front();
+//    nodes_queue.pop();
+//
+//    // If this node is the current lattice entry, we have to update
+//    // the lattice entry to its front node.
+//    if (node->waypoint()->GetId() == lattice_entry_->waypoint()->GetId() &&
+//        node->front().lock()) {
+//      lattice_entry_ = node->front().lock();
+//    }
+//
+//    // Add the left node.
+//    if (node->left().lock()) {
+//      boost::shared_ptr<Node> left_node = node->left().lock();
+//      if (removed_waypoint_ids.count(left_node->waypoint()->GetId()) == 0) {
+//        removed_waypoint_ids.insert(left_node->waypoint()->GetId());
+//        nodes_queue.push(left_node);
+//      }
+//    }
+//
+//    // Add the right node.
+//    if (node->right().lock()) {
+//      boost::shared_ptr<Node> right_node = node->right().lock();
+//      if (removed_waypoint_ids.count(right_node->waypoint()->GetId()) == 0) {
+//        removed_waypoint_ids.insert(right_node->waypoint()->GetId());
+//        nodes_queue.push(right_node);
+//      }
+//    }
+//
+//    // Some special care is required for the front node.
+//    // We need to determine when to stop.
+//    if (node->front().lock()) {
+//      boost::shared_ptr<Node> front_node = node->front().lock();
+//      if (front_node->distance() < safe_distance &&
+//          removed_waypoint_ids.count(front_node->waypoint()->GetId()) == 0) {
+//        removed_waypoint_ids.insert(front_node->waypoint()->GetId());
+//        nodes_queue.push(front_node);
+//      }
+//    }
+//  }
+//
+//  // Removed the nodes that have been recorded.
+//  for (const size_t waypoint_id : removed_waypoint_ids) {
+//    reduceRoadlaneToWaypointsTable(waypoint_to_node_table_[waypoint_id]->waypoint());
+//    reduceWaypointToNodeTable(waypoint_id);
+//  }
+//
+//  // Update the distance of all remaining nodes starting
+//  // from the \c lattice_entry_.
+//  updateNodeDistance();
+//
+//  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+//  return;
+//}
 
 template<typename Node, typename Router>
 void Lattice<Node, Router>::updateNodeDistance() {
