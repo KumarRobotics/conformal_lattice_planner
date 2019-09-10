@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <stdexcept>
 #include <unordered_set>
 #include <boost/smart_ptr.hpp>
 
@@ -68,12 +69,19 @@ public:
     map_ = world_->GetMap();
   }
 
-  // TODO: Should I use a template container instead of \c std::vector<size_t>?
-  //       If I use template, I have to templating other member functions as well.
-  //       Sounds like a messy option.
+  /// Derived class should implement either of the interface.
+  /// TODO: Is there a way I can check the implementation at compile time?
+  ///       Do not want to declare the functions as pure virtual. Then the
+  ///       derived classes have to implement both of the interface.
+  virtual void plan(const size_t target, const double policy_speed) {
+    throw std::runtime_error("VehiclePlanner does not implement plan()");
+  }
+
   virtual void plan(const size_t target,
                     const double policy_speed,
-                    const std::unordered_set<size_t>& others) = 0;
+                    const std::unordered_set<size_t>& others) {
+    throw std::runtime_error("VehiclePlanner does not implement plan()");
+  }
 
 };
 

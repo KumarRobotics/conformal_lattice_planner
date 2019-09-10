@@ -33,7 +33,8 @@ void LaneFollower::updateTrafficLattice(
   for (const size_t id : vehicles) {
     boost::shared_ptr<CarlaVehicle> vehicle_actor =
       boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
-    vehicle_actors.push_back(vehicle_actor);
+    if (!vehicle_actor) throw std::runtime_error("The vehicle does not exist in the simulation");
+    else vehicle_actors.push_back(vehicle_actor);
   }
 
   // Check if \c router_ is valid.
@@ -48,18 +49,16 @@ void LaneFollower::updateTrafficLattice(
   // FIXME: how to handle the vehicles that cannot be added to the lattice.
   //        Just print them for now.
   if (disappear_vehicles.size() > 0) {
-    std::printf("disappear vehicles in lane follower traffic lattice construction:\n");
+    std::printf("disappear vehicles in lane follower traffic lattice construction: ");
     for (const size_t id : disappear_vehicles) std::printf("%lu ", id);
     std::printf("\n");
+    //throw std::runtime_error("Cannot register all vehicles onto the lattice.");
   }
 
   return;
 }
 
-void LaneFollower::plan(
-    const size_t target,
-    const double policy_speed,
-    const std::unordered_set<size_t>& others) {
+void LaneFollower::plan(const size_t target, const double policy_speed) {
 
   if (!router_)
     throw std::runtime_error("The router has not been set.");
@@ -71,6 +70,7 @@ void LaneFollower::plan(
   // Get the target vehicle.
   boost::shared_ptr<CarlaVehicle> vehicle =
     boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
+  std::printf("Plan for vehicle:%lu\n", vehicle->GetId());
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed

@@ -70,11 +70,13 @@ public:
     return;
   }
 
+  boost::shared_ptr<const TrafficLattice<router::LoopRouter>> trafficLattice() const {
+    return traffic_lattice_;
+  }
+
   void updateTrafficLattice(const std::unordered_set<size_t>& vehicles);
 
-  void plan(const size_t target,
-            const double policy_speed,
-            const std::unordered_set<size_t>& others) override;
+  void plan(const size_t target, const double policy_speed);
 };
 
 } // End namespace planner.
