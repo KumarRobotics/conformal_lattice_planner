@@ -89,7 +89,7 @@ TrafficLattice<Router>::TrafficLattice(
   if(!registerVehicles(vehicle_tuples, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
-  if (disappear_vehicles) disappear_vehicles = remove_vehicles;
+  if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
   return;
 }
@@ -312,7 +312,10 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
   // If the vehicle is already on the lattice, the vehicle won't be
   // updated with the new position. The function API is provided to
   // add a new vehicle only.
-  if (vehicle_to_nodes_table_.count(id) != 0) return 0;
+  if (vehicle_to_nodes_table_.count(id) != 0) {
+    //std::printf("Already has this vehicle.\n");
+    return 0;
+  }
 
   // Find the waypoints (head and rear) of this vehicle.
   boost::shared_ptr<const CarlaWaypoint> head_waypoint =
@@ -322,12 +325,16 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
 
   // Find the nodes occupied by this vehicle.
   boost::shared_ptr<Node> head_node = this->closestNode(
-      head_waypoint, this->longitudinal_resolution_/2.0);
+      head_waypoint, this->longitudinal_resolution_);
   boost::shared_ptr<Node> rear_node = this->closestNode(
-      rear_waypoint, this->longitudinal_resolution_/2.0);
+      rear_waypoint, this->longitudinal_resolution_);
 
   // If we can not add the whole vehicle onto the lattice, we won't add it.
-  if (!head_node || !rear_node) return 0;
+  if (!head_node || !rear_node) {
+    //if (!head_node) std::printf("Cannot find vehicle head\n");
+    //if (!rear_node) std::printf("Cannot find vehicle rear\n");
+    return 0;
+  }
 
   std::vector<boost::weak_ptr<Node>> nodes;
   boost::shared_ptr<Node> next_node = rear_node;
@@ -336,7 +343,10 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
     if (next_node->front().lock()) next_node = next_node->front().lock();
     // We won't add this vehicle onto the lattice if the nodes between
     // head and rear are not connected.
-    else return 0;
+    else {
+      //std::printf("Vehicle head and rear are not connected.\n");
+      return 0;
+    }
   }
   nodes.emplace_back(head_node);
 
@@ -391,7 +401,7 @@ bool TrafficLattice<Router>::moveTrafficForward(
 
   // Modify the lattice to agree with the new start and range.
   boost::shared_ptr<Node> update_start_node = this->closestNode(
-      update_start, this->longitudinal_resolution_/2.0);
+      update_start, this->longitudinal_resolution_);
   this->shorten(this->range()-update_start_node->distance());
   this->extend(update_range);
 
