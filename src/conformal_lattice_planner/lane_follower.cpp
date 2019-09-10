@@ -14,159 +14,114 @@
  * limitations under the License.
  */
 
-#include <iostream>
+//#include <iostream>
 #include <vector>
 #include <stdexcept>
-#include <algorithm>
-#include <boost/timer/timer.hpp>
 #include <boost/pointer_cast.hpp>
-
+//#include <boost/timer/timer.hpp>
 
 #include <carla/rpc/VehicleControl.h>
 #include <conformal_lattice_planner/lane_follower.h>
 
-using namespace std;
-namespace bst = boost;
-namespace cg = carla::geom;
-namespace crpc = carla::rpc;
-
 namespace planner {
+
+void LaneFollower::updateTrafficLattice(
+    const std::unordered_set<size_t>& vehicles) {
+
+  // Collect all carla vehicles.
+  std::vector<boost::shared_ptr<const CarlaVehicle>> vehicle_actors;
+  for (const size_t id : vehicles) {
+    boost::shared_ptr<CarlaVehicle> vehicle_actor =
+      boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
+    vehicle_actors.push_back(vehicle_actor);
+  }
+
+  // Check if \c router_ is valid.
+  if (!router_)
+    throw std::runtime_error("The router has not been set.");
+
+  // Recreate the traffic lattice.
+  std::unordered_set<size_t> disappear_vehicles;
+  traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(
+      vehicle_actors, map_, router_, disappear_vehicles);
+
+  // FIXME: how to handle the vehicles that cannot be added to the lattice.
+  //        Just print them for now.
+  if (disappear_vehicles.size() > 0) {
+    std::printf("disappear vehicles in lane follower traffic lattice construction:\n");
+    for (const size_t id : disappear_vehicles) std::printf("%lu ", id);
+    std::printf("\n");
+  }
+
+  return;
+}
 
 void LaneFollower::plan(
     const size_t target,
     const double policy_speed,
-    const std::vector<size_t>& others) {
+    const std::unordered_set<size_t>& others) {
+
+  if (!router_)
+    throw std::runtime_error("The router has not been set.");
+  if (!traffic_lattice_)
+    throw std::runtime_error("The traffic lattice has not been set.");
+  if (!idm_)
+    throw std::runtime_error("The intelligent driver model has not been set.");
 
   // Get the target vehicle.
-  SharedPtr<CarlaVehicle> target_vehicle =
-    bst::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
+  boost::shared_ptr<CarlaVehicle> vehicle =
+    boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed
   //       in order to avoid aggressive brake.
   // FIXME: It seems that the unit of speed limit is km/h.
-  const double target_speed = target_vehicle->GetVelocity().Length();
-  const double speed_limit = target_vehicle->GetSpeedLimit() / 3.6;
-  const double target_desired_speed = std::min(speed_limit, policy_speed);
+  const double speed = vehicle->GetVelocity().Length();
+  const double speed_limit = vehicle->GetSpeedLimit() / 3.6;
+  const double desired_speed = std::min(speed_limit, policy_speed);
 
-  SharedPtr<CarlaWaypoint> target_waypoint =
-    map_->GetWaypoint(target_vehicle->GetTransform().location);
-
-  //printf("target location: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-  //    target_vehicle->GetTransform().location.x,
-  //    target_vehicle->GetTransform().location.y,
-  //    target_vehicle->GetTransform().location.z,
-  //    target_vehicle->GetTransform().rotation.roll,
-  //    target_vehicle->GetTransform().rotation.pitch,
-  //    target_vehicle->GetTransform().rotation.yaw);
-  printf("target speed: %f\n", target_speed);
-  printf("policy speed: %f\n", policy_speed);
-  printf("speed limit: %f\n", speed_limit);
-  printf("target desired speed: %f\n", target_desired_speed);
-
-  // Get the leader vehicle.
-  SharedPtr<CarlaVehicle> lead_vehicle = nullptr;
-  bst::optional<size_t> leader =  findLeader(target, others);
-  if (leader) {
-    lead_vehicle = bst::static_pointer_cast<CarlaVehicle>(world_->GetActor(*leader));
+  // Compute the acceleration of the target vehicle..
+  double accel = 0.0;
+  try {
+    boost::optional<std::pair<size_t, double>> lead = traffic_lattice_->front(target);
+    if (lead) {
+      // There is a lead vehicle.
+      const size_t lead_vehicle = lead->first;
+      const double lead_distance = lead->second;
+      std::printf("Has lead vehicle:%lu distance:%f\n", lead_vehicle, lead_distance);
+      // Get the speed of the lead vehicle.
+      boost::shared_ptr<CarlaVehicle> vehicle =
+        boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(lead_vehicle));
+      const double lead_speed = vehicle->GetVelocity().Length();
+      accel = idm_->idm(speed, desired_speed, lead_speed, lead_distance);
+    } else {
+      std::printf("No lead vehicle.\n");
+      // There is no lead vehicle.
+      accel = idm_->idm(speed, desired_speed);
+    }
+  } catch (std::exception& e) {
+    std::printf("%s\n", e.what());
+    // This is probably because we cannnot find the target vehicle on the lattice.
+    // In this case, we just assume there is no lead vehicle.
+    accel = idm_->idm(speed, desired_speed);
   }
-
-  // Compute the acceleration of the target vehicle
-  // using the intelligent driver model.
-  double target_accel = 0.0;
-  if (lead_vehicle) {
-    // Lead vehicle speed.
-    const double lead_speed = lead_vehicle->GetVelocity().Length();
-    // Following distance.
-    // TODO: What if the lead vehicle is on a different section of road.
-    SharedPtr<CarlaWaypoint> lead_waypoint =
-      map_->GetWaypoint(lead_vehicle->GetTransform().location);
-    const double following_distance = lead_waypoint->GetDistance() -
-                                      target_waypoint->GetDistance();
-    target_accel = idm_.idm(
-        target_speed, target_desired_speed, lead_speed, following_distance);
-  } else {
-    target_accel = idm_.idm(target_speed, target_desired_speed);
-  }
-  printf("target idm accel: %f\n", target_accel);
-
-  // Compute the reference velocity.
-  const double reference_speed = target_speed + target_accel * time_step_;
-  printf("reference speed: %f\n", reference_speed);
-
-  // Compute the reference transfrom.
-  double distance_travelled = target_speed*time_step_ + 0.5*target_accel*time_step_*time_step_;
-  SharedPtr<CarlaWaypoint> reference_waypoint = findNextWaypoint(target_waypoint, distance_travelled);
-  const CarlaTransform reference_transform = reference_waypoint->GetTransform();
 
   // Update the vehicle speed and transform.
-  target_vehicle->SetTransform(reference_transform);
-  target_vehicle->SetVelocity(reference_transform.GetForwardVector()*reference_speed);
+  boost::shared_ptr<CarlaWaypoint> waypoint =
+    map_->GetWaypoint(vehicle->GetTransform().location);
+  boost::shared_ptr<CarlaWaypoint> reference_waypoint =
+    router_->frontWaypoint(waypoint, speed*time_step_ + 0.5*accel*time_step_*time_step_);
+
+  const CarlaTransform reference_transform = reference_waypoint->GetTransform();
+  const double reference_speed = speed + accel*time_step_;
+
+  std::printf("speed:%f reference speed:%f desired_speed:%f\n",
+      speed, reference_speed, desired_speed);
+
+  vehicle->SetTransform(reference_transform);
+  vehicle->SetVelocity(reference_transform.GetForwardVector()*reference_speed);
 
   return;
-}
-
-LaneFollower::SharedPtr<LaneFollower::CarlaWaypoint>
-  LaneFollower::findNextWaypoint(
-    const SharedPtr<CarlaWaypoint>& waypoint, const double distance) {
-
-  const cg::Vector3D waypoint_direction = waypoint->GetTransform().GetForwardVector();
-
-  // Get candidate next waypoints at a certain distance from the given waypoint.
-  std::vector<SharedPtr<CarlaWaypoint>> candidates = waypoint->GetNext(distance);
-  SharedPtr<CarlaWaypoint> next_waypoint = nullptr;
-  double best_score = -5.0;
-
-  //std::printf("current waypoint:\n");
-  //std::printf("IDs(road, section, lane): %d, %d, %d, transform: x:%f y:%f z:%f\n",
-  //    waypoint->GetRoadId(),
-  //    waypoint->GetSectionId(),
-  //    waypoint->GetLaneId(),
-  //    waypoint->GetTransform().location.x,
-  //    waypoint->GetTransform().location.y,
-  //    waypoint->GetTransform().location.z);
-
-  // Loop through all candidates to find the one on the same lane.
-  //std::printf("candidate waypoints:\n");
-  for (const auto& candidate : candidates) {
-    //std::printf("IDs(road, section, lane): %d, %d, %d, transform: x:%f y:%f z:%f\n",
-    //    candidate->GetRoadId(),
-    //    candidate->GetSectionId(),
-    //    candidate->GetLaneId(),
-    //    candidate->GetTransform().location.x,
-    //    candidate->GetTransform().location.y,
-    //    candidate->GetTransform().location.z);
-
-    // If the all IDs match, this is exactly the next waypoint we want.
-    if (candidate->GetRoadId() == waypoint->GetRoadId() &&
-        candidate->GetSectionId() == waypoint->GetSectionId() &&
-        candidate->GetLaneId() == waypoint->GetLaneId()) {
-      next_waypoint = candidate;
-      break;
-    }
-
-    // If we cannot find the perfect match based on the IDs,
-    // the forward direction of the waypoint is used.
-    // The candidate whose forward direction matches the given waypoint
-    // is the one we want.
-    const cg::Vector3D candidate_direction = candidate->GetTransform().GetForwardVector();
-    const double score =
-      waypoint_direction.x*candidate_direction.x +
-      waypoint_direction.y*candidate_direction.y +
-      waypoint_direction.z*candidate_direction.z;
-
-    if (score > best_score) {
-      best_score = score;
-      next_waypoint = candidate;
-    }
-  }
-
-  // TODO: What happens if no candidate satisfies the requirement.
-  if (!next_waypoint) {
-    throw std::runtime_error("Cannot find next waypoint.");
-  }
-
-  return next_waypoint;
 }
 
 } // End namespace planner.

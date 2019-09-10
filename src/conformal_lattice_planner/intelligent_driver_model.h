@@ -87,7 +87,7 @@ public:
     return accel;
   }
 
-private:
+protected:
 
   double desiredDistance(const double ego_v, const double lead_v) const {
     const double v_diff = ego_v - lead_v;
@@ -98,6 +98,8 @@ private:
   }
 
 }; // End class IntelligentDriverModel.
+
+// TODO: Implement IIDM and ACC.
 
 } // End namespace planner
 

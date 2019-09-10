@@ -16,40 +16,65 @@
 
 #pragma once
 
-#include <array>
-#include <boost/optional.hpp>
-#include <conformal_lattice_planner/vehicle_controller.h>
+#include <boost/core/noncopyable.hpp>
 #include <conformal_lattice_planner/vehicle_planner.h>
 #include <conformal_lattice_planner/intelligent_driver_model.h>
+#include <conformal_lattice_planner/loop_router.h>
+#include <conformal_lattice_planner/traffic_lattice.h>
 
 namespace planner {
 
-class LaneFollower final : public VehiclePlanner {
+class LaneFollower : public VehiclePlanner,
+                     private boost::noncopyable {
 
 private:
 
-  template<typename T>
-  using SharedPtr = VehiclePlanner::SharedPtr<T>;
+  using Base = VehiclePlanner;
 
 protected:
 
-  IntelligentDriverModel idm_;
+  /// Intelligent driver model,
+  /// used to generate acceleration for a target vehicle.
+  boost::shared_ptr<IntelligentDriverModel> idm_ = nullptr;
+
+  /// Used to organize the traffic.
+  boost::shared_ptr<TrafficLattice<router::LoopRouter>> traffic_lattice_ = nullptr;
+
+  /// Router used to determine which lanes to follow.
+  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
 
 public:
 
-  LaneFollower(const double time_step,
-               const IntelligentDriverModel& idm = IntelligentDriverModel()) :
-    VehiclePlanner(time_step), idm_(idm) {}
+  LaneFollower(const double time_step) :
+    Base(time_step),
+    idm_(boost::make_shared<IntelligentDriverModel>()),
+    router_(boost::make_shared<router::LoopRouter>()) {}
+
+  void updateIDM(const IntelligentDriverModel& idm) {
+    idm_ = boost::make_shared<IntelligentDriverModel>(idm);
+    return;
+  }
+
+  void updateIDM(const boost::shared_ptr<const IntelligentDriverModel>& idm) {
+    updateIDM(*idm);
+    return;
+  }
+
+  void updateRouter(const router::LoopRouter& router) {
+    router_ = boost::make_shared<router::LoopRouter>(router);
+    return;
+  }
+
+  void updateRouter(const boost::shared_ptr<const router::LoopRouter>& router) {
+    updateRouter(*router);
+    return;
+  }
+
+  void updateTrafficLattice(const std::unordered_set<size_t>& vehicles);
 
   void plan(const size_t target,
             const double policy_speed,
-            const std::vector<size_t>& others) override;
-
-private:
-
-  SharedPtr<CarlaWaypoint> findNextWaypoint(
-      const SharedPtr<CarlaWaypoint>& waypoint, const double distance);
-
+            const std::unordered_set<size_t>& others) override;
 };
 
 } // End namespace planner.

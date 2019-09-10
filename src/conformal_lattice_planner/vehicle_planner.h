@@ -16,12 +16,8 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <cstdint>
-#include <chrono>
-#include <boost/optional.hpp>
-#include <boost/core/noncopyable.hpp>
+#include <unordered_set>
+#include <boost/smart_ptr.hpp>
 
 #include <carla/client/Client.h>
 #include <carla/client/World.h>
@@ -50,22 +46,24 @@ protected:
   using CarlaActorSnapshot = carla::client::ActorSnapshot;
   using CarlaTransform     = carla::geom::Transform;
 
-  template<typename T>
-  using SharedPtr = carla::SharedPtr<T>;
-
 protected:
 
-  const double time_step_;
+  double time_step_;
 
-  SharedPtr<CarlaWorld> world_;
-  SharedPtr<CarlaMap> map_;
+  boost::shared_ptr<CarlaWorld> world_;
+  boost::shared_ptr<CarlaMap> map_;
 
 public:
 
-  VehiclePlanner(const double time_step) :
-    time_step_(time_step){}
+  VehiclePlanner(const double time_step) : time_step_(time_step){}
 
-  void updateWorld(const SharedPtr<CarlaWorld>& world) {
+  virtual ~VehiclePlanner() {}
+
+  double timeStep() const { return time_step_; }
+
+  double& timeStep() { return time_step_; }
+
+  void updateWorld(const boost::shared_ptr<CarlaWorld>& world) {
     world_ = world;
     map_ = world_->GetMap();
   }
@@ -75,27 +73,7 @@ public:
   //       Sounds like a messy option.
   virtual void plan(const size_t target,
                     const double policy_speed,
-                    const std::vector<size_t>& others) = 0;
-
-  /// Find the lead vehicle on the same lane of the target.
-  boost::optional<size_t> findLeader(
-      const size_t target, const std::vector<size_t>& others) const;
-
-  /// Find the following vehicle on the same lane of the target.
-  boost::optional<size_t> findFollower(
-      const size_t target, const std::vector<size_t>& others) const;
-
-  /// Find the lead vehicle on the given lane.
-  boost::optional<size_t> findLeader(
-      const size_t target,
-      const std::vector<size_t>& others,
-      const size_t lane) const;
-
-  /// Find the following vehicle on the given lane.
-  boost::optional<size_t> findFollower(
-      const size_t target,
-      const std::vector<size_t>& others,
-      const size_t lane) const;
+                    const std::unordered_set<size_t>& others) = 0;
 
 };
 

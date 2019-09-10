@@ -161,7 +161,7 @@ set(CARLA_LIBS
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_library(all_planning
-  src/conformal_lattice_planner/vehicle_planner.cpp
+  #src/conformal_lattice_planner/vehicle_planner.cpp
   src/conformal_lattice_planner/lane_follower.cpp
   src/conformal_lattice_planner/utils.cpp
   #src/conformal_lattice_planner/router.cpp
