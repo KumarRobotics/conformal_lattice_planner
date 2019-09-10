@@ -5,14 +5,14 @@
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
-      type="ego_lane_following_node"
-      name="ego_lane_following_planner"
-      output="screen">
+      type="agents_lane_following_node"
+      name="agents_lane_following_planner"
+      output="log">
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
       <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
 
-      <remap from="~ego_plan" to="carla_simulator/ego_plan"/>
+      <remap from="~agents_plan" to="carla_simulator/agents_plan"/>
     </node>
   </group>
 </launch>

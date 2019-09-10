@@ -17,4 +17,11 @@
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
 
+  <!-- Agents lane following controller -->
+  <include file="$(find conformal_lattice_planner)/launch/agents_lane_following.launch">
+    <arg name="host" value="$(arg host)"/>
+    <arg name="port" value="$(arg port)"/>
+    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+  </include>
+
 </launch>

@@ -20,12 +20,10 @@
 
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
-#include <visualization_msgs/MarkerArray.h>
 
-#include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/lane_follower.h>
 #include <conformal_lattice_planner/Policy.h>
-#include <conformal_lattice_planner/EgoPlanAction.h>
+#include <conformal_lattice_planner/AgentPlanAction.h>
 
 using namespace std;
 namespace bst = boost;
@@ -40,17 +38,12 @@ using namespace router;
 
 namespace carla {
 
-visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const bst::shared_ptr<const WaypointLattice<LoopRouter>>&);
-visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const bst::shared_ptr<const TrafficLattice<LoopRouter>>&);
-
-class EgoLaneFollowingNode : private bst::noncopyable {
+class AgentsLaneFollowingNode : private bst::noncopyable {
 
 public:
 
-  using Ptr = bst::shared_ptr<EgoLaneFollowingNode>;
-  using ConstPtr = bst::shared_ptr<const EgoLaneFollowingNode>;
+  using Ptr = bst::shared_ptr<AgentsLaneFollowingNode>;
+  using ConstPtr = bst::shared_ptr<const AgentsLaneFollowingNode>;
 
 private:
 
@@ -58,29 +51,25 @@ private:
   SharedPtr<LaneFollower> planner_ = nullptr;
 
   mutable ros::NodeHandle nh_;
-  mutable ros::Publisher traffic_lattice_pub_;
-  mutable actionlib::SimpleActionServer<clp::EgoPlanAction> server_;
+  mutable actionlib::SimpleActionServer<clp::AgentPlanAction> server_;
 
 public:
 
-  EgoLaneFollowingNode(ros::NodeHandle& nh) :
+  AgentsLaneFollowingNode(ros::NodeHandle& nh) :
     nh_(nh),
-    server_(nh, "ego_plan", bst::bind(&EgoLaneFollowingNode::executeCallback, this, _1), false) {}
+    server_(nh, "agents_plan", bst::bind(&AgentsLaneFollowingNode::executeCallback, this, _1), false) {}
 
   bool initialize();
 
 private:
 
-  void executeCallback(const clp::EgoPlanGoalConstPtr& goal);
+  void executeCallback(const clp::AgentPlanGoalConstPtr& goal);
 
-};
+}; // End namespace AgentsLaneFollowingNode class.
 
-bool EgoLaneFollowingNode::initialize() {
+bool AgentsLaneFollowingNode::initialize() {
 
   bool all_param_exist = true;
-
-  // Create publishers.
-  traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
 
   string host = "localhost";
   int port = 2000;
@@ -88,36 +77,35 @@ bool EgoLaneFollowingNode::initialize() {
   all_param_exist &= nh_.param<int>("port", port, 2000);
 
   // Get the world.
-  ROS_INFO_NAMED("ego_lane_following_planner", "connect to the server.");
+  ROS_INFO_NAMED("agents_lane_following_planner", "connect to the server.");
   client_ = bst::make_shared<cc::Client>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
   // Initialize the planner.
-  ROS_INFO_NAMED("ego_lane_following_planner", "initialize lane following planner.");
+  ROS_INFO_NAMED("agents_lane_following_planner", "initialize lane following planner.");
   double fixed_delta_seconds = 0.05;
   all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
   planner_ = bst::make_shared<LaneFollower>(fixed_delta_seconds);
 
   // Start the action server.
-  ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
+  ROS_INFO_NAMED("agents_lane_following_planner", "start action server.");
   server_.start();
 
-  ROS_INFO_NAMED("ego_lane_following_planner", "initialization finishes.");
+  ROS_INFO_NAMED("agents_lane_following_planner", "initialization finishes.");
+  return all_param_exist;
+
   return all_param_exist;
 }
 
-void EgoLaneFollowingNode::executeCallback(
-    const clp::EgoPlanGoalConstPtr& goal) {
+void AgentsLaneFollowingNode::executeCallback(
+    const clp::AgentPlanGoalConstPtr& goal) {
+  ROS_INFO_NAMED("agents_lane_following_planner", "executeCallback()");
 
-  ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
-
-  // Get the ego policy.
+  // Get the ego ID.
   const size_t ego_id = goal->ego_policy.id;
-  const double ego_policy_speed = goal->ego_policy.desired_speed;
 
   // Get the agents IDs.
-  // Do not need the desired speed for them.
   std::unordered_set<size_t> agent_ids;
   for (const auto& policy : goal->agent_policies)
     agent_ids.insert(policy.id);
@@ -134,24 +122,21 @@ void EgoLaneFollowingNode::executeCallback(
   std::unordered_set<size_t> all_ids = agent_ids;
   all_ids.insert(ego_id);
   planner_->updateTrafficLattice(all_ids);
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(planner_->trafficLattice()));
 
-  if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
-    throw std::runtime_error("Missing vehicles");
-
-  // Plan for the ego vehicle.
-  planner_->plan(ego_id, ego_policy_speed);
+  // Plan for every agent vehicle.
+  for (const auto& policy : goal->agent_policies)
+    planner_->plan(policy.id, policy.desired_speed);
 
   // Inform the client the result of plan.
-  clp::EgoPlanResult result;
+  clp::AgentPlanResult result;
   result.success = true;
   server_.setSucceeded(result);
 
   return;
 }
 
-using EgoLaneFollowingNodePtr = EgoLaneFollowingNode::Ptr;
-using EgoLaneFollowingNodeConstPtr = EgoLaneFollowingNode::ConstPtr;
+using AgentsLaneFollowingNodePtr = AgentsLaneFollowingNode::Ptr;
+using AgentsLaneFollowingNodeConstPtr = AgentsLaneFollowingNode::ConstPtr;
 
 } // End namespace carla.
 
@@ -165,10 +150,10 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::EgoLaneFollowingNodePtr planner =
-    bst::make_shared<carla::EgoLaneFollowingNode>(nh);
+  carla::AgentsLaneFollowingNodePtr planner =
+    bst::make_shared<carla::AgentsLaneFollowingNode>(nh);
   if (!planner->initialize()) {
-    ROS_ERROR("Cannot initialize the ego lane following planner.");
+    ROS_ERROR("Cannot initialize the agents lane following planner.");
   }
 
   ros::spin();

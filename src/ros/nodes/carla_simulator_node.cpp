@@ -313,10 +313,12 @@ bool CarlaSimulatorNode::initialize() {
   // Wait for the planner servers.
   ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
   ego_client_.waitForServer(ros::Duration(5.0));
+  agents_client_.waitForServer(ros::Duration(5.0));
 
   // Send out the first goal of ego.
   ROS_INFO_NAMED("carla_simulator", "send the first goals to action servers");
   sendEgoGoal();
+  sendAgentsGoal();
 
   ROS_INFO_NAMED("carla_simulator", "initialization finishes.");
   return all_param_exist;
@@ -385,14 +387,12 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  return;
-
   // TODO: Spawn agent vehicles.
-  SharedPtr<cc::Waypoint> ego_waypoint = world_->GetMap()->GetWaypoint(ego_transform.location);
-  boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
-    boost::make_shared<WaypointLattice<LoopRouter>>(ego_waypoint, 100.0, 1.0, loop_router_);
-
   {
+    SharedPtr<cc::Waypoint> ego_waypoint = world_->GetMap()->GetWaypoint(ego_transform.location);
+    boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
+      boost::make_shared<WaypointLattice<LoopRouter>>(ego_waypoint, 100.0, 1.0, loop_router_);
+
     SharedPtr<const cc::Waypoint> waypoint0 = ego_waypoint;
     SharedPtr<const cc::Waypoint> waypoint1 = ego_waypoint->GetRight();
     SharedPtr<const cc::Waypoint> waypoint2 = waypoint1->GetRight();
@@ -420,11 +420,11 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     //agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
     //agent_policies_[agent_actor->GetId()] = 20.0;
 
-    //agent_waypoint = waypoint_lattice->front(waypoint1, 10.0)->waypoint();
-    //agent_transform = agent_waypoint->GetTransform();
-    //agent_transform.location.z += 1.2;
-    //agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
-    //agent_policies_[agent_actor->GetId()] = 20.0;
+    agent_waypoint = waypoint_lattice->front(waypoint1, 20.0)->waypoint();
+    agent_transform = agent_waypoint->GetTransform();
+    agent_transform.location.z += 1.2;
+    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_policies_[agent_actor->GetId()] = 20.0;
 
     //agent_waypoint = waypoint_lattice->front(waypoint1, 30.0)->waypoint();
     //agent_transform = agent_waypoint->GetTransform();
@@ -632,12 +632,56 @@ void CarlaSimulatorNode::egoPlanDoneCallback(
     const clp::EgoPlanResultConstPtr& result) {
 
   ROS_INFO_NAMED("carla_simulator", "egoPlanDoneCallback().");
-  ROS_INFO_NAMED("carla_simulator", "tick world.");
-  world_->Tick();
-  publishTraffic();
-  sendEgoGoal();
-
   ego_ready_ = true;
+
+  if (ego_ready_ && agents_ready_) {
+    ROS_INFO_NAMED("carla_simulator", "tick world by ego client.");
+    world_->Tick();
+    publishTraffic();
+    sendEgoGoal();
+    sendAgentsGoal();
+  }
+
+  return;
+}
+
+void CarlaSimulatorNode::sendAgentsGoal() {
+
+  clp::AgentPlanGoal goal;
+  goal.ego_policy.id = ego_policy_.first;
+  goal.ego_policy.desired_speed = ego_policy_.second;
+
+  for (const auto agent_policy : agent_policies_) {
+    goal.agent_policies.push_back(clp::Policy());
+    goal.agent_policies.back().id = agent_policy.first;
+    goal.agent_policies.back().desired_speed = agent_policy.second;
+  }
+
+  agents_client_.sendGoal(
+      goal,
+      bst::bind(&CarlaSimulatorNode::agentsPlanDoneCallback, this, _1, _2),
+      bst::bind(&CarlaSimulatorNode::agentsPlanActiveCallback, this),
+      bst::bind(&CarlaSimulatorNode::agentsPlanFeedbackCallback, this, _1));
+
+  agents_ready_ = false;
+  return;
+}
+
+void CarlaSimulatorNode::agentsPlanDoneCallback(
+    const actionlib::SimpleClientGoalState& state,
+    const clp::AgentPlanResultConstPtr& result) {
+
+  ROS_INFO_NAMED("carla_simulator", "agentsPlanDoneCallback().");
+  agents_ready_ = true;
+
+  if (ego_ready_ && agents_ready_) {
+    ROS_INFO_NAMED("carla_simulator", "tick world by agents client.");
+    world_->Tick();
+    publishTraffic();
+    sendEgoGoal();
+    sendAgentsGoal();
+  }
+
   return;
 }
 
