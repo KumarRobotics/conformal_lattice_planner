@@ -33,7 +33,9 @@ namespace cg = carla::geom;
 //namespace crpc = carla::rpc;
 //namespace csd = carla::sensor::data;
 namespace clp = conformal_lattice_planner;
+
 using namespace planner;
+using namespace router;
 
 namespace carla {
 
@@ -100,19 +102,28 @@ void EgoLaneFollowingNode::executeCallback(
 
   ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
 
-  // Update the world for planner.
-  SharedPtr<cc::World> world = bst::make_shared<cc::World>(client_->GetWorld());
-  planner_->updateWorld(world);
-
   // Get the ego policy.
   const size_t ego_id = goal->ego_policy.id;
   const double ego_policy_speed = goal->ego_policy.desired_speed;
 
   // Get the agents ids.
   // Do not need the desired speed for them.
-  vector<size_t> agent_ids(goal->agent_policies.size());
+  std::unordered_set<size_t> agent_ids;
   for (size_t i = 0; i < agent_ids.size(); ++i)
-    agent_ids[i] = goal->agent_policies[i].id;
+    agent_ids.insert(goal->agent_policies[i].id);
+
+  // Update the world for the planner.
+  SharedPtr<cc::World> world = bst::make_shared<cc::World>(client_->GetWorld());
+  planner_->updateWorld(world);
+
+  // Update the router for the planner.
+  // FIXME: Not really need to do this now.
+  planner_->updateRouter(LoopRouter());
+
+  // Update the traffic lattice for the planner.
+  std::unordered_set<size_t> all_ids = agent_ids;
+  all_ids.insert(ego_id);
+  planner_->updateTrafficLattice(all_ids);
 
   // Plan for the ego vehicle.
   planner_->plan(ego_id, ego_policy_speed, agent_ids);

@@ -56,7 +56,7 @@ using namespace router;
 namespace carla {
 
 visualization_msgs::MarkerPtr createWaypointMsg(
-    const vector<carla::SharedPtr<cc::Waypoint>>& waypoints) {
+    const vector<carla::SharedPtr<const cc::Waypoint>>& waypoints) {
 
   std_msgs::ColorRGBA color;
   color.r = 0.5;
@@ -143,7 +143,7 @@ visualization_msgs::MarkerPtr createJunctionMsg(
 }
 
 visualization_msgs::MarkerPtr createVehicleMarkerMsg(
-    const carla::SharedPtr<cc::Actor>& vehicle) {
+    const carla::SharedPtr<const cc::Vehicle>& vehicle) {
 
   static unordered_map<size_t, std_msgs::ColorRGBA> vehicle_colors;
   std_msgs::ColorRGBA fixed_color;
@@ -190,7 +190,7 @@ visualization_msgs::MarkerPtr createVehicleMarkerMsg(
 }
 
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
-    const carla::SharedPtr<cc::Actor>& vehicle,
+    const carla::SharedPtr<const cc::Vehicle>& vehicle,
     const std::string& vehicle_frame_id) {
 
   geometry_msgs::TransformStampedPtr transform_msg(
@@ -218,7 +218,8 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
   return transform_msg;
 }
 
-sensor_msgs::ImagePtr createImageMsg(const carla::SharedPtr<csd::Image>& img) {
+sensor_msgs::ImagePtr createImageMsg(
+    const carla::SharedPtr<const csd::Image>& img) {
 
   sensor_msgs::ImagePtr image_msg(new sensor_msgs::Image);
 
@@ -291,6 +292,8 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
   const std::unordered_map<size_t, boost::shared_ptr<const WaypointNode>> nodes = waypoint_lattice->nodes();
   const std::vector<std::pair<size_t, size_t>> edges = waypoint_lattice->edges();
 
+  size_t nodes_with_back = 0;
+
   for (const auto& item : nodes) {
     const boost::shared_ptr<const WaypointNode>& node = item.second;
     cg::Transform transform = utils::convertTransform(node->waypoint()->GetTransform());
@@ -301,7 +304,11 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
 
     lattice_node_msg->points.push_back(pt);
     lattice_node_msg->colors.push_back(color);
+
+    if (node->back()) ++nodes_with_back;
   }
+
+  std::printf("nodes #: %lu nodes with back #: %lu\n", nodes.size(), nodes_with_back);
 
   for (const auto& item : edges) {
     const boost::shared_ptr<const WaypointNode>& node0 = nodes.find(item.first)->second;
