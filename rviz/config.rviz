@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Town Map1/Namespaces1
+        - /Traffic Lattice1
       Splitter Ratio: 0.5
     Tree Height: 729
   - Class: rviz/Selection
@@ -116,7 +117,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /carla/carla_simulator/traffic_lattice
+      Marker Topic: /carla/ego_lane_following_planner/traffic_lattice
       Name: Traffic Lattice
       Namespaces:
         traffic_lattice_edge: true
@@ -397,5 +398,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1285
-  X: 364
-  Y: 93
+  X: 348
+  Y: 86
