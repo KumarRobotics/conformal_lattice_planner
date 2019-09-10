@@ -95,6 +95,37 @@ TrafficLattice<Router>::TrafficLattice(
 }
 
 template<typename Router>
+TrafficLattice<Router>::TrafficLattice(const TrafficLattice<Router>& other) :
+  Base(other) {
+
+  // Make sure the weak pointers point to the stuff within this object.
+  vehicle_to_nodes_table_ = other.vehicle_to_nodes_table_;
+
+  for (auto& vehicle : vehicle_to_nodes_table_) {
+    for (auto& node : vehicle.second) {
+      const size_t id = node.lock()->waypoint()->GetId();
+      node = this->waypoint_to_node_table_[id];
+    }
+  }
+
+  // Carla map won't be copied. \c map_ of different objects point to the
+  // same piece of memory.
+  map_ = other.map_;
+
+  return;
+}
+
+template<typename Router>
+void TrafficLattice<Router>::swap(TrafficLattice<Router>& other) {
+
+  Base::swap(other);
+  std::swap(vehicle_to_nodes_table_, other.vehicle_to_nodes_table_);
+  std::swap(map_, other.map_);
+
+  return;
+}
+
+template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::front(const size_t vehicle) const {
 

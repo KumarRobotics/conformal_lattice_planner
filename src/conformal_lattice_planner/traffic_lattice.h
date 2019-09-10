@@ -128,6 +128,13 @@ public:
       const boost::shared_ptr<Router>& router,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
+  TrafficLattice(const TrafficLattice& other);
+
+  TrafficLattice& operator=(const TrafficLattice other) {
+    this->swap(other);
+    return *this;
+  }
+
   /// Find the front vehicle of the given one.
   boost::optional<std::pair<size_t, double>> front(const size_t vehicle) const;
 
@@ -176,6 +183,10 @@ public:
   using Base::edges;
 
 protected:
+
+  TrafficLattice() = default;
+
+  void swap(TrafficLattice& other);
 
   void latticeStartAndRange(
       const std::vector<VehicleTuple>& vehicles,
