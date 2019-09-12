@@ -5,8 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Town Map1/Namespaces1
-        - /Traffic Lattice1
-      Splitter Ratio: 0.5
+        - /Traffic Lattice1/Namespaces1
+      Splitter Ratio: 0.5823529362678528
     Tree Height: 729
   - Class: rviz/Selection
     Name: Selection
@@ -88,55 +88,18 @@ Visualization Manager:
       Name: Town Map
       Namespaces:
         junctions: true
+        road_ids: false
         waypoints: true
       Queue Size: 100
       Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /carla/carla_simulator/ego_object
-      Name: Ego
-      Namespaces:
-        Vehicles: true
-      Queue Size: 100
-      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /carla/carla_simulator/agent_objects
-      Name: Agents
-      Namespaces:
-        Vehicles: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /carla/carla_simulator/waypoint_lattice
-      Name: Waypoint Lattice
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /carla/ego_lane_following_planner/traffic_lattice
+      Marker Topic: /carla/carla_simulator/traffic
       Name: Traffic Lattice
       Namespaces:
         traffic_lattice_edge: true
         traffic_lattice_node: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /carla/carla_simulator/road_ids
-      Name: Road IDs
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /carla/carla_simulator/vehicle_ids
-      Name: Vehicle IDs
-      Namespaces:
+        vehicle_ids: true
         vehicles: true
       Queue Size: 100
       Value: true
@@ -180,25 +143,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 100
+      Distance: 50
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 35.24217224121094
-        Y: -20.478479385375977
-        Z: -1.1918843984603882
+        X: -10
+        Y: 0
+        Z: -1.5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.3499999940395355
       Target Frame: ego
       Value: ThirdPersonFollower (rviz)
-      Yaw: 4.71999979019165
+      Yaw: 3.1414999961853027
     Saved:
       - Class: rviz/ThirdPersonFollower
         Distance: 50
@@ -399,4 +362,4 @@ Window Geometry:
     collapsed: true
   Width: 1285
   X: 348
-  Y: 86
+  Y: 49
