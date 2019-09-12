@@ -60,7 +60,8 @@ public:
 
   TrafficManager(const boost::shared_ptr<CarlaWaypoint>& start,
                  const double range,
-                 const boost::shared_ptr<Router>& router);
+                 const boost::shared_ptr<Router>& router,
+                 const boost::shared_ptr<CarlaMap>& map);
 
   /// Move traffic forward.
   /// The function does not adapt the lattice range to the input vehicles,
