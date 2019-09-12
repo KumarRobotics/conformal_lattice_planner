@@ -407,10 +407,10 @@ bool TrafficLattice<Router>::moveTrafficForward(
 
   // Register the vehicles onto the lattice.
   std::unordered_set<size_t> remove_vehicles;
-  registerVehicles(vehicles, remove_vehicles);
+  const bool valid = registerVehicles(vehicles, remove_vehicles);
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
-  return true;
+  return valid;
 }
 
 template<typename Router>
