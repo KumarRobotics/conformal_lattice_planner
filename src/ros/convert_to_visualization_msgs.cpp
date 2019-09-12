@@ -222,7 +222,7 @@ visualization_msgs::MarkerArrayPtr createVehiclesMsg(
   for (const auto& vehicle : vehicles) {
 
     std_msgs::ColorRGBA color;
-    if (cached_vehicles.count(vehicle->GetId()) == 0) {
+    if (cached_vehicles.count(vehicle->GetId()) != 0) {
       color = cached_vehicles[vehicle->GetId()];
     } else {
       const size_t seed = chrono::system_clock::now().time_since_epoch().count();
