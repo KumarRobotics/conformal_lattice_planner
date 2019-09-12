@@ -100,11 +100,14 @@ protected:
   using CarlaRoadMap     = carla::road::Map;
   using CarlaMapData     = carla::road::MapData;
 
-  using Base = Lattice<WaypointNodeWithVehicle, Router>;
   using Node = WaypointNodeWithVehicle;
   /// FIXME: Don't really want to define a new struct for this.
   ///        Is there a better solution than \c tuple?
   using VehicleTuple = std::tuple<size_t, CarlaTransform, CarlaBoundingBox>;
+
+private:
+
+  using Base = Lattice<WaypointNodeWithVehicle, Router>;
 
 protected:
 
@@ -172,17 +175,24 @@ public:
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
-  /// Lift the base latticeEntry() function to the derived class.
   using Base::latticeEntry;
-
-  /// Lift the base latticeExit() function to the derived class.
   using Base::latticeExit;
-
   using Base::nodes;
-
   using Base::edges;
+  using Base::range;
 
 protected:
+
+  using Base::front;
+  using Base::back;
+  using Base::leftFront;
+  using Base::frontLeft;
+  using Base::leftBack;
+  using Base::backLeft;
+  using Base::rightFront;
+  using Base::frontRight;
+  using Base::rightBack;
+  using Base::backRight;
 
   TrafficLattice() = default;
 
