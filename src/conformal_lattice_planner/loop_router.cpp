@@ -27,6 +27,20 @@ LoopRouter::LoopRouter() :
                   540, 37, 1021, 38, 678, 39, 728, 40, 841, 41, 6, 45, 103,
                   46, 659}){ return; }
 
+boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::waypointOnRoute(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
+
+  std::vector<boost::shared_ptr<CarlaWaypoint>> candidates = waypoint->GetNext(0.01);
+  for (const auto& candidate : candidates) {
+    std::vector<size_t>::const_iterator iter = std::find(
+        road_sequence_.begin(), road_sequence_.end(), candidate->GetRoadId());
+    if (iter != road_sequence_.end())
+      return candidate;
+  }
+
+  return nullptr;
+}
+
 boost::optional<size_t> LoopRouter::nextRoad(const size_t road) const {
   std::vector<size_t>::const_iterator iter = std::find(
       road_sequence_.begin(), road_sequence_.end(), road);

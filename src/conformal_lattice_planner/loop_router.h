@@ -33,8 +33,14 @@ public:
 
   ~LoopRouter() { return; }
 
-  //LoopRouter(const std::vector<size_t>& road_sequence) :
-  //  road_sequence_(road_sequence) {}
+  bool hasRoad(const size_t road) const override {
+    std::vector<size_t>::const_iterator iter = std::find(
+        road_sequence_.begin(), road_sequence_.end(), road);
+    return iter != road_sequence_.end();
+  }
+
+  boost::shared_ptr<CarlaWaypoint> waypointOnRoute(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const;
 
   /// Get the next road of the given road ID.
   boost::optional<size_t> nextRoad(const size_t road) const override;

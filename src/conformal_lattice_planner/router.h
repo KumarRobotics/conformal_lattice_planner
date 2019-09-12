@@ -32,6 +32,11 @@ public:
 
   virtual ~Router() {}
 
+  virtual bool hasRoad(const size_t road) const = 0;
+
+  virtual boost::shared_ptr<CarlaWaypoint> waypointOnRoute(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const = 0;
+
   /// Get the next road of the given road ID.
   virtual boost::optional<size_t> nextRoad(const size_t road) const = 0;
 
