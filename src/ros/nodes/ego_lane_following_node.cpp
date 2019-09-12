@@ -26,6 +26,7 @@
 #include <conformal_lattice_planner/lane_follower.h>
 #include <conformal_lattice_planner/Policy.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
+#include <ros/convert_to_visualization_msgs.h>
 
 using namespace std;
 namespace bst = boost;
@@ -39,11 +40,6 @@ using namespace planner;
 using namespace router;
 
 namespace carla {
-
-visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const bst::shared_ptr<const WaypointLattice<LoopRouter>>&);
-visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const bst::shared_ptr<const TrafficLattice<LoopRouter>>&);
 
 class EgoLaneFollowingNode : private bst::noncopyable {
 

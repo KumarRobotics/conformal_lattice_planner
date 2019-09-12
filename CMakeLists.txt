@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(conformal_lattice_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
-#add_compile_options(-std=c++14 -Wall -fmax-errors=3 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
+#add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
+add_compile_options(-std=c++14 -Wall -fmax-errors=3 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -199,7 +199,7 @@ add_dependencies(all_planning
 
 add_executable(carla_simulator_node
   src/ros/nodes/carla_simulator_node.cpp
-  src/ros/nodes/convert_to_visualization_msgs.cpp
+  src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(carla_simulator_node
@@ -214,7 +214,7 @@ add_dependencies(carla_simulator_node
 
 add_executable(ego_lane_following_node
   src/ros/nodes/ego_lane_following_node.cpp
-  src/ros/nodes/convert_to_visualization_msgs.cpp
+  src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(ego_lane_following_node
@@ -229,7 +229,7 @@ add_dependencies(ego_lane_following_node
 
 add_executable(agents_lane_following_node
   src/ros/nodes/agents_lane_following_node.cpp
-  src/ros/nodes/convert_to_visualization_msgs.cpp
+  src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(agents_lane_following_node
