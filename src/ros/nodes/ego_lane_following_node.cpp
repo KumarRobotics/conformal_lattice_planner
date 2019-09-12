@@ -26,7 +26,6 @@
 #include <conformal_lattice_planner/lane_follower.h>
 #include <conformal_lattice_planner/Policy.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
-#include <ros/convert_to_visualization_msgs.h>
 
 using namespace std;
 namespace bst = boost;
@@ -54,7 +53,6 @@ private:
   SharedPtr<LaneFollower> planner_ = nullptr;
 
   mutable ros::NodeHandle nh_;
-  mutable ros::Publisher traffic_lattice_pub_;
   mutable actionlib::SimpleActionServer<clp::EgoPlanAction> server_;
 
 public:
@@ -74,9 +72,6 @@ private:
 bool EgoLaneFollowingNode::initialize() {
 
   bool all_param_exist = true;
-
-  // Create publishers.
-  traffic_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("traffic_lattice", 1, true);
 
   string host = "localhost";
   int port = 2000;
@@ -130,7 +125,6 @@ void EgoLaneFollowingNode::executeCallback(
   std::unordered_set<size_t> all_ids = agent_ids;
   all_ids.insert(ego_id);
   planner_->updateTrafficLattice(all_ids);
-  traffic_lattice_pub_.publish(createTrafficLatticeMsg(planner_->trafficLattice()));
 
   if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
     throw std::runtime_error("Missing vehicles");
