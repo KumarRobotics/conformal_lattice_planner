@@ -32,6 +32,7 @@
 #include <image_transport/image_transport.h>
 
 #include <carla/client/BlueprintLibrary.h>
+#include <carla/client/ActorList.h>
 #include <carla/client/Vehicle.h>
 #include <carla/client/Client.h>
 #include <carla/client/Map.h>
@@ -132,6 +133,9 @@ private:
   /// Manager (add/delete) the vehicles in the simulation.
   void manageTraffic();
 
+  /// Simulate the world forward.
+  void tickWorld();
+
   /**
    * @name Get Carla vehicle actors.
    */
@@ -154,6 +158,10 @@ private:
   vector<SharedPtr<const cc::Vehicle>> vehicles() const;
   /// @}
 
+  /**
+   * @name Publishing functions
+   */
+  /// @{
   /// Publish the map visualization markers.
   void publishMap() const;
 
@@ -162,6 +170,7 @@ private:
 
   /// Publish the following image.
   void publishImage(const SharedPtr<cs::SensorData>& data) const;
+  /// @}
 
   /**
    * @name Ego action callbacks
@@ -273,15 +282,15 @@ bool CarlaSimulatorNode::initialize() {
   ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
   publishTraffic();
 
-  //// Wait for the planner servers.
-  //ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
-  //ego_client_.waitForServer(ros::Duration(5.0));
-  //agents_client_.waitForServer(ros::Duration(5.0));
+  // Wait for the planner servers.
+  ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
+  ego_client_.waitForServer(ros::Duration(5.0));
+  agents_client_.waitForServer(ros::Duration(5.0));
 
-  //// Send out the first goal of ego.
-  //ROS_INFO_NAMED("carla_simulator", "send the first goals to action servers");
-  //sendEgoGoal();
-  //sendAgentsGoal();
+  // Send out the first goal of ego.
+  ROS_INFO_NAMED("carla_simulator", "send the first goals to action servers");
+  sendEgoGoal();
+  sendAgentsGoal();
 
   ROS_INFO_NAMED("carla_simulator", "initialization finishes.");
   return all_param_exist;
@@ -329,7 +338,7 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
   // Initialize the traffic manager.
   traffic_manager_ = boost::make_shared<TrafficManager<LoopRouter>>(
-      start_waypoint, 150.0, loop_router_);
+      start_waypoint, 150.0, loop_router_, world_->GetMap());
 
   // Spawn the ego vehicle.
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer
@@ -343,10 +352,17 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  SharedPtr<cc::Actor> ego_actor =
-    world_->SpawnActor(ego_blueprint, ego_waypoint->GetTransform());
+  SharedPtr<cc::Vehicle> ego_actor = boost::static_pointer_cast<cc::Vehicle>(
+      world_->SpawnActor(ego_blueprint, ego_waypoint->GetTransform()));
   ego_policy_.first = ego_actor->GetId();
   ego_policy_.second = 25.0;
+
+  if (traffic_manager_->addVehicle(std::make_tuple(
+          ego_actor->GetId(),
+          ego_waypoint->GetTransform(),
+          ego_actor->GetBoundingBox())) != 1) {
+    ROS_ERROR_NAMED("carla simulator", "Cannot add ego vehicle.");
+  }
 
   // Spawn a camera following the ego vehicle.
   if (!no_rendering_mode) {
@@ -376,21 +392,37 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
     SharedPtr<const cc::Waypoint> agent_waypoint = nullptr;
     cg::Transform agent_transform;
-    SharedPtr<cc::Actor> agent_actor = nullptr;
+    SharedPtr<cc::Vehicle> agent_actor = nullptr;
 
     // First lane, 80m, 20m/s.
     agent_waypoint = traffic_manager_->front(waypoint0, 80.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
-    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_actor = boost::static_pointer_cast<cc::Vehicle>(
+        world_->SpawnActor(ego_blueprint, agent_transform));
     agent_policies_[agent_actor->GetId()] = 20.0;
+
+    if (traffic_manager_->addVehicle(std::make_tuple(
+            agent_actor->GetId(),
+            agent_waypoint->GetTransform(),
+            agent_actor->GetBoundingBox())) != 1) {
+      ROS_ERROR_NAMED("carla simulator", "Cannot add agent vehicle.");
+    }
 
     // Second lane, 60m, 20m/s
     agent_waypoint = traffic_manager_->front(waypoint1, 60.0)->waypoint();
     agent_transform = agent_waypoint->GetTransform();
     agent_transform.location.z += 1.2;
-    agent_actor = world_->SpawnActor(ego_blueprint, agent_transform);
+    agent_actor = boost::static_pointer_cast<cc::Vehicle>(
+        world_->SpawnActor(ego_blueprint, agent_transform));
     agent_policies_[agent_actor->GetId()] = 20.0;
+
+    if (traffic_manager_->addVehicle(std::make_tuple(
+            agent_actor->GetId(),
+            agent_waypoint->GetTransform(),
+            agent_actor->GetBoundingBox())) != 1) {
+      ROS_ERROR_NAMED("carla simulator", "Cannot add agent vehicle.");
+    }
   }
 
   return;
@@ -398,12 +430,14 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
 void CarlaSimulatorNode::startVehicles() {
 
-  SharedPtr<cc::Actor> ego_actor = world_->GetActor(ego_policy_.first);
+  SharedPtr<cc::Vehicle> ego_actor =
+    boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(ego_policy_.first));
   ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*15.0);
 
   // TODO: Set the velocity for the agents.
   for (const auto& agent : agent_policies_) {
-    SharedPtr<cc::Actor> actor = world_->GetActor(agent.first);
+    SharedPtr<cc::Vehicle> actor =
+      boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(agent.first));
     actor->SetVelocity(actor->GetTransform().GetForwardVector()*15.0);
   }
 
@@ -412,15 +446,14 @@ void CarlaSimulatorNode::startVehicles() {
 
 void CarlaSimulatorNode::manageTraffic() {
 
-  // Cache the last ego transform.
-  // This is used to compute how much the ego vehicle has moved forward.
-  static cg::Transform last_ego_transform = egoVehicle()->GetTransform();
-
   // Check how much the ego vehicle has moved.
   // FIXME: Is there a better way other than using the Euclidean distance?
-  const cg::Transform ego_transform = egoVehicle()->GetTransform();
-  const double shift_distance = ego_transform.location.Distance(last_ego_transform.location);
-  last_ego_transform = ego_transform;
+  const boost::shared_ptr<cc::Waypoint> ego_waypoint =
+    world_->GetMap()->GetWaypoint(egoVehicle()->GetTransform().location);
+  boost::shared_ptr<const TrafficManager<LoopRouter>> const_traffic_manager =
+    boost::const_pointer_cast<const TrafficManager<LoopRouter>>(traffic_manager_);
+  const double ego_distance = const_traffic_manager->closestNode(ego_waypoint, 1.0)->distance();
+  const double shift_distance = ego_distance<50.0 ? 0.0 : 1.0;
 
   // Get all vehicles for the server.
   vector<SharedPtr<const cc::Vehicle>> vehicles =
@@ -428,26 +461,44 @@ void CarlaSimulatorNode::manageTraffic() {
 
   // Update the traffic on the lattice.
   unordered_set<size_t> disappear_vehicles;
-  traffic_manager_->moveTrafficForward(vehicles, shift_distance, disappear_vehicles);
+  if (!traffic_manager_->moveTrafficForward(vehicles, shift_distance, disappear_vehicles)) {
+    ROS_ERROR_NAMED("carla simulator", "Collision detected");
+  }
 
   // Remove the vehicles that disappear.
   for (const size_t id : disappear_vehicles) {
     if (id == ego_policy_.first)
-      throw std::runtime_error("The ego vehicle is removed in the simulation.");
+      ROS_ERROR_NAMED("carla simulator", "The ego vehicle is removed.");
 
     // Remove the vehicle from the carla server.
     SharedPtr<cc::Vehicle> vehicle = agentVehicle(id);
-    if (!vehicle->Destroy())
-      throw std::runtime_error("Cannot destroy an agent.");
+    if (!world_->GetActor(id)->Destroy())
+      ROS_WARN_NAMED("carla simulator", "Cannot destroy an agent");
 
-    // Remove the vehicle from the class.
+    // Remove the vehicle from the object.
     agent_policies_.erase(id);
+  }
+
+  //std::printf("disappear vehicles: ");
+  //for (const size_t id : disappear_vehicles)
+  //  std::printf("%lu ", id);
+  //std::printf("\n");
+
+  // Set the tranform of the current actors to where they are right now.
+  // So that after calling \c world_->Tick(), the transform of the existing
+  // actors won't be updated.
+  boost::shared_ptr<cc::ActorList> existing_actors = world_->GetActors();
+  for (size_t i = 0; i < existing_actors->size(); ++i) {
+    boost::shared_ptr<cc::Actor> actor = (*existing_actors)[i];
+    if (!boost::dynamic_pointer_cast<cc::Vehicle>(actor)) continue;
+    if (disappear_vehicles.count(actor->GetId()) == 0)
+      actor->SetTransform(actor->GetTransform());
   }
 
   // Spawn more vehicles if the number of agents around the ego vehicle
   // does not meet the requirement.
   // At most one vehicle is spawned every time this function is called.
-  if (agent_policies_.size() < 8) {
+  if (agent_policies_.size() < 6) {
 
     std::string vehicle_name = "vehicle.audi.tt";
     SharedPtr<cc::BlueprintLibrary> blueprint_library =
@@ -460,8 +511,10 @@ void CarlaSimulatorNode::manageTraffic() {
     boost::optional<pair<double, SharedPtr<const cc::Waypoint>>> back =
       traffic_manager_->backSpawnWaypoint(min_distance);
 
-    const double front_distance = front ? front->first : 0.0;
-    const double back_distance = back ? back->first : 0.0;
+    double front_distance = front ? front->first : 0.0;
+    double back_distance = back ? back->first : 0.0;
+    if (!traffic_manager_->back(front->second, 4.0)) front_distance = 0.0;
+    if (!traffic_manager_->front(back->second, 4.0)) back_distance = 0.0;
 
     // Waypoint to spawn the new vehicle.
     SharedPtr<const cc::Waypoint> spawn_waypoint = nullptr;
@@ -469,23 +522,45 @@ void CarlaSimulatorNode::manageTraffic() {
 
     if (front_distance>=back_distance && front_distance>=min_distance) {
       // Spawn a new vehicle at the front of the lattice.
+      std::printf("Spawn a new vehicle at the front\n");
       SharedPtr<const cc::Waypoint> waypoint = front->second;
       spawn_waypoint = traffic_manager_->back(waypoint, 4.0)->waypoint();
-      start_speed = 20.0;
+      start_speed = 18.0;
     }
 
-    if (front_distance<=back_distance && back_distance>=min_distance) {
+    if (front_distance<back_distance && back_distance>=min_distance) {
+      std::printf("Spawn a new vehicle at the back.\n");
       // Spawn a new vehicle at the back of the lattice.
       SharedPtr<const cc::Waypoint> waypoint = back->second;
       spawn_waypoint = traffic_manager_->front(waypoint, 4.0)->waypoint();
-      start_speed = 22.0;
+      start_speed = 23.0;
     }
 
-    SharedPtr<cc::Actor> agent_actor =
-      world_->SpawnActor(blueprint, spawn_waypoint->GetTransform());
-    agent_policies_[agent_actor->GetId()] = start_speed;
-    agent_actor->SetVelocity(
-        spawn_waypoint->GetTransform().GetForwardVector()*start_speed);
+    if (spawn_waypoint) {
+      SharedPtr<cc::Vehicle> agent_actor = boost::static_pointer_cast<cc::Vehicle>(
+        world_->TrySpawnActor(blueprint, spawn_waypoint->GetTransform()));
+      // Add the vehicle onto the lattice.
+      if (!agent_actor) {
+        ROS_WARN_NAMED("carla simulator", "Cannot spawn new agent.");
+      } else if (traffic_manager_->addVehicle(std::make_tuple(
+              agent_actor->GetId(),
+              spawn_waypoint->GetTransform(),
+              agent_actor->GetBoundingBox())) != 1) {
+        agent_actor->Destroy();
+        ROS_WARN_NAMED("carla simulator", "Cannot add new agent to the lattice.");
+      } else {
+        agent_policies_[agent_actor->GetId()] = start_speed;
+        agent_actor->SetVelocity(
+            spawn_waypoint->GetTransform().GetForwardVector()*start_speed);
+        //std::printf("new vehicle id:%lu x:%f y:%f z:%f road:%lu lane:%d\n",
+        //    agent_actor->GetId(),
+        //    spawn_waypoint->GetTransform().location.x,
+        //    spawn_waypoint->GetTransform().location.y,
+        //    spawn_waypoint->GetTransform().location.z,
+        //    spawn_waypoint->GetRoadId(),
+        //    spawn_waypoint->GetLaneId());
+      }
+    }
   }
 
   return;
@@ -631,12 +706,7 @@ void CarlaSimulatorNode::egoPlanDoneCallback(
 
   if (ego_ready_ && agents_ready_) {
     ROS_INFO_NAMED("carla_simulator", "tick world by ego client.");
-    world_->Tick();
-    manageTraffic();
-    world_->Tick();
-    publishTraffic();
-    sendEgoGoal();
-    sendAgentsGoal();
+    tickWorld();
   }
 
   return;
@@ -673,13 +743,22 @@ void CarlaSimulatorNode::agentsPlanDoneCallback(
 
   if (ego_ready_ && agents_ready_) {
     ROS_INFO_NAMED("carla_simulator", "tick world by agents client.");
-    world_->Tick();
-    manageTraffic();
-    world_->Tick();
-    publishTraffic();
-    sendEgoGoal();
-    sendAgentsGoal();
+    tickWorld();
   }
+
+  return;
+}
+
+void CarlaSimulatorNode::tickWorld() {
+
+  world_->Tick();
+  manageTraffic();
+  world_->Tick();
+
+  publishTraffic();
+
+  sendEgoGoal();
+  sendAgentsGoal();
 
   return;
 }
