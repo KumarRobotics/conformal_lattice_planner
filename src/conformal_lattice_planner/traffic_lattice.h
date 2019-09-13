@@ -86,7 +86,7 @@ public:
  *       const MapData& carla::road::Map::GetMap() const.
  */
 template<typename Router>
-class TrafficLattice : protected Lattice<WaypointNodeWithVehicle, Router> {
+class TrafficLattice : public Lattice<WaypointNodeWithVehicle, Router> {
 
 protected:
 
@@ -175,13 +175,11 @@ public:
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
-  using Base::latticeEntry;
-  using Base::latticeExit;
-  using Base::nodes;
-  using Base::edges;
-  using Base::range;
-
 protected:
+
+  using Base::extend;
+  using Base::shorten;
+  using Base::shift;
 
   using Base::front;
   using Base::back;
