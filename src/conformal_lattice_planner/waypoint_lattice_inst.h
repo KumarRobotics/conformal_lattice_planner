@@ -239,8 +239,11 @@ void Lattice<Node, Router>::shorten(const double range) {
   // Save the nodes to be processed.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
 
-  removed_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
-  nodes_queue.push(lattice_entry_);
+  for (auto& item : waypoint_to_node_table_) {
+    if (item.second->distance() > lattice_entry_->distance()) continue;
+    removed_waypoint_ids.insert(item.second->waypoint()->GetId());
+    nodes_queue.push(item.second);
+  }
 
   while (!nodes_queue.empty()) {
     // Get the next node to be processed.
@@ -313,9 +316,17 @@ void Lattice<Node, Router>::updateNodeDistance() {
   std::unordered_set<size_t> updated_waypoint_ids;
   std::queue<boost::shared_ptr<Node>> nodes_queue;
 
-  lattice_entry_->distance() = 0.0;
-  nodes_queue.push(lattice_entry_);
-  updated_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
+  //lattice_entry_->distance() = 0.0;
+  //nodes_queue.push(lattice_entry_);
+  //updated_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
+  const double lattice_entry_distance = lattice_entry_->distance();
+
+  for (auto& item : waypoint_to_node_table_) {
+    if (item.second->distance() > lattice_entry_distance) continue;
+    item.second->distance() = 0.0;
+    nodes_queue.push(item.second);
+    updated_waypoint_ids.insert(item.second->waypoint()->GetId());
+  }
 
   while (!nodes_queue.empty()) {
     // Get the next node to be processed.
@@ -631,7 +642,7 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::backRight(
 template<typename Node, typename Router>
 boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-    const double tolerance) const {
+    const double tolerance) {
 
   // Return nullptr is the input waypoint is invalid.
   if (!waypoint) return nullptr;

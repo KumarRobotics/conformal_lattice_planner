@@ -197,6 +197,14 @@ public:
     return;
   }
 
+  boost::shared_ptr<const Node> closestNode(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+      const double tolerance) const {
+
+    Lattice* unconst_this = const_cast<Lattice*>(this);
+    return unconst_this->closestNode(waypoint, tolerance);
+  }
+
   /**
    * @name Node Query
    *
@@ -337,7 +345,7 @@ protected:
   /// is returned.
   boost::shared_ptr<Node> closestNode(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-      const double tolerance) const;
+      const double tolerance);
 
   /// @name Functions required by \c extend() or \c shorten()
   /// @{
