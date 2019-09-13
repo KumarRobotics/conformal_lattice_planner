@@ -322,15 +322,19 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
     vehicleHeadWaypoint(transform, bounding_box);
   boost::shared_ptr<const CarlaWaypoint> rear_waypoint =
     vehicleRearWaypoint(transform, bounding_box);
+  boost::shared_ptr<const CarlaWaypoint> mid_waypoint =
+    vehicleWaypoint(transform);
 
   // Find the nodes occupied by this vehicle.
   boost::shared_ptr<Node> head_node = this->closestNode(
       head_waypoint, this->longitudinal_resolution_);
   boost::shared_ptr<Node> rear_node = this->closestNode(
       rear_waypoint, this->longitudinal_resolution_);
+  boost::shared_ptr<Node> mid_node = this->closestNode(
+      mid_waypoint, this->longitudinal_resolution_);
 
   // If we can not add the whole vehicle onto the lattice, we won't add it.
-  if (!head_node || !rear_node) {
+  if (!head_node || !rear_node || !mid_node) {
     //if (!head_node) std::printf("Cannot find vehicle head\n");
     //if (!rear_node) std::printf("Cannot find vehicle rear\n");
     return 0;
