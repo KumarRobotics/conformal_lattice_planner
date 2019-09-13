@@ -52,7 +52,6 @@ void LaneFollower::updateTrafficLattice(
     std::printf("disappear vehicles in lane follower traffic lattice construction: ");
     for (const size_t id : disappear_vehicles) std::printf("%lu ", id);
     std::printf("\n");
-    //throw std::runtime_error("Cannot register all vehicles onto the lattice.");
   }
 
   return;
@@ -70,14 +69,14 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
   // Get the target vehicle.
   boost::shared_ptr<CarlaVehicle> vehicle =
     boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
-  std::printf("Plan for vehicle:%lu\n", vehicle->GetId());
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed
   //       in order to avoid aggressive brake.
   // FIXME: It seems that the unit of speed limit is km/h.
   const double speed = vehicle->GetVelocity().Length();
-  const double speed_limit = vehicle->GetSpeedLimit() / 3.6;
+  //const double speed_limit = vehicle->GetSpeedLimit() / 3.6;
+  const double speed_limit = 25.0;
   const double desired_speed = std::min(speed_limit, policy_speed);
 
   // Compute the acceleration of the target vehicle..
@@ -88,14 +87,14 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
       // There is a lead vehicle.
       const size_t lead_vehicle = lead->first;
       const double lead_distance = lead->second;
-      std::printf("Has lead vehicle:%lu distance:%f\n", lead_vehicle, lead_distance);
+      //std::printf("Has lead vehicle:%lu distance:%f\n", lead_vehicle, lead_distance);
       // Get the speed of the lead vehicle.
       boost::shared_ptr<CarlaVehicle> vehicle =
         boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(lead_vehicle));
       const double lead_speed = vehicle->GetVelocity().Length();
       accel = idm_->idm(speed, desired_speed, lead_speed, lead_distance);
     } else {
-      std::printf("No lead vehicle.\n");
+      //std::printf("No lead vehicle.\n");
       // There is no lead vehicle.
       accel = idm_->idm(speed, desired_speed);
     }
@@ -103,7 +102,8 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
     std::printf("%s\n", e.what());
     // This is probably because we cannnot find the target vehicle on the lattice.
     // In this case, we just assume there is no lead vehicle.
-    accel = idm_->idm(speed, desired_speed);
+    //accel = idm_->idm(speed, desired_speed);
+    accel = 0.0;
   }
 
   // Update the vehicle speed and transform.
@@ -115,8 +115,8 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
   const CarlaTransform reference_transform = reference_waypoint->GetTransform();
   const double reference_speed = speed + accel*time_step_;
 
-  std::printf("speed:%f reference speed:%f desired_speed:%f\n",
-      speed, reference_speed, desired_speed);
+  //std::printf("speed:%f reference speed:%f desired_speed:%f\n",
+  //    speed, reference_speed, desired_speed);
 
   vehicle->SetTransform(reference_transform);
   vehicle->SetVelocity(reference_transform.GetForwardVector()*reference_speed);
