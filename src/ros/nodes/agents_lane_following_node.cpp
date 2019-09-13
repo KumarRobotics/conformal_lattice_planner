@@ -123,6 +123,9 @@ void AgentsLaneFollowingNode::executeCallback(
   all_ids.insert(ego_id);
   planner_->updateTrafficLattice(all_ids);
 
+  if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
+    ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");
+
   // Plan for every agent vehicle.
   for (const auto& policy : goal->agent_policies)
     planner_->plan(policy.id, policy.desired_speed);

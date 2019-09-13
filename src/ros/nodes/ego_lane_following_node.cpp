@@ -127,7 +127,7 @@ void EgoLaneFollowingNode::executeCallback(
   planner_->updateTrafficLattice(all_ids);
 
   if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
-    throw std::runtime_error("Missing vehicles");
+    ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");
 
   // Plan for the ego vehicle.
   planner_->plan(ego_id, ego_policy_speed);
