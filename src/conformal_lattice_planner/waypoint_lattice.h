@@ -28,6 +28,8 @@
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 #include <carla/geom/Transform.h>
+#include <carla/road/Road.h>
+#include <carla/road/Lane.h>
 
 #include <conformal_lattice_planner/utils.h>
 #include <conformal_lattice_planner/lattice_node.h>
@@ -105,11 +107,11 @@ protected:
   /// Router used to query the roads and waypoints.
   boost::shared_ptr<Router> router_;
 
-  /// A beginning node of the lattice, i.e. a (not the) node with distance 0.0.
-  boost::shared_ptr<Node> lattice_entry_;
+  /// Entry nodes of the lattice (nodes that do not have back nodes).
+  std::vector<boost::weak_ptr<Node>> lattice_entries_;
 
-  /// A end node of the lattice, i.e. a (not the) node with maximum distance.
-  boost::shared_ptr<Node> lattice_exit_;
+  /// Exit nodes of the lattice (nodes that do not have front nodes).
+  std::vector<boost::weak_ptr<Node>> lattice_exits_;
 
   /// A mapping from carla waypoint ID to the corresponding node in the lattice.
   std::unordered_map<size_t, boost::shared_ptr<Node>> waypoint_to_node_table_;
@@ -146,13 +148,17 @@ public:
   }
 
   /// Get the entry node of the lattice, which has distance 0.0.
-  boost::shared_ptr<const Node> latticeEntry() const {
-    return lattice_entry_;
+  std::vector<boost::shared_ptr<const Node>> latticeEntries() const {
+    std::vector<boost::shared_ptr<const Node>> output;
+    for (const auto& node : lattice_entries_) output.push_back(node.lock());
+    return output;
   }
 
   /// Get the exit node of the lattice, which corresponds to the range of the lattice.
-  boost::shared_ptr<const Node> latticeExit() const {
-    return lattice_exit_;
+  std::vector<boost::shared_ptr<const Node>> latticeExits() const {
+    std::vector<boost::shared_ptr<const Node>> output;
+    for (const auto& node : lattice_exits_) output.push_back(node.lock());
+    return output;
   }
 
   /// Return all nodes maintained by the lattice.
@@ -163,11 +169,7 @@ public:
   std::vector<std::pair<size_t, size_t>> edges() const;
 
   /// Return the range of the lattice.
-  double range() const {
-    if (!lattice_entry_) throw std::runtime_error("Lattice entry does not exist.");
-    if (!lattice_exit_) throw std::runtime_error("Lattice exit does not exist.");
-    return lattice_exit_->distance() - lattice_entry_->distance();
-  }
+  double range() const;
 
   /**
    * \brief Extend the range of the lattice.
@@ -191,7 +193,7 @@ public:
    * \param[in] movement How much distance to shift the lattice forward.
    */
   void shift(const double movement) {
-    const double range = lattice_exit_->distance() - lattice_entry_->distance();
+    const double range = this->range();
     extend(range + movement);
     shorten(range);
     return;
@@ -302,42 +304,10 @@ protected:
   }
 
   void augmentRoadlaneToWaypointsTable(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
-
-    //const size_t roadlane_id = hashRoadLaneIds(
-    //    waypoint->GetRoadId(), waypoint->GetLaneId());
-    size_t roadlane_id = 0;
-    utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
-
-    // Initialize this entry in the table.
-    if (roadlane_to_waypoints_table_.find(roadlane_id) ==
-        roadlane_to_waypoints_table_.end())
-      roadlane_to_waypoints_table_[roadlane_id] = std::vector<size_t>();
-
-    // Add the waypoint ID to this road+lane.
-    roadlane_to_waypoints_table_[roadlane_id].push_back(waypoint->GetId());
-    return;
-  }
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint);
 
   void reduceRoadlaneToWaypointsTable(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
-
-    size_t roadlane_id = 0;
-    utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
-
-    if (roadlane_to_waypoints_table_.find(roadlane_id) !=
-        roadlane_to_waypoints_table_.end()) {
-      std::vector<size_t>& waypoints = roadlane_to_waypoints_table_[roadlane_id];
-      std::vector<size_t>::iterator end_iter = std::remove_if(
-          waypoints.begin(), waypoints.end(),
-          [&waypoint](const size_t id)->bool{
-            return (id == waypoint->GetId());
-          });
-
-      waypoints.erase(end_iter, waypoints.end());
-    }
-    return;
-  }
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint);
   /// @}
 
   /// Find the node in the lattice that is closest to the given \c waypoint.
@@ -346,6 +316,8 @@ protected:
   boost::shared_ptr<Node> closestNode(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double tolerance);
+
+  void findLatticeEntriesAndExits();
 
   /// @name Functions required by \c extend() or \c shorten()
   /// @{
@@ -357,12 +329,13 @@ protected:
 
   boost::shared_ptr<CarlaWaypoint> findLeftWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-    return router_->leftWaypoint(waypoint);
+    return waypoint->GetLeft();
   }
 
   boost::shared_ptr<CarlaWaypoint> findRightWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-    return router_->rightWaypoint(waypoint);
+    //return router_->rightWaypoint(waypoint);
+    return waypoint->GetRight();
   }
 
   void extendFront(const boost::shared_ptr<Node>& node,

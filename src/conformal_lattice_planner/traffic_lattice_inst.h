@@ -457,8 +457,7 @@ void TrafficLattice<Router>::baseConstructor(
   // Create the start node.
   boost::shared_ptr<Node> start_node = boost::make_shared<Node>(start);
   start_node->distance() = 0.0;
-  this->lattice_entry_ = start_node;
-  this->lattice_exit_ = start_node;
+  this->lattice_exits_.push_back(start_node);
 
   this->augmentWaypointToNodeTable(start->GetId(), start_node);
   this->augmentRoadlaneToWaypointsTable(start);

@@ -45,8 +45,7 @@ Lattice<Node, Router>::Lattice(
   // Create the start node.
   boost::shared_ptr<Node> start_node = boost::make_shared<Node>(start);
   start_node->distance() = 0.0;
-  lattice_entry_ = start_node;
-  lattice_exit_ = start_node;
+  lattice_exits_.push_back(start_node);
 
   augmentWaypointToNodeTable(start->GetId(), start_node);
   augmentRoadlaneToWaypointsTable(start);
@@ -91,20 +90,64 @@ Lattice<Node, Router>::Lattice(const Lattice<Node, Router>& other) :
   }
 
   // Redirect the entry and exit pointers.
-  lattice_entry_ = waypoint_to_node_table_[other.lattice_entry_->waypoint()->GetId()];
-  lattice_exit_ = waypoint_to_node_table_[other.lattice_exit_->waypoint()->GetId()];
+  for (auto& entry : lattice_entries_)
+    entry = waypoint_to_node_table_[entry.lock()->waypoint()->GetId()];
+  for (auto& exit : lattice_exits_)
+    exit = waypoint_to_node_table_[exit.lock()->waypoint()->GetId()];
 
   return;
 }
 
 template<typename Node, typename Router>
 void Lattice<Node, Router>::swap(Lattice<Node, Router>& other) {
-  std::swap(lattice_entry_, other.lattice_entry);
-  std::swap(lattice_exit_, other.lattice_exit);
+
+  std::swap(lattice_entries_, other.lattice_entries_);
+  std::swap(lattice_exits_, other.lattice_exits_);
   std::swap(waypoint_to_node_table_, other.waypoint_to_node_table_);
   std::swap(roadlane_to_waypoints_table_, other.roadlane_to_waypoints_table_);
   std::swap(longitudinal_resolution_, other.longitudinal_resolution_);
   std::swap(router_, other.router_);
+
+  return;
+}
+
+template<typename Node, typename Router>
+void Lattice<Node, Router>::augmentRoadlaneToWaypointsTable(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
+
+  //const size_t roadlane_id = hashRoadLaneIds(
+  //    waypoint->GetRoadId(), waypoint->GetLaneId());
+  size_t roadlane_id = 0;
+  utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
+
+  // Initialize this entry in the table.
+  if (roadlane_to_waypoints_table_.find(roadlane_id) ==
+      roadlane_to_waypoints_table_.end())
+    roadlane_to_waypoints_table_[roadlane_id] = std::vector<size_t>();
+
+  // Add the waypoint ID to this road+lane.
+  roadlane_to_waypoints_table_[roadlane_id].push_back(waypoint->GetId());
+  return;
+}
+
+template<typename Node, typename Router>
+void Lattice<Node, Router>::reduceRoadlaneToWaypointsTable(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
+
+  size_t roadlane_id = 0;
+  utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
+
+  if (roadlane_to_waypoints_table_.find(roadlane_id) !=
+      roadlane_to_waypoints_table_.end()) {
+    std::vector<size_t>& waypoints = roadlane_to_waypoints_table_[roadlane_id];
+    std::vector<size_t>::iterator end_iter = std::remove_if(
+        waypoints.begin(), waypoints.end(),
+        [&waypoint](const size_t id)->bool{
+          return (id == waypoint->GetId());
+        });
+
+    waypoints.erase(end_iter, waypoints.end());
+  }
   return;
 }
 
@@ -153,23 +196,37 @@ std::vector<std::pair<size_t, size_t>>
 }
 
 template<typename Node, typename Router>
+double Lattice<Node, Router>::range() const {
+
+  if (lattice_entries_.empty() || lattice_exits_.empty()) return 0.0;
+
+  double entry_distance = std::numeric_limits<double>::max();
+  double exit_distance = 0.0;
+
+  for (const auto& entry : lattice_entries_) {
+    if (entry.lock()->distance() < entry_distance)
+      entry_distance = entry.lock()->distance();
+  }
+  for (const auto& exit : lattice_exits_) {
+    if (exit.lock()->distance() > exit_distance)
+      exit_distance = exit.lock()->distance();
+  }
+
+  return exit_distance - entry_distance;
+}
+
+template<typename Node, typename Router>
 void Lattice<Node, Router>::extend(const double range) {
 
   // If the current range of the lattice exceeds the given range,
   // no operation is performed.
-  if (lattice_exit_->distance()-lattice_entry_->distance() >= range)
-    return;
+  if (this->range() >= range) return;
 
   // A queue of nodes to be explored.
   // The queue is started from the lattice exit and all nodes that
   // has the same distance with lattice.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
-  //nodes_queue.push(lattice_exit_);
-
-  for (auto& item : waypoint_to_node_table_) {
-    if (item.second->distance() >= lattice_exit_->distance())
-      nodes_queue.push(item.second);
-  }
+  for (auto& exit : lattice_exits_) nodes_queue.push(exit.lock());
 
   while (!nodes_queue.empty()) {
     // Get the next node to explore and remove it from the queue.
@@ -181,81 +238,36 @@ void Lattice<Node, Router>::extend(const double range) {
     extendRight(node, range, nodes_queue);
   }
 
-  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
+  // Update lattice entries and exits.
+  findLatticeEntriesAndExits();
+
   return;
 }
-
-//template<typename Node, typename Router>
-//void Lattice<Node, Router>::shorten(const double range) {
-//  // If the current lattice range is already smaller than the given range,
-//  // no operation is performed.
-//  if (lattice_exit_->distance()-lattice_entry_->distance() <= range)
-//    return;
-//
-//  // The distance before which nodes should be removed.
-//  const double safe_distance =
-//    lattice_exit_->distance() - lattice_entry_->distance() - range;
-//
-//  // Save the ids for the waypoint to be removed.
-//  std::unordered_set<size_t> removed_waypoint_ids;
-//
-//  for (const auto& node : waypoint_to_node_table_) {
-//    if (node.second->distance() < safe_distance)
-//      removed_waypoint_ids.insert(node.first);
-//  }
-//
-//  // Removed the nodes that have been recorded.
-//  for (const size_t waypoint_id : removed_waypoint_ids) {
-//    reduceRoadlaneToWaypointsTable(waypoint_to_node_table_[waypoint_id]->waypoint());
-//    reduceWaypointToNodeTable(waypoint_id);
-//  }
-//
-//  // Set the new lattice entry, which is the one with shortest distance.
-//  lattice_entry_ = waypoint_to_node_table_.begin()->second;
-//  for (const auto& node : waypoint_to_node_table_) {
-//    if (node.second->distance() < lattice_entry_->distance())
-//      lattice_entry_ = node.second;
-//  }
-//
-//  // Update the distance of all remaining nodes starting
-//  // from the \c lattice_entry_.
-//  updateNodeDistance();
-//  return;
-//}
 
 template<typename Node, typename Router>
 void Lattice<Node, Router>::shorten(const double range) {
   // If the current lattice range is already smaller than the given range,
   // no operation is performed.
-  if (lattice_exit_->distance()-lattice_entry_->distance() <= range)
-    return;
+  if (this->range() <= range) return;
 
   // The distance before which nodes should be removed.
-  const double safe_distance =
-    lattice_exit_->distance() - lattice_entry_->distance() - range;
+  const double safe_distance = this->range() - range;
 
   // Save the ids for the waypoint to be removed.
   std::unordered_set<size_t> removed_waypoint_ids;
   // Save the nodes to be processed.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
 
-  for (auto& item : waypoint_to_node_table_) {
-    if (item.second->distance() > lattice_entry_->distance()) continue;
-    removed_waypoint_ids.insert(item.second->waypoint()->GetId());
-    nodes_queue.push(item.second);
+  for (auto& entry : lattice_entries_) {
+    if (entry.lock()->distance() >= safe_distance) continue;
+    removed_waypoint_ids.insert(entry.lock()->waypoint()->GetId());
+    nodes_queue.push(entry.lock());
   }
 
   while (!nodes_queue.empty()) {
     // Get the next node to be processed.
     boost::shared_ptr<Node> node = nodes_queue.front();
     nodes_queue.pop();
-
-    // If this node is the current lattice entry, we have to update
-    // the lattice entry to its front node.
-    if (node->waypoint()->GetId() == lattice_entry_->waypoint()->GetId() &&
-        node->front().lock()) {
-      lattice_entry_ = node->front().lock();
-    }
 
     // Add the left node.
     if (node->left().lock()) {
@@ -302,30 +314,28 @@ void Lattice<Node, Router>::shorten(const double range) {
     reduceWaypointToNodeTable(waypoint_id);
   }
 
-  // Update the distance of all remaining nodes starting
-  // from the \c lattice_entry_.
+  // Update the entries and exits of the lattic.
+  findLatticeEntriesAndExits();
+
+  // Update the distance of all remaining nodes.
   updateNodeDistance();
 
-  //std::printf("Total nodes # on lattice: %lu\n", waypoint_to_node_table_.size());
   return;
 }
 
 template<typename Node, typename Router>
 void Lattice<Node, Router>::updateNodeDistance() {
 
+  // Add all lattice entries with the minimum distance to the queue.
+  // The distance of these entries will be set to 0.
   std::unordered_set<size_t> updated_waypoint_ids;
   std::queue<boost::shared_ptr<Node>> nodes_queue;
 
-  //lattice_entry_->distance() = 0.0;
-  //nodes_queue.push(lattice_entry_);
-  //updated_waypoint_ids.insert(lattice_entry_->waypoint()->GetId());
-  const double lattice_entry_distance = lattice_entry_->distance();
-
-  for (auto& item : waypoint_to_node_table_) {
-    if (item.second->distance() > lattice_entry_distance) continue;
-    item.second->distance() = 0.0;
-    nodes_queue.push(item.second);
-    updated_waypoint_ids.insert(item.second->waypoint()->GetId());
+  for (auto& entry : lattice_entries_) {
+    //if (entry.lock()->distance() > lattice_entry_distance) continue;
+    entry.lock()->distance() -= longitudinal_resolution_;
+    nodes_queue.push(entry.lock());
+    updated_waypoint_ids.insert(entry.lock()->waypoint()->GetId());
   }
 
   while (!nodes_queue.empty()) {
@@ -360,6 +370,16 @@ void Lattice<Node, Router>::updateNodeDistance() {
         updated_waypoint_ids.insert(front_node->waypoint()->GetId());
         nodes_queue.push(front_node);
         front_node->distance() = node->distance() + longitudinal_resolution_;
+      }
+    }
+
+    // Update the back node.
+    if (node->back().lock()) {
+      boost::shared_ptr<Node> back_node = node->back().lock();
+      if (updated_waypoint_ids.count(back_node->waypoint()->GetId()) == 0) {
+        updated_waypoint_ids.insert(back_node->waypoint()->GetId());
+        nodes_queue.push(back_node);
+        back_node->distance() = node->distance() - longitudinal_resolution_;
       }
     }
   }
@@ -402,9 +422,6 @@ void Lattice<Node, Router>::extendFront(
         waypoint_to_node_table_.end()) {
       node->front() = front_node;
       front_node->back() = node;
-      // Keep track of the lattice exit, which is the node with the maximum distance.
-      if (front_node->distance() > lattice_exit_->distance())
-        lattice_exit_ = front_node;
     }
   }
 
@@ -420,22 +437,34 @@ void Lattice<Node, Router>::extendLeft(
   boost::shared_ptr<CarlaWaypoint> left_waypoint =
     findLeftWaypoint(node->waypoint());
 
-  if (left_waypoint) {
-    // Find the left node corresponds to the waypoint.
-    boost::shared_ptr<Node> left_node = closestNode(left_waypoint, 0.2);
+  // Return if there is no left waypoint.
+  if (!left_waypoint) return;
 
-    if (!left_node) {
-      // This left node does not exist yet, add it to the tables and queue.
-      left_node = boost::make_shared<Node>(left_waypoint);
-      left_node->distance() = node->distance();
+  // Return if the left waypoint is not drivable.
+  if(left_waypoint->GetType() != carla::road::Lane::LaneType::Driving) return;
 
-      augmentWaypointToNodeTable(left_waypoint->GetId(), left_node);
-      augmentRoadlaneToWaypointsTable(left_waypoint);
-      nodes_queue.push(left_node);
-    }
+  // Find the left node corresponds to the waypoint.
+  boost::shared_ptr<Node> left_node = closestNode(left_waypoint, 0.2);
 
-    // Set the left node of the input node.
+  if (!left_node) {
+    // This left node does not exist yet, add it to the tables and queue.
+    left_node = boost::make_shared<Node>(left_waypoint);
+    left_node->distance() = node->distance();
+
+    augmentWaypointToNodeTable(left_waypoint->GetId(), left_node);
+    augmentRoadlaneToWaypointsTable(left_waypoint);
+    nodes_queue.push(left_node);
+  }
+
+  // The left node is set to the left of this node
+  // if one can do a left lane change here.
+  if ((node->waypoint()->GetLaneChange() ==
+       carla::road::element::LaneMarking::LaneChange::Left) ||
+      (node->waypoint()->GetLaneChange() ==
+       carla::road::element::LaneMarking::LaneChange::Both)) {
     node->left() = left_node;
+  } else {
+    node->left().reset();
   }
 
   return;
@@ -451,23 +480,36 @@ void Lattice<Node, Router>::extendRight(
   boost::shared_ptr<CarlaWaypoint> right_waypoint =
     findRightWaypoint(node->waypoint());
 
-  if (right_waypoint) {
-    // Find the right node corresponds to the waypoint.
-    boost::shared_ptr<Node> right_node = closestNode(right_waypoint, 0.2);
+  // Return if there is no right waypoint.
+  if (!right_waypoint) return;
 
-    if (!right_node) {
-      // This right node does not exist yet, add it to the tables and queue.
-      right_node = boost::make_shared<Node>(right_waypoint);
-      right_node->distance() = node->distance();
+  // Return if the right waypoint is not drivable.
+  if(right_waypoint->GetType() != carla::road::Lane::LaneType::Driving) return;
 
-      augmentWaypointToNodeTable(right_waypoint->GetId(), right_node);
-      augmentRoadlaneToWaypointsTable(right_waypoint);
-      nodes_queue.push(right_node);
-    }
+  // Find the right node corresponds to the waypoint.
+  boost::shared_ptr<Node> right_node = closestNode(right_waypoint, 0.2);
 
-    // Set the right node of the input node.
-    node->right() = right_node;
+  if (!right_node) {
+    // This right node does not exist yet, add it to the tables and queue.
+    right_node = boost::make_shared<Node>(right_waypoint);
+    right_node->distance() = node->distance();
+
+    augmentWaypointToNodeTable(right_waypoint->GetId(), right_node);
+    augmentRoadlaneToWaypointsTable(right_waypoint);
+    nodes_queue.push(right_node);
   }
+
+  // The right node is set to the right of this node
+  // if one can do a right lane change here.
+  if ((node->waypoint()->GetLaneChange() ==
+       carla::road::element::LaneMarking::LaneChange::Right) ||
+      (node->waypoint()->GetLaneChange() ==
+       carla::road::element::LaneMarking::LaneChange::Both)) {
+    node->right() = right_node;
+  } else {
+    node->right().reset();
+  }
+
   return;
 }
 
@@ -637,6 +679,20 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::backRight(
   if (!back_node) return nullptr;
 
   return back_node->right();
+}
+
+template<typename Node, typename Router>
+void Lattice<Node, Router>::findLatticeEntriesAndExits() {
+
+  lattice_entries_.clear();
+  lattice_exits_.clear();
+
+  for (auto& item : waypoint_to_node_table_) {
+    if (!(item.second->back().lock())) lattice_entries_.push_back(item.second);
+    if (!(item.second->front().lock())) lattice_exits_.push_back(item.second);
+  }
+
+  return;
 }
 
 template<typename Node, typename Router>

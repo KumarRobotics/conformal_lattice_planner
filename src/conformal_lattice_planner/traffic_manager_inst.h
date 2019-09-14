@@ -105,15 +105,10 @@ boost::optional<std::pair<
   >>
   TrafficManager<Router>::frontSpawnWaypoint(const double min_range) const {
 
-  const double front_distance = this->lattice_exit_->distance();
-  // All nodes which has the same distance as the \c lattice_exit_
-  // are considered as a node at the front of the lattice.
+  // All lattice exits are candidates where we can spawn new vehicles.
   std::vector<boost::shared_ptr<const Node>> candidates;
-  for (const auto& item : this->waypoint_to_node_table_) {
-    const boost::shared_ptr<const Node> node = item.second;
-    if (node->distance() == front_distance)
-      candidates.push_back(node);
-  }
+  for (auto& exit : this->lattice_exits_)
+    candidates.push_back(exit.lock());
 
   // Find the best candidate based on the distance to the vehicle on its back.
   boost::shared_ptr<const Node> best_candidate = nullptr;
@@ -148,15 +143,10 @@ boost::optional<std::pair<
   >>
   TrafficManager<Router>::backSpawnWaypoint(const double min_range) const {
 
-  const double back_distance = this->lattice_entry_->distance();
-  // All nodes which have the same distance as \c lattice_entry_ are
-  // considered as the back of the lattice.
+  // All lattice entries are candidates where we can spawn new vehicles.
   std::vector<boost::shared_ptr<const Node>> candidates;
-  for (const auto& item : this->waypoint_to_node_table_) {
-    const boost::shared_ptr<const Node> node = item.second;
-    if (node->distance() == back_distance)
-      candidates.push_back(node);
-  }
+  for (auto& entry : this->lattice_entries_)
+    candidates.push_back(entry.lock());
 
   // Find the best candidate based on the distance to the vehicle on its front.
   boost::shared_ptr<const Node> best_candidate = nullptr;
