@@ -19,8 +19,10 @@
 #include <limits>
 #include <vector>
 #include <array>
+#include <cstdlib>
 #include <unordered_set>
 #include <boost/core/noncopyable.hpp>
+#include <boost/optional.hpp>
 
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -128,7 +130,16 @@ private:
 
   /// Spawn the vehicles.
   void spawnVehicles(const bool no_rendering_mode = true);
-  void startVehicles();
+
+  boost::optional<size_t> spawnEgoVehicle(
+      const boost::shared_ptr<const cc::Waypoint>& waypoint,
+      const double policy_speed,
+      const boost::optional<double> start_speed = boost::none);
+
+  boost::optional<size_t> spawnAgentVehicle(
+      const boost::shared_ptr<const cc::Waypoint>& waypoint,
+      const double policy_speed,
+      const boost::optional<double> start_speed = boost::none);
 
   /// Manager (add/delete) the vehicles in the simulation.
   void manageTraffic();
@@ -271,12 +282,6 @@ bool CarlaSimulatorNode::initialize() {
   // Initialize the ego vehicle.
   ROS_INFO_NAMED("carla_simulator", "spawn the vehicles.");
   spawnVehicles(no_rendering_mode);
-  world_->Tick();
-
-  // Start the vehicles.
-  ROS_INFO_NAMED("carla_simulator", "start the vehicles.");
-  startVehicles();
-  world_->Tick();
 
   // Publish the ego vehicle marker.
   ROS_INFO_NAMED("carla_simulator", "publish ego and agents.");
@@ -296,19 +301,87 @@ bool CarlaSimulatorNode::initialize() {
   return all_param_exist;
 }
 
+boost::optional<size_t> CarlaSimulatorNode::spawnEgoVehicle(
+    const boost::shared_ptr<const cc::Waypoint>& waypoint,
+    const double policy_speed,
+    const boost::optional<double> start_speed) {
+
+  // Get the blueprint of the ego vehicle.
+  SharedPtr<cc::BlueprintLibrary> blueprint_library =
+    world_->GetBlueprintLibrary()->Filter("vehicle");
+  auto blueprint = blueprint_library->at("vehicle.audi.tt");
+
+  cg::Transform transform = waypoint->GetTransform();
+  transform.location.z += 1.5;
+
+  SharedPtr<cc::Actor> actor = world_->TrySpawnActor(blueprint, transform);
+  SharedPtr<cc::Vehicle> vehicle = boost::static_pointer_cast<cc::Vehicle>(actor);
+  if (!actor) {
+    ROS_ERROR_NAMED("carla simulator", "Cannot spawn the ego vehicle.");
+    return boost::none;
+  }
+
+  if (traffic_manager_->addVehicle(
+        std::make_tuple(vehicle->GetId(), transform, vehicle->GetBoundingBox())) != 1) {
+    vehicle->Destroy();
+    ROS_ERROR_NAMED("carla simulator", "Cannot add ego vehicle to the traffic lattice.");
+    return boost::none;
+  }
+
+  ego_policy_.first = vehicle->GetId();
+  ego_policy_.second = policy_speed;
+
+  if (start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector()*(*start_speed));
+  } else {
+    // TODO: Perturb the policy speed a bit.
+    vehicle->SetVelocity(transform.GetForwardVector()*policy_speed);
+  }
+
+  return vehicle->GetId();
+}
+
+boost::optional<size_t> CarlaSimulatorNode::spawnAgentVehicle(
+    const boost::shared_ptr<const cc::Waypoint>& waypoint,
+    const double policy_speed,
+    const boost::optional<double> start_speed) {
+
+  // Get the blueprint of the vehicle.
+  SharedPtr<cc::BlueprintLibrary> blueprint_library =
+    world_->GetBlueprintLibrary()->Filter("vehicle");
+  auto blueprint = (*blueprint_library)[std::rand() % blueprint_library->size()];
+
+  cg::Transform transform = waypoint->GetTransform();
+  transform.location.z += 1.5;
+
+  SharedPtr<cc::Actor> actor = world_->TrySpawnActor(blueprint, transform);
+  SharedPtr<cc::Vehicle> vehicle = boost::static_pointer_cast<cc::Vehicle>(actor);
+  if (!actor) {
+    ROS_ERROR_NAMED("carla simulator", "Cannot spawn the agent vehicle.");
+    return boost::none;
+  }
+
+  if (traffic_manager_->addVehicle(
+        std::make_tuple(vehicle->GetId(), transform, vehicle->GetBoundingBox())) != 1) {
+    vehicle->Destroy();
+    ROS_ERROR_NAMED("carla simulator", "Cannot add the agent vehicle to the traffic lattice.");
+    return boost::none;
+  }
+
+  agent_policies_[vehicle->GetId()] = policy_speed;
+  if (start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector()*(*start_speed));
+  } else {
+    // TODO: Perturb the policy speed a bit.
+    vehicle->SetVelocity(transform.GetForwardVector()*policy_speed);
+  }
+
+  return vehicle->GetId();
+}
+
 void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
 
   bool all_param_exist = true;
-
-  // \c blueprint_library has all actor models we can create.
-  SharedPtr<cc::BlueprintLibrary> blueprint_library =
-    world_->GetBlueprintLibrary();
-
-  // Load blueprint library.
-  std::string vehicle_name = "vehicle.audi.tt";
-  all_param_exist &= nh_.param<std::string>(
-      "vehicle_name", vehicle_name, "vehicle.audi.tt");
-  auto ego_blueprint = blueprint_library->at(vehicle_name);
 
   // The start position and waypoint.
   array<double, 3> start_pt{0, 0, 0};
@@ -340,33 +413,60 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
   traffic_manager_ = boost::make_shared<TrafficManager<LoopRouter>>(
       start_waypoint, 150.0, loop_router_, world_->GetMap());
 
+  //boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice =
+  //  boost::make_shared<WaypointLattice<LoopRouter>>(start_waypoint, 150.0, 1.0, loop_router_);
+  //while (ros::ok()) {
+  //  ROS_INFO_NAMED("carla simualtor", "publish waypoint lattice.");
+  //  traffic_pub_.publish(createWaypointLatticeMsg(waypoint_lattice));
+  //  ros::Duration(0.2).sleep();
+  //  waypoint_lattice->shift(1.0);
+  //}
+  //return;
+
   // Spawn the ego vehicle.
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer
   // in the front of the ego vehicle.
   SharedPtr<const cc::Waypoint> ego_waypoint =
     traffic_manager_->front(start_waypoint, 50.0)->waypoint();
-  if (!ego_waypoint) throw std::runtime_error("Cannot create ego vehicle on the lattice.");
-
+  if (!ego_waypoint) {
+    throw std::runtime_error("Cannot find the ego waypoint on the traffic lattice.");
+  }
   ROS_INFO_NAMED("carla_simulator", "Ego vehicle initial transform\nx:%f y:%f z:%f",
       ego_waypoint->GetTransform().location.x,
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  SharedPtr<cc::Vehicle> ego_actor = boost::static_pointer_cast<cc::Vehicle>(
-      world_->SpawnActor(ego_blueprint, ego_waypoint->GetTransform()));
-  ego_policy_.first = ego_actor->GetId();
-  ego_policy_.second = 25.0;
-
-  if (traffic_manager_->addVehicle(std::make_tuple(
-          ego_actor->GetId(),
-          ego_waypoint->GetTransform(),
-          ego_actor->GetBoundingBox())) != 1) {
-    ROS_ERROR_NAMED("carla simulator", "Cannot add ego vehicle.");
+  if (!spawnEgoVehicle(ego_waypoint, 25)) {
+    throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
+
+  // Spawn the agent vehicles.
+  {
+    SharedPtr<const cc::Waypoint> waypoint0 = ego_waypoint;
+    SharedPtr<const cc::Waypoint> waypoint1 = ego_waypoint->GetRight();
+    SharedPtr<const cc::Waypoint> waypoint2 = waypoint1->GetRight();
+    SharedPtr<const cc::Waypoint> waypoint3 = waypoint2->GetRight();
+    SharedPtr<const cc::Waypoint> agent_waypoint = nullptr;
+
+    // First lane, 80m, 20m/s.
+    agent_waypoint = traffic_manager_->front(waypoint0, 80.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+
+    // Second lane, 60m, 20m/s
+    agent_waypoint = traffic_manager_->front(waypoint1, 60.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
+
+  // Let the server know about the vehicles.
+  world_->Tick();
 
   // Spawn a camera following the ego vehicle.
   if (!no_rendering_mode) {
-    auto camera_blueprint = blueprint_library->at("sensor.camera.rgb");
+    auto camera_blueprint = world_->GetBlueprintLibrary()->at("sensor.camera.rgb");
     camera_blueprint.SetAttribute("sensor_tick", "0.2");
     camera_blueprint.SetAttribute("image_size_x", "320");
     camera_blueprint.SetAttribute("image_size_y", "240");
@@ -375,7 +475,7 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
       cg::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
       cg::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
     SharedPtr<cc::Actor> cam_actor = world_->SpawnActor(
-        camera_blueprint, camera_transform, ego_actor.get());
+        camera_blueprint, camera_transform, world_->GetActor(ego_policy_.first).get());
     following_cam_ = boost::static_pointer_cast<cc::Sensor>(cam_actor);
     following_cam_->Listen(bst::bind(&CarlaSimulatorNode::publishImage, this, _1));
 
@@ -383,63 +483,8 @@ void CarlaSimulatorNode::spawnVehicles(const bool no_rendering_mode) {
     following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
   }
 
-  // TODO: Spawn agent vehicles.
-  {
-    SharedPtr<const cc::Waypoint> waypoint0 = ego_waypoint;
-    SharedPtr<const cc::Waypoint> waypoint1 = ego_waypoint->GetRight();
-    SharedPtr<const cc::Waypoint> waypoint2 = waypoint1->GetRight();
-    SharedPtr<const cc::Waypoint> waypoint3 = waypoint2->GetRight();
-
-    SharedPtr<const cc::Waypoint> agent_waypoint = nullptr;
-    cg::Transform agent_transform;
-    SharedPtr<cc::Vehicle> agent_actor = nullptr;
-
-    // First lane, 80m, 20m/s.
-    agent_waypoint = traffic_manager_->front(waypoint0, 80.0)->waypoint();
-    agent_transform = agent_waypoint->GetTransform();
-    agent_transform.location.z += 1.2;
-    agent_actor = boost::static_pointer_cast<cc::Vehicle>(
-        world_->SpawnActor(ego_blueprint, agent_transform));
-    agent_policies_[agent_actor->GetId()] = 20.0;
-
-    if (traffic_manager_->addVehicle(std::make_tuple(
-            agent_actor->GetId(),
-            agent_waypoint->GetTransform(),
-            agent_actor->GetBoundingBox())) != 1) {
-      ROS_ERROR_NAMED("carla simulator", "Cannot add agent vehicle.");
-    }
-
-    // Second lane, 60m, 20m/s
-    agent_waypoint = traffic_manager_->front(waypoint1, 60.0)->waypoint();
-    agent_transform = agent_waypoint->GetTransform();
-    agent_transform.location.z += 1.2;
-    agent_actor = boost::static_pointer_cast<cc::Vehicle>(
-        world_->SpawnActor(ego_blueprint, agent_transform));
-    agent_policies_[agent_actor->GetId()] = 20.0;
-
-    if (traffic_manager_->addVehicle(std::make_tuple(
-            agent_actor->GetId(),
-            agent_waypoint->GetTransform(),
-            agent_actor->GetBoundingBox())) != 1) {
-      ROS_ERROR_NAMED("carla simulator", "Cannot add agent vehicle.");
-    }
-  }
-
-  return;
-}
-
-void CarlaSimulatorNode::startVehicles() {
-
-  SharedPtr<cc::Vehicle> ego_actor =
-    boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(ego_policy_.first));
-  ego_actor->SetVelocity(ego_actor->GetTransform().GetForwardVector()*15.0);
-
-  // TODO: Set the velocity for the agents.
-  for (const auto& agent : agent_policies_) {
-    SharedPtr<cc::Vehicle> actor =
-      boost::static_pointer_cast<cc::Vehicle>(world_->GetActor(agent.first));
-    actor->SetVelocity(actor->GetTransform().GetForwardVector()*15.0);
-  }
+  // Let the server know about the camera.
+  world_->Tick();
 
   return;
 }
@@ -498,12 +543,7 @@ void CarlaSimulatorNode::manageTraffic() {
   // Spawn more vehicles if the number of agents around the ego vehicle
   // does not meet the requirement.
   // At most one vehicle is spawned every time this function is called.
-  if (agent_policies_.size() < 6) {
-
-    std::string vehicle_name = "vehicle.audi.tt";
-    SharedPtr<cc::BlueprintLibrary> blueprint_library =
-      world_->GetBlueprintLibrary();
-    auto blueprint = blueprint_library->at(vehicle_name);
+  if (agent_policies_.size() < 7) {
 
     const double min_distance = 20.0;
     boost::optional<pair<double, SharedPtr<const cc::Waypoint>>> front =
@@ -522,44 +562,28 @@ void CarlaSimulatorNode::manageTraffic() {
 
     if (front_distance>=back_distance && front_distance>=min_distance) {
       // Spawn a new vehicle at the front of the lattice.
-      std::printf("Spawn a new vehicle at the front\n");
+      std::printf("Try to spawn a new vehicle at the front\n");
       SharedPtr<const cc::Waypoint> waypoint = front->second;
       spawn_waypoint = traffic_manager_->back(waypoint, 4.0)->waypoint();
       start_speed = 18.0;
     }
 
     if (front_distance<back_distance && back_distance>=min_distance) {
-      std::printf("Spawn a new vehicle at the back.\n");
+      std::printf("Try to spawn a new vehicle at the back.\n");
       // Spawn a new vehicle at the back of the lattice.
       SharedPtr<const cc::Waypoint> waypoint = back->second;
       spawn_waypoint = traffic_manager_->front(waypoint, 4.0)->waypoint();
       start_speed = 23.0;
     }
 
-    if (spawn_waypoint) {
-      SharedPtr<cc::Vehicle> agent_actor = boost::static_pointer_cast<cc::Vehicle>(
-        world_->TrySpawnActor(blueprint, spawn_waypoint->GetTransform()));
-      // Add the vehicle onto the lattice.
-      if (!agent_actor) {
-        ROS_WARN_NAMED("carla simulator", "Cannot spawn new agent.");
-      } else if (traffic_manager_->addVehicle(std::make_tuple(
-              agent_actor->GetId(),
-              spawn_waypoint->GetTransform(),
-              agent_actor->GetBoundingBox())) != 1) {
-        agent_actor->Destroy();
-        ROS_WARN_NAMED("carla simulator", "Cannot add new agent to the lattice.");
-      } else {
-        agent_policies_[agent_actor->GetId()] = start_speed;
-        agent_actor->SetVelocity(
-            spawn_waypoint->GetTransform().GetForwardVector()*start_speed);
-        //std::printf("new vehicle id:%lu x:%f y:%f z:%f road:%lu lane:%d\n",
-        //    agent_actor->GetId(),
-        //    spawn_waypoint->GetTransform().location.x,
-        //    spawn_waypoint->GetTransform().location.y,
-        //    spawn_waypoint->GetTransform().location.z,
-        //    spawn_waypoint->GetRoadId(),
-        //    spawn_waypoint->GetLaneId());
-      }
+    if (!spawn_waypoint) {
+      ROS_WARN_NAMED("carla simulator", "Cannot find a spawn waypoint for a new agent vehicle.");
+      return;
+    }
+
+    if (!spawnAgentVehicle(spawn_waypoint, start_speed)) {
+      ROS_WARN_NAMED("carla simulator", "Cannot spawn a new agent vehicle at the given waypoint.");
+      return;
     }
   }
 
