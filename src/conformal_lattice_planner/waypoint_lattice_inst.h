@@ -326,14 +326,20 @@ void Lattice<Node, Router>::shorten(const double range) {
 template<typename Node, typename Router>
 void Lattice<Node, Router>::updateNodeDistance() {
 
-  // Add all lattice entries with the minimum distance to the queue.
-  // The distance of these entries will be set to 0.
+  // Find the existing lattice entry with the smallest distance.
+  // The distance of all nodes will be reduced by this much.
+  double shift_distance = lattice_entries_[0].lock()->distance();
+  for (auto& entry : lattice_entries_) {
+    if (entry.lock()->distance() >= shift_distance) continue;
+    shift_distance = entry.lock()->distance();
+  }
+
+  // Put all existing entries into the queue.
   std::unordered_set<size_t> updated_waypoint_ids;
   std::queue<boost::shared_ptr<Node>> nodes_queue;
 
   for (auto& entry : lattice_entries_) {
-    //if (entry.lock()->distance() > lattice_entry_distance) continue;
-    entry.lock()->distance() -= longitudinal_resolution_;
+    entry.lock()->distance() -= shift_distance;
     nodes_queue.push(entry.lock());
     updated_waypoint_ids.insert(entry.lock()->waypoint()->GetId());
   }
