@@ -61,14 +61,6 @@ public:
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double distance) const override;
 
-  /// Get the left waypoint.
-  boost::shared_ptr<CarlaWaypoint> leftWaypoint(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const override;
-
-  /// Get the right waypoint.
-  boost::shared_ptr<CarlaWaypoint> rightWaypoint(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const override;
-
   /// Get the whole road sequence.
   const std::vector<size_t>& roadSequence() const {
     return road_sequence_;

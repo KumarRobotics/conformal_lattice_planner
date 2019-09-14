@@ -55,13 +55,6 @@ public:
   virtual boost::shared_ptr<CarlaWaypoint> frontWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint, const double distance) const = 0;
 
-  /// Get the left waypoint.
-  virtual boost::shared_ptr<CarlaWaypoint> leftWaypoint(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const = 0;
-
-  /// Get the right waypoint.
-  virtual boost::shared_ptr<CarlaWaypoint> rightWaypoint(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const = 0;
 }; // End class Router.
 
 } // End namespace router.

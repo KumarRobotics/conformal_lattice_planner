@@ -75,6 +75,9 @@ boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::frontWaypoint(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double distance) const {
 
+  if (distance <= 0.0)
+    throw std::runtime_error("Invaid distance when looking for front waypoint.");
+
   std::vector<boost::shared_ptr<CarlaWaypoint>> candidates = waypoint->GetNext(distance);
   const size_t this_road = waypoint->GetRoadId();
 
@@ -90,38 +93,6 @@ boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::frontWaypoint(
   }
 
   return next_waypoint;
-}
-
-boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::leftWaypoint(
-    const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-  boost::shared_ptr<CarlaWaypoint> left_waypoint = waypoint->GetLeft();
-  if (!left_waypoint) return nullptr;
-
-  bool valid = true;
-  // We can do a lane change at left here.
-  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Left) |
-           (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Both);
-  // The left waypoint is drivable.
-  valid &= left_waypoint->GetType() == carla::road::Lane::LaneType::Driving;
-
-  if (valid) return left_waypoint;
-  else return nullptr;
-}
-
-boost::shared_ptr<LoopRouter::CarlaWaypoint> LoopRouter::rightWaypoint(
-    const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-  boost::shared_ptr<CarlaWaypoint> right_waypoint = waypoint->GetRight();
-  if (!right_waypoint) return nullptr;
-
-  bool valid = true;
-  // We can do a lane change at right here.
-  valid &= (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Right) |
-           (waypoint->GetLaneChange()==carla::road::element::LaneMarking::LaneChange::Both);
-  // The left waypoint is drivable.
-  valid &= right_waypoint->GetType() == carla::road::Lane::LaneType::Driving;
-
-  if (valid) return right_waypoint;
-  else return nullptr;
 }
 
 } // End namespace router.
