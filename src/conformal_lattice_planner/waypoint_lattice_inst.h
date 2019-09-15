@@ -223,8 +223,7 @@ void Lattice<Node, Router>::extend(const double range) {
   if (this->range() >= range) return;
 
   // A queue of nodes to be explored.
-  // The queue is started from the lattice exit and all nodes that
-  // has the same distance with lattice.
+  // The queue is started from the lattice exits.
   std::queue<boost::shared_ptr<Node>> nodes_queue;
   for (auto& exit : lattice_exits_) nodes_queue.push(exit.lock());
 
@@ -234,8 +233,8 @@ void Lattice<Node, Router>::extend(const double range) {
     nodes_queue.pop();
 
     extendFront(node, range, nodes_queue);
-    extendLeft(node, range, nodes_queue);
-    extendRight(node, range, nodes_queue);
+    extendLeft(node, nodes_queue);
+    extendRight(node, nodes_queue);
   }
 
   // Update lattice entries and exits.
