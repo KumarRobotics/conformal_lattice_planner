@@ -437,7 +437,6 @@ void Lattice<Node, Router>::extendFront(
 template<typename Node, typename Router>
 void Lattice<Node, Router>::extendLeft(
     const boost::shared_ptr<Node>& node,
-    const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
   // Find the left waypoint.
   boost::shared_ptr<CarlaWaypoint> left_waypoint =
@@ -479,7 +478,6 @@ void Lattice<Node, Router>::extendLeft(
 template<typename Node, typename Router>
 void Lattice<Node, Router>::extendRight(
     const boost::shared_ptr<Node>& node,
-    const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
 
   // Find the right waypoint.

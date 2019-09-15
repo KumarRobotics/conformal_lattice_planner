@@ -24,6 +24,19 @@
 
 namespace planner {
 
+/**
+ * \brief LaneFollower is supposed to control the target vehicle to follow
+ *        the route defined by a router.
+ *
+ * The LaneFollower planner will adjust the speed of the target vehicle,
+ * ensuring it won't collide with the vehicle at its front.
+ *
+ * To invoid the plan() interface, one should call updateWorld() and then
+ * updateTrafficLattice() to make sure the planner will function correctly.
+ *
+ * \note The objects of this class are noncopyable, since two objects should not
+ * share the same TrafficLattice.
+ */
 class LaneFollower : public VehiclePlanner,
                      private boost::noncopyable {
 
@@ -33,47 +46,63 @@ private:
 
 protected:
 
-  /// Intelligent driver model,
-  /// used to generate acceleration for a target vehicle.
+  /// Used to generate acceleration for a target vehicle.
   boost::shared_ptr<IntelligentDriverModel> idm_ = nullptr;
 
   /// Used to organize the traffic.
   boost::shared_ptr<TrafficLattice<router::LoopRouter>> traffic_lattice_ = nullptr;
 
-  /// Router used to determine which lanes to follow.
+  /// Used to determine the roads and lanes to follow.
   boost::shared_ptr<router::LoopRouter> router_ = nullptr;
 
 public:
 
+  /**
+   * \brief Class constructor.
+   *
+   * The constructor will use the default IntelligentDriverModel constructor.
+   *
+   * \param[in] time_step The fixed time step of the simulator.
+   */
   LaneFollower(const double time_step) :
     Base(time_step),
     idm_(boost::make_shared<IntelligentDriverModel>()),
     router_(boost::make_shared<router::LoopRouter>()) {}
 
+  /// Update the IDM.
   void updateIDM(const IntelligentDriverModel& idm) {
     idm_ = boost::make_shared<IntelligentDriverModel>(idm);
     return;
   }
 
+  /// Update the IDM.
   void updateIDM(const boost::shared_ptr<const IntelligentDriverModel>& idm) {
     updateIDM(*idm);
     return;
   }
 
+  /// Update the router.
   void updateRouter(const router::LoopRouter& router) {
     router_ = boost::make_shared<router::LoopRouter>(router);
     return;
   }
 
+  /// Update the router.
   void updateRouter(const boost::shared_ptr<const router::LoopRouter>& router) {
     updateRouter(*router);
     return;
   }
 
+  /// Get the const TrafficLattice.
   boost::shared_ptr<const TrafficLattice<router::LoopRouter>> trafficLattice() const {
     return traffic_lattice_;
   }
 
+  /**
+   * \brief Update the traffic lattice.
+   * \param[in] vehicles IDs of all vehicles to be considered when planning for
+   *                     the target vehicle.
+   */
   void updateTrafficLattice(const std::unordered_set<size_t>& vehicles);
 
   void plan(const size_t target, const double policy_speed);

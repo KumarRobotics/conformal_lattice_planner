@@ -21,6 +21,13 @@
 
 namespace planner {
 
+/**
+ * \brief LatticeNode is supposed to be the base class of all nodes
+ *        to be used with the the Lattice class.
+ *
+ * This class provides the interface for accessing and setting the
+ * nodes around a node object.
+ */
 template<typename Derived>
 class LatticeNode {
 
@@ -40,11 +47,12 @@ protected:
 
 public:
 
+  // Default constructor.
   LatticeNode() = default;
 
   /** @name Accessors
    *
-   * \c front(), \c back(), \c left(), \c right() returns reference
+   * front(), back(), left(), right() returns reference
    * of the boost weak pointers stored in the object, so that one can
    * update the weak pointers directly.
    */
@@ -70,8 +78,8 @@ public:
 
   /** @name const Accessors
    *
-   * \c front(), \c back(), \c left(), \c right() returns boost shared pointers
-   * pointering to const \c LatticeNode objects.
+   * front(), back(), left(), right() returns boost shared pointers
+   * pointering to const LatticeNode objects.
    */
   /// @{
 

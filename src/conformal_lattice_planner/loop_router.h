@@ -21,6 +21,11 @@
 
 namespace router {
 
+/**
+ * \brief LoopRouter implements a predefined loop router which never ends.
+ *
+ * For now, the predefined route is the highway loop in the carla map Town04.
+ */
 class LoopRouter : public Router {
 
 protected:
@@ -29,8 +34,15 @@ protected:
 
 public:
 
+  /**
+   * \brief Default constructor.
+   *
+   * The constructor has a predefined road sequence, which forms a
+   * a loop in the map.
+   */
   LoopRouter();
 
+  /// Destructor of the class.
   ~LoopRouter() { return; }
 
   bool hasRoad(const size_t road) const override {
@@ -42,26 +54,38 @@ public:
   boost::shared_ptr<CarlaWaypoint> waypointOnRoute(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const;
 
-  /// Get the next road of the given road ID.
+  /**
+   * \brief In LoopRouter, there is always a next road for any route
+   *        on the route. In the case that the query road is the last
+   *        road in \c road_sequence_, the first road in the
+   *        \c road_sequence_ is returned.
+   */
   boost::optional<size_t> nextRoad(const size_t road) const override;
 
-  /// Get the previous road of the given road ID.
+  /**
+   * \brief In LoopRouter, there is always a previous road for any route
+   *        on the route. In the case that the query road is the first
+   *        road in \c road_sequence_, the last road in the
+   *        \c road_sequence_ is returned.
+   */
   boost::optional<size_t> prevRoad(const size_t road) const override;
 
-  /// Get the next road given a waypoint on the current road.
   boost::optional<size_t> nextRoad(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const override;
 
-  /// Get the previous road given a waypoint on the current road.
   boost::optional<size_t> prevRoad(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const override;
 
-  /// Get the next waypoint with the given distance.
   boost::shared_ptr<CarlaWaypoint> frontWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double distance) const override;
 
-  /// Get the whole road sequence.
+  /**
+   * \brief Get the road sequence in the LoopRouter.
+   *
+   * Keep in mind that the next road of the last element in the returned
+   * vector is the first element.
+   */
   const std::vector<size_t>& roadSequence() const {
     return road_sequence_;
   }

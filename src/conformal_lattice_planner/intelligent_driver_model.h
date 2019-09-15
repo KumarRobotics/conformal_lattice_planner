@@ -21,10 +21,17 @@
 
 namespace planner {
 
+/**
+ * \brief IntelligentDriverModel implements the simpliest IDM.
+ *
+ * The details of the model can be found at the following pdf:
+ * <http://www.traffic-flow-dynamics.org/res/SampleChapter11.pdf>
+ */
 class IntelligentDriverModel {
 
 protected:
 
+  // See the reference for the meaning of these variables.
   double time_gap_ = 1.0;
   double distance_gap_ = 6.0;
   double accel_exp_ = 4.0;
@@ -33,6 +40,13 @@ protected:
 
 public:
 
+  /**
+   * \brief Class constructor.
+   *
+   * The class provides default values for each of the parameters. One
+   * can provide \c boost::none for a variable in the constructor if
+   * the default value is to be used.
+   */
   IntelligentDriverModel(
       const boost::optional<double> time_gap = boost::none,
       const boost::optional<double> distance_gap = boost::none,
@@ -48,6 +62,10 @@ public:
     return;
   }
 
+  /**
+   * @name Accessors of the variables
+   */
+  /// @{
   double timeGap() const { return time_gap_; }
   double& timeGap() { return time_gap_; }
 
@@ -62,7 +80,18 @@ public:
 
   double comfortDecel() const { return comfort_decel_; }
   double& comfortDecel() { return comfort_decel_; }
+  /// @}
 
+  /**
+   * \brief The major interface of the class, computing the acceleration
+   *        to the applied for the ego vehicle.
+   *
+   * \param[in] ego_v Speed of the ego vehicle.
+   * \param[in] ego_v0 The desired speed of the ego vehicle.
+   * \param[in] lead_v The speed of the lead vehicle, left empty if there is no lead.
+   * \param[in] s The (positive) distance between the ego and lead vehicle,
+   *              left empty if there is no lead.
+   */
   double idm(
       const double ego_v,
       const double ego_v0,
@@ -89,6 +118,11 @@ public:
 
 protected:
 
+  /**
+   * \brief Compute the desired following distance between the ego and lead vehicle.
+   * \param[in] ego_v Speed of the ego vehicle.
+   * \param[in] lead_v Speed of the lead vehicle.
+   */
   double desiredDistance(const double ego_v, const double lead_v) const {
     const double v_diff = ego_v - lead_v;
     const double braking_coeff = 2.0 * std::sqrt(comfort_accel_*comfort_decel_);

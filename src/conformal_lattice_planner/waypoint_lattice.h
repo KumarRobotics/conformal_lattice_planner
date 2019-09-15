@@ -37,7 +37,10 @@
 namespace planner {
 
 /**
- * \brief Keeps track of the waypoints on a lattice.
+ * \brief WaypointNode Keeps track of the waypoints on a lattice.
+ *
+ * WaypointNode is used together with Lattice class template to
+ * form the WaypointLattice class template.
  *
  * \note The copy constructor of this class performs a shallow copy,
  *       i.e. only the shared and weak pointers are copied. This makes
@@ -67,28 +70,43 @@ protected:
 
 public:
 
+  /// Default constructor.
   WaypointNode() = default;
 
+  /**
+   * \brief Construct a node with a carla waypoint.
+   * \param[in] waypoint A carla waypoint at which a node should be created.
+   */
   WaypointNode(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
+  /// Get or set the pointer to the carla waypoint of the node.
   boost::shared_ptr<CarlaWaypoint>& waypoint() {
     return waypoint_;
   }
 
+  /// Get the const pointer to the carla waypoint of the node.
   boost::shared_ptr<const CarlaWaypoint> waypoint() const {
     return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
   }
 
+  /// Get or set the distance of the node.
   double& distance() { return distance_; }
 
+  // Get the distance of the node.
   const double distance() const { return distance_; }
 }; // End class WaypointNode.
 
 /**
- * \brief Conformal lattice compliant to the road structure.
+ * \brief Lattice is a 2-D graph compliant to the road structure.
+ *
+ * The lattice is constructed follow the road structure. Nodes on the lattice
+ * corresponds to the waypoints on each lane of the road. Left and right edges
+ * of a node are directed, indicating whether a left or right lane change is
+ * possible. The lattice is paved following the road sequence given by the router.
  *
  * See \c WaypointNode to find the interface required for the \c Node template.
+ * See \c Router to find the interface required for the \c Router template.
  */
 template<typename Node, typename Router>
 class Lattice {
@@ -104,7 +122,7 @@ protected:
 
 protected:
 
-  /// Router used to query the roads and waypoints.
+  /// Router used to query the roads and front waypoints.
   boost::shared_ptr<Router> router_;
 
   /// Entry nodes of the lattice (nodes that do not have back nodes).
@@ -116,10 +134,18 @@ protected:
   /// A mapping from carla waypoint ID to the corresponding node in the lattice.
   std::unordered_map<size_t, boost::shared_ptr<Node>> waypoint_to_node_table_;
 
-  /// A mapping from road+lane IDs to the carla waypoint IDs on this road+lane.
+  /**
+   * A mapping from road+lane IDs to the carla waypoint IDs on this road+lane.
+   *
+   * This variable is used to quickly find the closest node given a carla waypoint.
+   *
+   * For each element in the map, the key is the hash value combining the road
+   * ID and the lane ID, the value is the waypoints on this road and lane.
+   */
   std::unordered_map<size_t, std::vector<size_t>> roadlane_to_waypoints_table_;
 
-  /// Range resolution in the longitudinal direction.
+  /// Range resolution (distance between two connected nodes) in the
+  /// longitudinal direction.
   double longitudinal_resolution_;
 
 public:
@@ -147,14 +173,14 @@ public:
     return *this;
   }
 
-  /// Get the entry node of the lattice, which has distance 0.0.
+  /// Get the entry nodes of the lattice.
   std::vector<boost::shared_ptr<const Node>> latticeEntries() const {
     std::vector<boost::shared_ptr<const Node>> output;
     for (const auto& node : lattice_entries_) output.push_back(node.lock());
     return output;
   }
 
-  /// Get the exit node of the lattice, which corresponds to the range of the lattice.
+  /// Get the exit nodes of the lattice.
   std::vector<boost::shared_ptr<const Node>> latticeExits() const {
     std::vector<boost::shared_ptr<const Node>> output;
     for (const auto& node : lattice_exits_) output.push_back(node.lock());
@@ -164,15 +190,26 @@ public:
   /// Return all nodes maintained by the lattice.
   std::unordered_map<size_t, boost::shared_ptr<const Node>> nodes() const;
 
-  /// Return all the edges maintained by the lattice.
-  /// \note Edges are directed.
+  /** \brief Return all edges maintained by the lattice.
+   *
+   * The returned edges are directed. For example edge <1, 2> and <2, 1>
+   * may both appear in the returned vector.
+   */
   std::vector<std::pair<size_t, size_t>> edges() const;
 
-  /// Return the range of the lattice.
+  /**
+   * \brief Return the range of the lattice.
+   *
+   * The range is defined as the largest distance difference among
+   * the nodes in the lattice.
+   */
   double range() const;
 
   /**
    * \brief Extend the range of the lattice.
+   *
+   * The lattice will always be extended in the forward direction, which
+   * is defined by the road sequence given by the router.
    *
    * \param[in] range The new range of the lattice. If this is less than
    *                  the current range, no operation is performed.
@@ -182,6 +219,8 @@ public:
   /**
    * \brief Shorten the range of the current lattice.
    *
+   * The lattice will always be shortened from the back.
+   *
    * \param[in] range The new range of the lattice. If this is more than
    *                  the current range, no operation is performed.
    */
@@ -189,6 +228,8 @@ public:
 
   /**
    * \brief Shift the lattice forward by some distance.
+   *
+   * The forward direction is defined by the road sequence in the router.
    *
    * \param[in] movement How much distance to shift the lattice forward.
    */
@@ -199,6 +240,19 @@ public:
     return;
   }
 
+  /**
+   * \brief Find the closest node on the lattice given a carla waypoint.
+   *
+   * The function will only search for the nodes that are on the same
+   * road and lane of the given carla waypoint. If such node does not
+   * exist, or the distance between the found node and the query waypoint
+   * is larger than \c tolerance, \c nullptr is returned.
+   *
+   * \param[in] waypoint The query carla waypoint.
+   * \param[in] tolerance The maximum tolerable distance between
+   *                      the waypoint and the found node.
+   * \return The node closest to the query waypoint.
+   */
   boost::shared_ptr<const Node> closestNode(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double tolerance) const {
@@ -212,7 +266,8 @@ public:
    *
    * This group of functions search for a target node relative
    * to the given \c query waypoint on the lattice. In the case that nothing
-   * is found (e.g. the given \c range exceeds the range of the lattice),
+   * is found (e.g. the given \c range exceeds the range of the lattice,
+   * the query waypoint cannot be found on the lattice),
    * \c nullptr is returned. The interface of the functions follows the same
    * pattern:
    *
@@ -286,11 +341,23 @@ protected:
    */
   Lattice() = default;
 
-  /// Used by copy assigment operator.
+  /**
+   * \brief Swap the content of \c this and the given object.
+   *
+   * This function is used by the copy assignment operator. So that
+   * the copy assigment operator can re-use the copy constructor in
+   * order to avoid code duplication.
+   *
+   * \param[in] other Another object to swap with. After swapping,
+   *                  \c other may be in an invalid state.
+   */
   void swap(Lattice& other);
 
-  /// @name Maintaining the tables within the class.
-  /// @{
+  /**
+   * \brief Add new element to the \c waypoint_to_node_ table.
+   * \param[in] waypoint_id The id of the carla waypoint.
+   * \param[in] node The node corresponding to the waypoint.
+   */
   void augmentWaypointToNodeTable(
       const size_t waypoint_id,
       const boost::shared_ptr<Node>& node) {
@@ -298,63 +365,127 @@ protected:
     return;
   }
 
+  /**
+   * \brief Remove a node from the \c waypoint_to_node table.
+   * \param[in] waypoint_id The ID of the waypoint contained within
+   *                        the node to be removed.
+   */
   void reduceWaypointToNodeTable(const size_t waypoint_id) {
     waypoint_to_node_table_.erase(waypoint_id);
     return;
   }
 
+  /**
+   * \brief Add new element to the \c roadlane_to_waypoints_table_.
+   * \param[in] waypoint The waypoint to be added to the table.
+   */
   void augmentRoadlaneToWaypointsTable(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint);
 
+  /**
+   * \brief Remove a element from the \c roadlane_to_waypoints_table_.
+   * \param[in] waypoint The waypoint to be removed from the table.
+   */
   void reduceRoadlaneToWaypointsTable(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint);
-  /// @}
 
-  /// Find the node in the lattice that is closest to the given \c waypoint.
-  /// If no such node is found within the given \c tolerance, \c nullptr
-  /// is returned.
+  /**
+   * \brief Find the closest node on the lattice given a carla waypoint.
+   *
+   * The function will only search for the nodes that are on the same
+   * road and lane of the given carla waypoint. If such node does not
+   * exist, or the distance between the found node and the query waypoint
+   * is larger than \c tolerance, \c nullptr is returned.
+   *
+   * \param[in] waypoint The query carla waypoint.
+   * \param[in] tolerance The maximum tolerable distance between
+   *                      the waypoint and the found node.
+   * \return The node closest to the query waypoint.
+   */
   boost::shared_ptr<Node> closestNode(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double tolerance);
 
+  /// Find the entry and exit nodes on the lattice.
   void findLatticeEntriesAndExits();
 
-  /// @name Functions required by \c extend() or \c shorten()
-  /// @{
+  /**
+   * \brief Find the front waypoint of the query waypoint.
+   * \param[in] waypoint The query waypoint.
+   * \param[in] range The distance to search forward.
+   */
   boost::shared_ptr<CarlaWaypoint> findFrontWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double range) const {
     return router_->frontWaypoint(waypoint, range);
   }
 
+  /// Find the left waypoint of the query one.
   boost::shared_ptr<CarlaWaypoint> findLeftWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
     return waypoint->GetLeft();
   }
 
+  /// Find the right waypoint of the query one.
   boost::shared_ptr<CarlaWaypoint> findRightWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-    //return router_->rightWaypoint(waypoint);
     return waypoint->GetRight();
   }
 
+  /**
+   * \brief Extend the lattice in the forward direction.
+   *
+   * Used by \c extend() function.
+   *
+   * \param[in] node The node of which a front node is added to the lattice.
+   * \param[in] range The range of the lattice.
+   * \param[out] nodes_queue If the distance of the front node is within range
+   *                         the lattice, and this front node is actually a new
+   *                         node, it will be pushed into this queue.
+   */
   void extendFront(const boost::shared_ptr<Node>& node,
                    const double range,
                    std::queue<boost::shared_ptr<Node>>& nodes_queue);
 
+  /**
+   * \brief Extend the lattice to the left.
+   *
+   * Used by \c extend() function.
+   *
+   * \param[in] node The node of which a left node is added to the lattice.
+   * \param[out] nodes_queue If the found left node is new, it will be pushed
+   *                         into this queue.
+   */
   void extendLeft(const boost::shared_ptr<Node>& node,
-                  const double range,
                   std::queue<boost::shared_ptr<Node>>& nodes_queue);
 
+  /**
+   * \brief Extend the lattice to the right.
+   *
+   * Used by \c extend() function.
+   *
+   * \param[in] node The node of which a right node is added to the lattice.
+   * \param[out] nodes_queue If the found right node is new, it will be pushed
+   *                         into this queue.
+   */
   void extendRight(const boost::shared_ptr<Node>& node,
-                   const double range,
                    std::queue<boost::shared_ptr<Node>>& nodes_queue);
 
+  /**
+   * \brief Update the distance of all nodes.
+   *
+   * This function is only used by the \c shorten() function. After which,
+   * the distance of the nodes requires to be updated. After updating, the
+   * minimum distance of all nodes is always 0.
+   */
   void updateNodeDistance();
-  /// @}
 
 }; // End class Lattice.
 
+/**
+ * \brief WaypointLattice is a helper class used to query
+ *        the relative waypoints of the given waypoint.
+ */
 template<typename Router>
 using WaypointLattice = Lattice<WaypointNode, Router>;
 } // End namespace planner.

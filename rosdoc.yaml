@@ -1,0 +1,4 @@
+- builder: doxygen
+  name: Conformal Lattice Planner
+  output_dir: ./doc
+  file_patterns: '*.c *.cpp *.h *.cc *.hh *.hpp'
