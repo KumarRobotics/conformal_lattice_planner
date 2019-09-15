@@ -356,14 +356,29 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
 
   // If there is already a vehicle on any of the found nodes,
   // it indicates there is a collision.
+  bool collision_flag = false;
   for (auto& node : nodes) {
-    if (node.lock()->vehicle()) return -1;
+    if (node.lock()->vehicle()) {
+      collision_flag = true;
+      break;
+    }
     else node.lock()->vehicle() = id;
   }
 
-  // Update the \c vehicle_to_nodes_table_.
-  vehicle_to_nodes_table_[id] = nodes;
-  return 1;
+  if (!collision_flag) {
+    // If there is no collision, we can add the vehicle successfully.
+    vehicle_to_nodes_table_[id] = nodes;
+    return 1;
+  } else {
+    // If there is a collision, we should erase the vehicle on the touched nodes,
+    // and leave the object in a valid state.
+    for (auto& node : nodes) {
+      if (!(node.lock()->vehicle())) continue;
+      if (*(node.lock()->vehicle()) != id) continue;
+      node.lock()->vehicle() = boost::none;
+    }
+    return -1;
+  }
 }
 
 template<typename Router>
