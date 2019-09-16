@@ -11,7 +11,7 @@
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
-      type="carla_simulator_node"
+      type="random_traffic_node"
       name="carla_simulator"
       output="screen">
       <!-- connect to client -->

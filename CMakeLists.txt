@@ -161,10 +161,8 @@ set(CARLA_LIBS
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_library(all_planning
-  #src/conformal_lattice_planner/vehicle_planner.cpp
   src/conformal_lattice_planner/lane_follower.cpp
   src/conformal_lattice_planner/utils.cpp
-  #src/conformal_lattice_planner/router.cpp
   src/conformal_lattice_planner/loop_router.cpp
 )
 target_link_libraries(all_planning
@@ -173,6 +171,22 @@ target_link_libraries(all_planning
   ${catkin_LIBRARIES}
 )
 add_dependencies(all_planning
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+add_library(all_ros_nodes
+  src/ros/simulator_node.cpp
+  src/ros/random_traffic_node.cpp
+  src/ros/convert_to_visualization_msgs.cpp
+  src/conformal_lattice_planner/utils.cpp
+)
+target_link_libraries(all_ros_nodes
+  ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(all_ros_nodes
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
@@ -197,17 +211,17 @@ add_dependencies(all_planning
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(carla_simulator_node
-  src/ros/nodes/carla_simulator_node.cpp
-  src/ros/convert_to_visualization_msgs.cpp
-  src/conformal_lattice_planner/utils.cpp
+add_executable(random_traffic_node
+  src/ros/nodes/random_traffic_simulator.cpp
 )
-target_link_libraries(carla_simulator_node
+target_link_libraries(random_traffic_node
   all_planning
+  all_ros_nodes
   ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
-add_dependencies(carla_simulator_node
+add_dependencies(random_traffic_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
