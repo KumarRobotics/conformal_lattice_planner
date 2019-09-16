@@ -178,10 +178,13 @@ add_dependencies(all_planning
 add_library(all_ros_nodes
   src/ros/simulator_node.cpp
   src/ros/random_traffic_node.cpp
+  src/ros/ego_lane_following_node.cpp
+  src/ros/agents_lane_following_node.cpp
   src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
 )
 target_link_libraries(all_ros_nodes
+  all_planning
   ${CARLA_LIBS}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
@@ -227,13 +230,13 @@ add_dependencies(random_traffic_node
 )
 
 add_executable(ego_lane_following_node
-  src/ros/nodes/ego_lane_following_node.cpp
-  src/ros/convert_to_visualization_msgs.cpp
-  src/conformal_lattice_planner/utils.cpp
+  src/ros/nodes/ego_lane_follower.cpp
 )
 target_link_libraries(ego_lane_following_node
   all_planning
+  all_ros_nodes
   ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 add_dependencies(ego_lane_following_node
@@ -242,19 +245,34 @@ add_dependencies(ego_lane_following_node
 )
 
 add_executable(agents_lane_following_node
-  src/ros/nodes/agents_lane_following_node.cpp
-  src/ros/convert_to_visualization_msgs.cpp
-  src/conformal_lattice_planner/utils.cpp
+  src/ros/nodes/agents_lane_follower.cpp
 )
 target_link_libraries(agents_lane_following_node
   all_planning
+  all_ros_nodes
   ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 add_dependencies(agents_lane_following_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
+
+#add_executable(agents_lane_following_node
+#  src/ros/nodes/agents_lane_following_node.cpp
+#  src/ros/convert_to_visualization_msgs.cpp
+#  src/conformal_lattice_planner/utils.cpp
+#)
+#target_link_libraries(agents_lane_following_node
+#  all_planning
+#  ${CARLA_LIBS}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(agents_lane_following_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
 #############
 ## Install ##
