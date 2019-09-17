@@ -16,7 +16,9 @@
 
 #include <array>
 #include <limits>
+#include <random>
 #include <unordered_set>
+#include <boost/timer/timer.hpp>
 
 #include <ros/convert_to_visualization_msgs.h>
 #include <ros/random_traffic_node.h>
@@ -141,7 +143,8 @@ void RandomTrafficNode::spawnCamera() {
 boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double policy_speed,
-    const boost::optional<double> start_speed) {
+    const bool noisy_policy_speed,
+    const bool noisy_start_speed) {
 
   // Get the blueprint of the ego vehicle.
   boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
@@ -171,15 +174,25 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     return boost::none;
   }
 
-  // Set the ego vehicle.
-  ego_policy_.first = vehicle->GetId();
-  ego_policy_.second = policy_speed;
+  // Set the ego vehicle policy.
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
-  if (start_speed) {
-    vehicle->SetVelocity(transform.GetForwardVector()*(*start_speed));
+  if (noisy_policy_speed) {
+    ego_policy_.first = vehicle->GetId();
+    ego_policy_.second = policy_speed + uni_real_dist(rand_gen);
   } else {
-    // TODO: Perturb the policy speed a bit.
-    vehicle->SetVelocity(transform.GetForwardVector()*policy_speed);
+    ego_policy_.first = vehicle->GetId();
+    ego_policy_.second = policy_speed;
+  }
+
+  if (noisy_start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         (ego_policy_.second + uni_real_dist(rand_gen)));
+  } else {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         ego_policy_.second);
   }
 
   return vehicle->GetId();
@@ -188,7 +201,8 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
 boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double policy_speed,
-    const boost::optional<double> start_speed) {
+    const bool noisy_policy_speed,
+    const bool noisy_start_speed) {
 
   // Get the blueprint of the vehicle, which is randomly chosen from the
   // vehicle blueprint library.
@@ -219,14 +233,23 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
     return boost::none;
   }
 
-  // Add the agent vehicle.
-  agent_policies_[vehicle->GetId()] = policy_speed;
+  // Set the agent vehicle policy
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
-  if (start_speed) {
-    vehicle->SetVelocity(transform.GetForwardVector()*(*start_speed));
+  if (noisy_policy_speed) {
+    agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
   } else {
-    // TODO: Perturb the policy speed a bit.
-    vehicle->SetVelocity(transform.GetForwardVector()*policy_speed);
+    agent_policies_[vehicle->GetId()] = policy_speed;
+  }
+
+  if (noisy_start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         (agent_policies_[vehicle->GetId()]+uni_real_dist(rand_gen)));
+  } else {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         agent_policies_[vehicle->GetId()]);
   }
 
   return vehicle->GetId();
@@ -294,27 +317,33 @@ void RandomTrafficNode::manageTraffic() {
 
     double front_distance = front ? front->first : 0.0;
     double back_distance = back ? back->first : 0.0;
-    if (!traffic_manager_->back(front->second, 4.0)) front_distance = 0.0;
-    if (!traffic_manager_->front(back->second, 4.0)) back_distance = 0.0;
+    if (!traffic_manager_->back(front->second, 10.0)) front_distance = 0.0;
+    if (!traffic_manager_->front(back->second, 10.0)) back_distance = 0.0;
 
     // Waypoint to spawn the new vehicle.
     boost::shared_ptr<const CarlaWaypoint> spawn_waypoint = nullptr;
-    double start_speed = 0.0;
+    double policy_speed = 0.0;
+
+    const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rand_gen(seed);
+    std::uniform_real_distribution<double> uni_real_dist(0.0, 5.0);
 
     if (front_distance>=back_distance && front_distance>=min_distance) {
       // Spawn a new vehicle at the front of the lattice.
-      //std::printf("Try to spawn a new vehicle at the front\n");
+      //std::printf("Try to spawn a new vehicle at the front %f.\n", front_distance);
+      const double distance = 3.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = front->second;
-      spawn_waypoint = traffic_manager_->back(waypoint, 4.0)->waypoint();
-      start_speed = 18.0;
+      spawn_waypoint = traffic_manager_->back(waypoint, distance)->waypoint();
+      policy_speed = 20.0;
     }
 
     if (front_distance<back_distance && back_distance>=min_distance) {
-      //std::printf("Try to spawn a new vehicle at the back.\n");
       // Spawn a new vehicle at the back of the lattice.
+      //std::printf("Try to spawn a new vehicle at the back %f.\n", back_distance);
+      const double distance = 3.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = back->second;
-      spawn_waypoint = traffic_manager_->front(waypoint, 4.0)->waypoint();
-      start_speed = 23.0;
+      spawn_waypoint = traffic_manager_->front(waypoint, distance)->waypoint();
+      policy_speed = 21.0;
     }
 
     if (!spawn_waypoint) {
@@ -323,7 +352,7 @@ void RandomTrafficNode::manageTraffic() {
       return;
     }
 
-    if (!spawnAgentVehicle(spawn_waypoint, start_speed)) {
+    if (!spawnAgentVehicle(spawn_waypoint, policy_speed)) {
       ROS_WARN_NAMED("carla simulator",
           "Cannot spawn a new agent vehicle at the given waypoint.");
       return;
@@ -335,16 +364,25 @@ void RandomTrafficNode::manageTraffic() {
 
 void RandomTrafficNode::tickWorld() {
 
+  //boost::timer::cpu_timer timer;
+
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
+  //std::cout << "Tick() : " << timer.format();
   manageTraffic();
+  //std::cout << "manageTraffic() : " << timer.format();
   // This tick is for adding or removing vehicles informed by the \c manageTraffic() function.
   world_->Tick();
+  //std::cout << "Tick() : " << timer.format();
 
   publishTraffic();
+  //std::cout << "publishTraffic() : " << timer.format();
 
   sendEgoGoal();
+  //std::cout << "sendEgoGoal() : " << timer.format();
   sendAgentsGoal();
+  //std::cout << "sendAgentGoal() : " << timer.format();
+
   return;
 }
 
@@ -386,7 +424,6 @@ void RandomTrafficNode::publishTraffic() const {
   traffic_pub_.publish(traffic_msg);
   return;
 }
-
 
 } // End namespace carla.
 

@@ -17,6 +17,7 @@
 #include <string>
 #include <chrono>
 #include <unordered_set>
+#include <boost/timer/timer.hpp>
 #include <ros/ego_lane_following_node.h>
 
 using namespace planner;
@@ -80,7 +81,10 @@ void EgoLaneFollowingNode::executeCallback(
   // Update the traffic lattice for the planner.
   std::unordered_set<size_t> all_ids = agent_ids;
   all_ids.insert(ego_id);
+  //boost::timer::cpu_timer timer;
   planner_->updateTrafficLattice(all_ids);
+  //std::cout << "updateTrafficLattice() : " << timer.format();
+  //timer.stop();
 
   if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
     ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");

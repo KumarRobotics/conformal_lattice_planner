@@ -79,12 +79,14 @@ protected:
   boost::optional<size_t> spawnEgoVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const boost::optional<double> start_speed = boost::none);
+      const bool noisy_policy_speed = true,
+      const bool noisy_start_speed = true);
 
   boost::optional<size_t> spawnAgentVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const boost::optional<double> start_speed = boost::none);
+      const bool noisy_policy_speed = true,
+      const bool noisy_start_speed = true);
 
   void spawnCamera();
 
