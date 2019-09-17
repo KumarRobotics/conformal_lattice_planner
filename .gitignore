@@ -1,6 +1,4 @@
 scripts/
-src/conformal_lattice_planner/vehicle_controller.h
-src/ros/nodes/carla_example.cpp
 doc/
 backup/
 
