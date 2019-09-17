@@ -87,13 +87,13 @@ void RandomTrafficNode::spawnVehicles() {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint = nullptr;
 
     // First lane, 80m, 20m/s.
-    agent_waypoint = traffic_manager_->front(waypoint0, 80.0)->waypoint();
+    agent_waypoint = traffic_manager_->front(waypoint0, 40.0)->waypoint();
     if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
 
     // Second lane, 60m, 20m/s
-    agent_waypoint = traffic_manager_->front(waypoint1, 60.0)->waypoint();
+    agent_waypoint = traffic_manager_->front(waypoint1, 10.0)->waypoint();
     if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
