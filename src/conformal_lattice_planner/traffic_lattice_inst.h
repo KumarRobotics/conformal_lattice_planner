@@ -42,7 +42,6 @@ TrafficLattice<Router>::TrafficLattice(
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
   //        Can we avoid this code duplication?
-  this->longitudinal_resolution_ = 1.0;
   baseConstructor(start_waypoint, range, 1.0, router);
 
   // Register the vehicles onto the lattice nodes.
@@ -81,7 +80,6 @@ TrafficLattice<Router>::TrafficLattice(
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
   //        Can we avoid this code duplication?
-  this->longitudinal_resolution_ = 1.0;
   baseConstructor(start_waypoint, range, 1.0, router);
 
   // Register the vehicles onto the lattice nodes.
