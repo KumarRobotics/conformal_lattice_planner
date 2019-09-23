@@ -26,8 +26,6 @@
 #include <carla/client/Waypoint.h>
 #include <carla/client/Actor.h>
 #include <carla/client/Vehicle.h>
-#include <carla/client/WorldSnapshot.h>
-#include <carla/client/ActorSnapshot.h>
 #include <carla/geom/Transform.h>
 
 namespace planner {
