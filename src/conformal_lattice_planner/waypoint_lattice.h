@@ -80,6 +80,12 @@ public:
   WaypointNode(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
+  /// Get the ID of the underlying waypoint, which can also be used as the
+  /// hash tag for the node objects.
+  const size_t id() const {
+    return waypoint_->GetId();
+  }
+
   /// Get or set the pointer to the carla waypoint of the node.
   boost::shared_ptr<CarlaWaypoint>& waypoint() {
     return waypoint_;
