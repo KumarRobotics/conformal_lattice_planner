@@ -179,6 +179,8 @@ public:
     return *this;
   }
 
+  const double longitudinalResolution() const { return longitudinal_resolution_; }
+
   /// Get the entry nodes of the lattice.
   std::vector<boost::shared_ptr<const Node>> latticeEntries() const {
     std::vector<boost::shared_ptr<const Node>> output;
