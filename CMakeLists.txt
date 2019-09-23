@@ -178,8 +178,11 @@ add_dependencies(all_planning
 add_library(all_ros_nodes
   src/ros/simulator_node.cpp
   src/ros/random_traffic_node.cpp
+  src/ros/no_traffic_node.cpp
+
   src/ros/ego_lane_following_node.cpp
   src/ros/agents_lane_following_node.cpp
+
   src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
 )
@@ -225,6 +228,21 @@ target_link_libraries(random_traffic_node
   ${catkin_LIBRARIES}
 )
 add_dependencies(random_traffic_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+add_executable(no_traffic_node
+  src/ros/nodes/no_traffic_simulator.cpp
+)
+target_link_libraries(no_traffic_node
+  all_planning
+  all_ros_nodes
+  ${CARLA_LIBS}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(no_traffic_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
