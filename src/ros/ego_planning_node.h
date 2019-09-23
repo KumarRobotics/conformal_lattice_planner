@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/core/noncopyable.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/bind.hpp>
@@ -57,6 +58,19 @@ public:
 protected:
 
   virtual void executeCallback(const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) = 0;
+
+  std::pair<size_t, double> egoPolicy(
+      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) const {
+    return std::make_pair(goal->ego_policy.id, goal->ego_policy.desired_speed);
+  }
+
+  std::unordered_map<size_t, double> agentPolicies(
+      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) const {
+    std::unordered_map<size_t, double> agents;
+    for (const auto& agent_policy : goal->agent_policies)
+      agents[agent_policy.id] = agent_policy.desired_speed;
+    return agents;
+  }
 
 }; // End class EgoPlanningNode.
 

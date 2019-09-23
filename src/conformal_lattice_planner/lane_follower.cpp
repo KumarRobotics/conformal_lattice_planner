@@ -57,7 +57,8 @@ void LaneFollower::updateTrafficLattice(
   return;
 }
 
-void LaneFollower::plan(const size_t target, const double policy_speed) {
+void LaneFollower::plan(const std::pair<size_t, double> target,
+                        const std::unordered_map<size_t, double>& others) {
 
   if (!router_)
     throw std::runtime_error("The router has not been set.");
@@ -68,7 +69,7 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
 
   // Get the target vehicle.
   boost::shared_ptr<CarlaVehicle> vehicle =
-    boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target));
+    boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target.first));
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed
@@ -77,12 +78,15 @@ void LaneFollower::plan(const size_t target, const double policy_speed) {
   const double speed = vehicle->GetVelocity().Length();
   //const double speed_limit = vehicle->GetSpeedLimit() / 3.6;
   const double speed_limit = 25.0;
-  const double desired_speed = std::min(speed_limit, policy_speed);
+  const double desired_speed = std::min(speed_limit, target.second);
 
-  // Compute the acceleration of the target vehicle..
+  // Compute the acceleration of the target vehicle.
   double accel = 0.0;
   try {
-    boost::optional<std::pair<size_t, double>> lead = traffic_lattice_->front(target);
+
+    boost::optional<std::pair<size_t, double>> lead =
+      traffic_lattice_->front(target.first);
+
     if (lead) {
       // There is a lead vehicle.
       const size_t lead_vehicle = lead->first;

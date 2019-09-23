@@ -59,6 +59,19 @@ protected:
   virtual void executeCallback(
       const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) = 0;
 
+  std::pair<size_t, double> egoPolicy(
+      const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) const {
+    return std::make_pair(goal->ego_policy.id, goal->ego_policy.desired_speed);
+  }
+
+  std::unordered_map<size_t, double> agentPolicies(
+      const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) const {
+    std::unordered_map<size_t, double> agents;
+    for (const auto& agent_policy : goal->agent_policies)
+      agents[agent_policy.id] = agent_policy.desired_speed;
+    return agents;
+  }
+
 }; // End class AgentsPlanningNode.
 
 } // End namespace carla.

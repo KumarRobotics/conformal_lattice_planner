@@ -18,6 +18,8 @@
 
 #include <stdexcept>
 #include <unordered_set>
+#include <unordered_map>
+#include <utility>
 #include <boost/smart_ptr.hpp>
 
 #include <carla/client/Client.h>
@@ -85,35 +87,13 @@ public:
   /**
    * \brief The plan interface of the planner.
    *
-   * The function will update the target vehicle transforms in the carla server.
-   * FIXME: The derived classes should implement either of the interface and use
-   *        the one that is re-implemented. Using an unimplemented plan() interface
-   *        will result in a runtime error.
+   * Each vehicle consists of the pair vehicle id + policy speed.
    *
-   * \param[in] target The ID of the target vehicle to be planned.
-   * \param[in] policy_speed The policy speed of the target vehicle.
+   * \param[in] target The policy of the target vehicle.
+   * \param[in] others Policies of all vehicles other than the target vehicle.
    */
-  virtual void plan(const size_t target, const double policy_speed) {
-    throw std::runtime_error("VehiclePlanner does not implement plan()");
-  }
-
-  /**
-   * \brief The plan interface of the planner.
-   *
-   * The function will update the target vehicle transforms in the carla server.
-   * FIXME: The derived classes should implement either of the interface and use
-   *        the one that is re-implemented. Using an unimplemented plan() interface
-   *        will result in a runtime error.
-   *
-   * \param[in] target The ID of the target vehicle to be planned.
-   * \param[in] policy_speed The policy speed of the target vehicle.
-   * \param[in] others The IDs of the rest of the vehicles on the road.
-   */
-  virtual void plan(const size_t target,
-                    const double policy_speed,
-                    const std::unordered_set<size_t>& others) {
-    throw std::runtime_error("VehiclePlanner does not implement plan()");
-  }
+  virtual void plan(const std::pair<size_t, double> target,
+                    const std::unordered_map<size_t, double>& others) = 0;
 
 };
 

@@ -60,14 +60,11 @@ void EgoLaneFollowingNode::executeCallback(
   ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
 
   // Get the ego policy.
-  const size_t ego_id = goal->ego_policy.id;
-  const double ego_policy_speed = goal->ego_policy.desired_speed;
+  const std::pair<size_t, double> ego_policy = egoPolicy(goal);
 
   // Get the agents IDs.
   // Do not need the desired speed for them.
-  std::unordered_set<size_t> agent_ids;
-  for (const auto& policy : goal->agent_policies)
-    agent_ids.insert(policy.id);
+  std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
   // Update the world for the planner.
   boost::shared_ptr<CarlaWorld> world =
@@ -79,8 +76,9 @@ void EgoLaneFollowingNode::executeCallback(
   planner_->updateRouter(LoopRouter());
 
   // Update the traffic lattice for the planner.
-  std::unordered_set<size_t> all_ids = agent_ids;
-  all_ids.insert(ego_id);
+  std::unordered_set<size_t> all_ids;
+  all_ids.insert(ego_policy.first);
+  for (const auto& agent : agent_policies) all_ids.insert(agent.first);
   //boost::timer::cpu_timer timer;
   planner_->updateTrafficLattice(all_ids);
   //std::cout << "updateTrafficLattice() : " << timer.format();
@@ -90,7 +88,7 @@ void EgoLaneFollowingNode::executeCallback(
     ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");
 
   // Plan for the ego vehicle.
-  planner_->plan(ego_id, ego_policy_speed);
+  planner_->plan(ego_policy, agent_policies);
 
   // Inform the client the result of plan.
   conformal_lattice_planner::EgoPlanResult result;

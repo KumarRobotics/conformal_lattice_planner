@@ -105,7 +105,8 @@ public:
    */
   void updateTrafficLattice(const std::unordered_set<size_t>& vehicles);
 
-  void plan(const size_t target, const double policy_speed);
+  void plan(const std::pair<size_t, double> target,
+                    const std::unordered_map<size_t, double>& others) override;
 };
 
 } // End namespace planner.
