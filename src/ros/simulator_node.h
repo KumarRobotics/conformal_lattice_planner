@@ -136,6 +136,7 @@ protected:
 
   /// Simulate the world forward by one time step.
   virtual void tickWorld() {
+    world_->Tick();
     publishTraffic();
     sendEgoGoal();
     sendAgentsGoal();
