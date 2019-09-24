@@ -31,8 +31,8 @@ private:
 
 public:
 
-  using Ptr = boost::shared_ptr<EgoLaneFollowingNode>;
-  using ConstPtr = boost::shared_ptr<const EgoLaneFollowingNode>;
+  using Ptr = boost::shared_ptr<This>;
+  using ConstPtr = boost::shared_ptr<const This>;
 
 protected:
 
