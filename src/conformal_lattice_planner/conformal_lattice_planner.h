@@ -17,7 +17,10 @@
 #pragma once
 
 #include <tuple>
+#include <queue>
+#include <unordered_map>
 #include <boost/optional.hpp>
+#include <boost/core/noncopyable.hpp>
 
 #include <conformal_lattice_planner/vehicle_planner.h>
 #include <conformal_lattice_planner/traffic_lattice.h>
@@ -53,32 +56,40 @@ protected:
   /// Speed of the vehicle.
   double speed_ = 0.0;
 
+  /// The policy speed of this vehicle.
+  double policy_speed_ = 0.0;
+
   /// Acceleration of the vehicle, brake should be negative.
   double acceleration_ = 0.0;
 
 public:
+
+  Vehicle() = default;
 
   /**
    * The \c acceleration_ of the object won't be filled in using \c CarlaVehicle's
    * \c GetAcceleration() API, since the vehicles are assumed to be teleported
    * instead of controlled through physical dynamics.
    */
-  Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor) :
+  Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor, const double policy_speed) :
     id_          (actor->GetId()),
     bounding_box_(actor->GetBoundingBox()),
     transform_   (actor->GetTransform()),
     speed_       (actor->GetVelocity().Length()),
+    policy_speed_(policy_speed),
     acceleration_(0.0) {}
 
   Vehicle(const size_t id,
           const CarlaBoundingBox& bounding_box,
           const CarlaTransform& transform,
           const double speed,
+          const double policy_speed,
           const double acceleration) :
     id_          (id),
     bounding_box_(bounding_box),
     transform_   (transform),
     speed_       (speed),
+    policy_speed_(policy_speed),
     acceleration_(acceleration) {}
 
   const size_t id() const { return id_; }
@@ -92,6 +103,9 @@ public:
 
   const double speed() const { return speed_; }
   double& speed() { return speed_; }
+
+  const double policySpeed() const { return policy_speed_; }
+  double& policySpeed() { return policy_speed_; }
 
   const double acceleration() const { return acceleration_; }
   double& acceleration() { return acceleration_; }
@@ -157,14 +171,9 @@ protected:
 
 public:
 
-  Snapshot(const size_t ego,
-           const std::vector<size_t>& agents,
+  Snapshot(const std::pair<size_t, double> ego,
+           const std::unordered_map<size_t, double>& agents,
            const boost::shared_ptr<CarlaWorld>& world,
-           const boost::shared_ptr<router::LoopRouter>& router);
-
-  Snapshot(const boost::shared_ptr<const CarlaVehicle>& ego,
-           const std::vector<boost::shared_ptr<const CarlaVehicle>>& agents,
-           const boost::shared_ptr<CarlaMap>& map,
            const boost::shared_ptr<router::LoopRouter>& router);
 
   Snapshot(const Snapshot& other);
@@ -184,6 +193,16 @@ public:
 
   // TODO: Add a function to simulate the micro traffic forward. The input
   //       parameters should include the router and the path of the ego vehicle.
+
+protected:
+
+  std::pair<size_t, boost::shared_ptr<CarlaVehicle>> carlaVehicle(
+      const size_t id, const boost::shared_ptr<CarlaWorld>& world) {
+    boost::shared_ptr<CarlaVehicle> vehicle =
+      boost::static_pointer_cast<CarlaVehicle>(world->GetActor(id));
+    if (!vehicle) throw std::runtime_error("Cannot find the required vehicle in the carla server.");
+    return std::make_pair(id, vehicle);
+  }
 };
 
 class KellyNagyPath {
@@ -218,7 +237,7 @@ public:
   CarlaTransform& endTransform() { return end_transform_; }
 
   const double progress() const { return progress_; }
-  double& progress() const { return progress_; }
+  double& progress() { return progress_; }
 
   const NonHolonomicPath& path() const { return path_; }
   NonHolonomicPath& path() { return path_; }
@@ -236,11 +255,13 @@ public:
 
   const double followPath(
       const Vehicle& vehicle, const double time_step) {
-    return followPath(vehicle.speed, vehicle.acceleration, time_step);
+    return followPath(vehicle.speed(), vehicle.acceleration(), time_step);
   }
 
   const double followPath(
       const double speed, const double acceleration, const double time_step);
+
+  // TODO: Need a interface to generate samples to represent the whole path.
 
 protected:
 
@@ -322,7 +343,7 @@ public:
   const size_t id() const {
     if (!node_.lock())
       throw std::runtime_error("The station is not associated with any node.");
-    return node_.lock().id();
+    return node_.lock()->id();
   }
 
   const Snapshot& snapshot() const { return snapshot_; }
@@ -381,6 +402,113 @@ protected:
   void updateOptimalParent();
 
 }; // End class Station.
-
 } // End namespace detail.
+
+/**
+ * \brief ConformalLatticePlanner implements the actual algorithm.
+ */
+class ConformalLatticePlanner : public VehiclePlanner,
+                                private boost::noncopyable{
+
+private:
+
+  using Base = VehiclePlanner;
+  using This = ConformalLatticePlanner;
+
+protected:
+
+  using Vehicle       = detail::Vehicle;
+  using Snapshot      = detail::Snapshot;
+  using KellyNagyPath = detail::KellyNagyPath;
+  using Station       = detail::Station;
+
+protected:
+
+  /// The router to be used.
+  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+
+  /// The waypoint lattice used to find nodes for stations.
+  boost::shared_ptr<WaypointLattice<router::LoopRouter>> waypoint_lattice_ = nullptr;
+
+  /// Stores all the constructed stations indexed by the corresponding node
+  /// ID on the waypoint lattice.
+  std::unordered_map<size_t, boost::shared_ptr<Station>> node_to_station_table_;
+
+  /**
+   * \brief The root station in the station graph.
+   *
+   * The node within the root station corresponds to the location of the ego vehicle
+   * at the start of the planning. Meanwhile, the snapshot within the root station
+   * stores the micro traffic scenario at the start of the planning.
+   */
+  boost::weak_ptr<Station> root_;
+
+public:
+
+  /// Constructor of the class.
+  ConformalLatticePlanner(
+      const double time_step,
+      const size_t ego,
+      const double plan_horizon,
+      const boost::shared_ptr<router::LoopRouter>& router);
+
+  /// Destructor of the class.
+  virtual ~ConformalLatticePlanner() {}
+
+  /// Get the root station.
+  boost::shared_ptr<const Station> rootStation() const { return root_.lock(); }
+
+  /// Get all the stations constructed by the planner. The order of the
+  /// stations are not guaranteed.
+  std::vector<boost::shared_ptr<const Station>> stations() const;
+
+  /// Get the waypoint lattice constructed by the planner.
+  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypointLattice() const {
+    return waypoint_lattice_;
+  }
+
+  /// Get the router used by the planner.
+  boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
+
+  virtual void plan(const std::pair<size_t, double> ego,
+                    const std::unordered_map<size_t, double>& agents) override;
+
+protected:
+
+  /// Initialize the root station.
+  void initializeRootStation(const std::pair<size_t, double> ego,
+                             const std::unordered_map<size_t, double>& agents);
+
+  /// Construct the station graph.
+  void constructStationGraph();
+
+  void exploreFrontStation(const boost::shared_ptr<Station>& station,
+                           std::queue<boost::shared_ptr<Station>>& station_queue);
+  void exploreLeftStation(const boost::shared_ptr<Station>& station,
+                          std::queue<boost::shared_ptr<Station>>& station_queue);
+  void exploreRightStation(const boost::shared_ptr<Station>& station,
+                           std::queue<boost::shared_ptr<Station>>& station_queue);
+
+  /// Get the carla vehicle by the vehicle ID.
+  boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
+    boost::shared_ptr<CarlaVehicle> vehicle =
+      boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
+    if (!vehicle) throw std::runtime_error("Cannot get the required vehicle in the carla server.");
+    return vehicle;
+  }
+
+  /// Get the carla vehicle transform by the vehicle ID.
+  CarlaTransform carlaVehicleTransform(const size_t id) const {
+    return carlaVehicle(id)->GetTransform();
+  }
+
+  /// Get the carla waypoint a vehicle is at by its ID.
+  boost::shared_ptr<CarlaWaypoint> carlaVehicleWaypoint(const size_t id) const {
+    return map_->GetWaypoint(carlaVehicleTransform(id).location);
+  }
+
+
+}; // End class ConformalLatticePlanner.
+
+
 } // End namespace planner.

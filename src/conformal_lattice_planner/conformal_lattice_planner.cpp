@@ -21,29 +21,27 @@ namespace planner {
 namespace detail {
 
 Snapshot::Snapshot(
-    const size_t ego,
-    const std::vector<size_t>& agents,
+    const std::pair<size_t, double> ego,
+    const std::unordered_map<size_t, double>& agents,
     const boost::shared_ptr<CarlaWorld>& world,
     const boost::shared_ptr<router::LoopRouter>& router) {
 
   // Get the ego vehicle.
-  boost::shared_ptr<CarlaVehicle> ego_vehicle =
-    boost::static_pointer_cast<CarlaVehicle>(world->GetActor(ego));
-  if (!ego_vehicle) throw std::runtime_error("Ego vehicle does not exist in the simulator.");
+  std::pair<size_t, boost::shared_ptr<CarlaVehicle>>
+    ego_vehicle = carlaVehicle(ego.first, world);
 
   // Get the agent vehicles.
-  std::vector<boost::shared_ptr<CarlaVehicle>> agent_vehicles;
-  for (const size_t agent : agents) {
-    boost::shared_ptr<CarlaVehicle> agent_vehicle =
-      boost::static_pointer_cast<CarlaVehicle>(world->GetActor(agent)));
-    if (!agent_vehicle) throw std::runtime_error("Agent vehicle does not exist in the simulator.");
-    agent_vehicles.push_back(agent_vehicle);
+  std::unordered_map<size_t, boost::shared_ptr<CarlaVehicle>> agent_vehicles;
+  for (const auto& agent : agents) {
+    std::pair<size_t, boost::shared_ptr<CarlaVehicle>>
+      agent_vehicle = carlaVehicle(agent.first, world);
+    agent_vehicles[agent_vehicle.first] = agent_vehicle.second;
   }
 
   // Collect all vehicles into a single vector.
   std::vector<boost::shared_ptr<const CarlaVehicle>> all_vehicles;
-  all_vehicles.push_back(ego_vehicle);
-  for (auto agent : agent_vehicles) all_vehicles.push_back(agent);
+  all_vehicles.push_back(ego_vehicle.second);
+  for (auto& agent : agent_vehicles) all_vehicles.push_back(agent.second);
 
   // Construct the traffic lattice.
   traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(
@@ -51,46 +49,15 @@ Snapshot::Snapshot(
 
   // Set the vehicles in the snapshot object.
   std::unordered_set<size_t> all_vehicle_ids = traffic_lattice_->vehicles();
-  if (all_vehicle_ids.count(ego_vehicle->GetId()) == 0) {
+  if (all_vehicle_ids.count(ego_vehicle.first) == 0) {
     throw std::runtime_error("The ego vehicle cannot be registered onto the traffice lattice.");
   }
 
-  ego_ = Vehicle(ego_vehicle);
+  ego_ = Vehicle(ego_vehicle.second, ego.second);
   for (const auto& agent : agent_vehicles) {
     // Ignore the agent vehicles that cannot be registered onto the traffic lattice.
-    if (all_vehicle_ids.count(agent->GetId()) == 0) continue;
-    agents_[agent->GetId()] = Vehicle(agent);
-  }
-
-  return;
-}
-
-Snapshot::Snapshot(
-    const boost::shared_ptr<const CarlaVehicle>& ego,
-    const std::vector<boost::shared_ptr<const CarlaVehicle>>& agents,
-    const boost::shared_ptr<CarlaMap>& map,
-    const boost::shared_ptr<router::LoopRouter>& router) {
-
-  // Collect all vehicles into a single vector.
-  std::vector<boost::shared_ptr<const CarlaVehicle>> all_vehicles;
-  all_vehicles.push_back(ego);
-  for (auto agent : agents) all_vehicles.push_back(agent);
-
-  // Construct the traffic lattice.
-  traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(
-      all_vehicles, map, router);
-
-  // Set the vehicles in the snapshot object.
-  std::unordered_set<size_t> all_vehicle_ids = traffic_lattice_->vehicles();
-  if (all_vehicle_ids.count(ego->GetId()) == 0) {
-    throw std::runtime_error("The ego vehicle cannot be registered onto the traffice lattice.");
-  }
-
-  ego_ = Vehicle(ego);
-  for (const auto& agent : agents) {
-    // Ignore the agent vehicles that cannot be registered onto the traffic lattice.
-    if (all_vehicle_ids.count(agent->GetId()) == 0) continue;
-    agents_[agent->GetId()] = Vehicle(agent);
+    if (all_vehicle_ids.count(agent.first) == 0) continue;
+    agents_[agent.first] = Vehicle(agent.second, agents.find(agent.first)->second);
   }
 
   return;
@@ -98,10 +65,10 @@ Snapshot::Snapshot(
 
 Snapshot::Snapshot(const Snapshot& other) :
   ego_(other.ego_),
-  agents(other.agents_),
-  traffic_lattice_(boost::make_shared<TrafficLattice<router::LoopRouter>>(other.traffic_lattice_)) {}
+  agents_(other.agents_),
+  traffic_lattice_(boost::make_shared<TrafficLattice<router::LoopRouter>>(*(other.traffic_lattice_))) {}
 
-Snapshot& operator=(const Snapshot& other) {
+Snapshot& Snapshot::operator=(const Snapshot& other) {
   ego_ = other.ego_;
   agents_ = other.agents_;
   traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(*(other.traffic_lattice_));
@@ -160,7 +127,7 @@ carla::geom::Transform KellyNagyPath::pathStateToCarlaTransform(
 }
 
 
-const CarlaTransform KellyNagyPath::followPath(
+const double KellyNagyPath::followPath(
     const double speed, const double acceleration, const double time_step) {
 
   if (finished()) {
@@ -216,21 +183,24 @@ void Station::updateOptimalParent() {
 
 void Station::updateLeftParent(
     const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  left_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  //left_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  left_parent_ = std::make_pair(cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
 
 void Station::updateBackParent(
     const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  back_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  //back_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  back_parent_ = std::make_pair(cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
 
 void Station::updateRightParent(
     const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  right_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  //right_parent_ = std::make_pair<double, boost::weak_ptr<Station>>(cost_to_come, parent_station);
+  right_parent_ = std::make_pair(cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
@@ -239,8 +209,9 @@ void Station::updateLeftChild(
     const KellyNagyPath& path,
     const double stage_cost,
     const boost::shared_ptr<Station>& child_station) {
-  left_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
-      path, stage_cost, child_station);
+  //left_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
+  //    path, stage_cost, child_station);
+  left_child_ = std::make_tuple(path, stage_cost, child_station);
   return;
 }
 
@@ -248,8 +219,9 @@ void Station::updateFrontChild(
     const KellyNagyPath& path,
     const double stage_cost,
     const boost::shared_ptr<Station>& child_station) {
-  front_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
-      path, stage_cost, child_station);
+  //front_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
+  //    path, stage_cost, child_station);
+  front_child_ = std::make_tuple(path, stage_cost, child_station);
   return;
 }
 
@@ -257,10 +229,58 @@ void Station::updateRightChild(
     const KellyNagyPath& path,
     const double stage_cost,
     const boost::shared_ptr<Station>& child_station) {
-  right_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
-      path, stage_cost, child_station);
+  //right_child_ = std::make_tuple<KellyNagyPath, double, boost::weak_ptr<Station>>(
+  //    path, stage_cost, child_station);
+  right_child_ = std::make_tuple(path, stage_cost, child_station);
+  return;
+}
+} // End namespace detail.
+
+
+ConformalLatticePlanner::ConformalLatticePlanner(
+    const double time_step,
+    const size_t ego,
+    const double plan_horizon,
+    const boost::shared_ptr<router::LoopRouter>& router) :
+  Base   (time_step),
+  router_(router) {
+
+  boost::shared_ptr<CarlaWaypoint> ego_waypoint = carlaVehicleWaypoint(ego);
+  waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
+      ego_waypoint, plan_horizon, 2.0, router_);
+
   return;
 }
 
-} // End namespace detail.
+
+void ConformalLatticePlanner::plan(
+    const std::pair<size_t, double> ego,
+    const std::unordered_map<size_t, double>& agents) {
+  initializeRootStation(ego, agents);
+  return;
+}
+
+void ConformalLatticePlanner::initializeRootStation(
+    const std::pair<size_t, double> ego,
+    const std::unordered_map<size_t, double>& agents) {
+
+  // Get the node of the root station.
+  // The waypoint lattice should already be constructed by now.
+  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> const_waypoint_lattice =
+    boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
+  boost::shared_ptr<const WaypointNode> node = const_waypoint_lattice->closestNode(
+      carlaVehicleWaypoint(ego.first), waypoint_lattice_->longitudinalResolution());
+
+  // Get the start snapshot.
+  Snapshot snapshot(ego, agents, world_, router_);
+
+  // Create the starting node.
+  boost::shared_ptr<Station> root = boost::make_shared<Station>(node, snapshot);
+  node_to_station_table_[node->id()] = root;
+  root_ = root;
+
+  return;
+}
+
+
 } // End namespace planner.
