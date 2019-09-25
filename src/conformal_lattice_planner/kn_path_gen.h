@@ -84,7 +84,7 @@ public:
    * @param s The arc length along the path.
    * @return The resulting state.
    */
-  State evaluate(State x0, double s) {
+  State evaluate(State x0, double s) const {
 
     // Verify the Path curvature matches the initial condition.
     assert(std::abs(a - x0.kappa) < 1e-5);
@@ -119,7 +119,7 @@ public:
    * of the interval.
    * @return The approximate value of the definite integral evaluated according to Simpson's rule.
    */
-  double simpsonsRule(const Eigen::ArrayXd &f, const Eigen::ArrayXd &dx) {
+  double simpsonsRule(const Eigen::ArrayXd &f, const Eigen::ArrayXd &dx) const {
     int N = dx.size();
     double a = dx(0);
     double b = dx(N - 1);
@@ -218,7 +218,7 @@ public:
    * @param xf The final constraint.
    * @return The resulting Jacobian matrix.
    */
-  Eigen::Matrix4d boundaryConstraintJacobian(const State &x0, const State &xf) {
+  Eigen::Matrix4d boundaryConstraintJacobian(const State &x0, const State &xf) const {
 
     double N = 101;
     Eigen::Matrix4d jacobian = Eigen::Matrix4d::Zero();
@@ -269,7 +269,7 @@ public:
    * @param xf The final constraint.
    * @return A vector representing the value of all constraints.
    */
-  Eigen::Vector4d boundaryConstraint(const State &x0, const State &xf) {
+  Eigen::Vector4d boundaryConstraint(const State &x0, const State &xf) const {
     State xf_g = evaluate(x0, sf); // The endpoint of the current path.
 
     Eigen::Vector4d g = xf_g.toVector() - xf.toVector();
