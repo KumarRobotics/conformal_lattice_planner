@@ -19,6 +19,7 @@
 #include <cmath>
 #include <deque>
 #include <unordered_map>
+#include <algorithm>
 #include <stdexcept>
 #include <conformal_lattice_planner/traffic_lattice.h>
 
@@ -338,19 +339,56 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
     return 0;
   }
 
-  std::vector<boost::weak_ptr<Node>> nodes;
+  // Collect the nodes that are occupied by this vehicle.
+  // The following is the procedure to do this:
+  //
+  // 1) Move forward from the rear node, stops until the mid node or
+  //    neighbors (left or right) of the mid node is met.
+  // 2) Move backward from the head node, stops until the mid node or
+  //    neighbors (left or right) of the mid node is met.
+  // 3) Reverse the results from the second step, since we want the
+  //    resulted vector to store all occupied nodes in sequence, i.e.
+  //    the first node is the rear node, and the last node is the head.
+  // 4) Merge the rear nodes, mid node, and head nodes into a single vector.
+  //
+  // The steps are certainly tedious but are necessary, especially to
+  // handle vehicles that are in the process of changing lanes. In which
+  // case, two portions, separated by the mid node, of the vehicles are
+  // on different lanes.
+
+  std::vector<boost::weak_ptr<Node>> rear_node_forward;
   boost::shared_ptr<Node> next_node = rear_node;
-  while (next_node->waypoint()->GetId() != head_node->waypoint()->GetId()) {
-    nodes.emplace_back(next_node);
-    if (next_node->front().lock()) next_node = next_node->front().lock();
-    // We won't add this vehicle onto the lattice if the nodes between
-    // head and rear are not connected.
-    else {
-      //std::printf("Vehicle head and rear are not connected.\n");
-      return 0;
-    }
+  while (true) {
+    if (next_node->id() == mid_node->id()) break;
+    if (mid_node->left().lock() &&
+        next_node->id() == mid_node->left().lock()->id()) break;
+    if (mid_node->right().lock() &&
+        next_node->id() == mid_node->right().lock()->id()) break;
+
+    rear_node_forward.emplace_back(next_node);
+    if (!next_node->front().lock()) break;
+    next_node = next_node->front().lock();
   }
-  nodes.emplace_back(head_node);
+
+  std::vector<boost::weak_ptr<Node>> head_node_backward;
+  next_node = head_node;
+  while (true) {
+    if (next_node->id() == mid_node->id()) break;
+    if (mid_node->left().lock() &&
+        next_node->id() == mid_node->left().lock()->id()) break;
+    if (mid_node->right().lock() &&
+        next_node->id() == mid_node->right().lock()->id()) break;
+
+    head_node_backward.emplace_back(next_node);
+    if (!next_node->back().lock()) break;
+    next_node = next_node->back().lock();
+  }
+  std::reverse(head_node_backward.begin(), head_node_backward.end());
+
+  std::vector<boost::weak_ptr<Node>> nodes;
+  nodes.insert(nodes.end(), rear_node_forward.begin(), rear_node_forward.end());
+  nodes.emplace_back(mid_node);
+  nodes.insert(nodes.end(), head_node_backward.begin(), head_node_backward.end());
 
   // If there is already a vehicle on any of the found nodes,
   // it indicates there is a collision.
