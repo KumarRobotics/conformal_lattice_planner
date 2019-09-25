@@ -70,6 +70,7 @@ void LaneFollower::plan(const std::pair<size_t, double> target,
   // Get the target vehicle.
   boost::shared_ptr<CarlaVehicle> vehicle =
     boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(target.first));
+  if (!vehicle) throw std::runtime_error("Cannot find the vehicle in the simulator.");
 
   // Get the (desired) speed of the target vehicle.
   // TODO: Maybe the target should look ahead a bit for desired speed
