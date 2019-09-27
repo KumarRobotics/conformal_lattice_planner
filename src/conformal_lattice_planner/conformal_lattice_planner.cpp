@@ -158,8 +158,7 @@ void ConformalLatticePlanner::exploreFrontStation(
     waypoint_lattice_->front(station->node().lock()->waypoint(), 50.0);
   if (!target_node) return;
 
-  // Plan a path between the node at the current station to
-  // the target node.
+  // Plan a path between the node at the current station to the target node.
   boost::shared_ptr<ContinuousPath> path = nullptr;
   try {
     path = boost::make_shared<ContinuousPath>(
@@ -211,11 +210,150 @@ void ConformalLatticePlanner::exploreFrontStation(
 void ConformalLatticePlanner::exploreLeftStation(
     const boost::shared_ptr<Station>& station,
     std::queue<boost::shared_ptr<Station>>& station_queue) {
+
+  // Check the left front and left back vehicles.
+  //
+  // If there are vehicles at the left front or left back of the ego,
+  // meanwhile those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> left_front =
+    station->snapshot().trafficLattice()->leftFront(station->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> left_back =
+    station->snapshot().trafficLattice()->leftBack(station->snapshot().ego().id());
+
+  if (left_front && left_front->second <= 0.0) return;
+  if (left_back  && left_back->second  <= 0.0) return;
+
+  // Find the target node on the waypoint lattice.
+  // If the target node is not the lattice, we have reached the planning horizon.
+  // TODO: Maybe check both \c leftFront and \c frontLeft.
+  boost::shared_ptr<const WaypointNode> target_node =
+    waypoint_lattice_->leftFront(station->node().lock()->waypoint(), 50.0);
+  if (!target_node) return;
+
+  // Plan a path between the node at the current station to the target node.
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        station->transform(),
+        target_node->waypoint()->GetTransform(),
+        ContinuousPath::LaneChangeType::LeftLaneChange);
+  } catch (...) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    return;
+  }
+
+  // Now, simulate the traffic forward.
+  TrafficSimulator simulator(station->snapshot(), map_);
+  double simulation_time = 0.0; double stage_cost = 0.0;
+  const bool no_collision = simulator.simulate(
+      *path, time_step_, 5.0, simulation_time, stage_cost);
+
+  // There a collision is detected in the simulation, this option is ignored.
+  if (!no_collision) return;
+
+  // Create a new station with the end snapshot of the simulation.
+  boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
+      simulator.snapshot(), waypoint_lattice_, map_);
+
+  // Set the child station of the input station.
+  station->updateLeftChild(*path, stage_cost, next_station);
+  // Set the parent station of the newly created station.
+  if (station->hasParent()) {
+    next_station->updateLeftParent(
+        station->optimalParent()->first+stage_cost, station);
+  } else {
+    next_station->updateLeftParent(stage_cost, station);
+  }
+
+  // Add the new station to the table and queue if necessary.
+  if (node_to_station_table_.count(next_station->id()) == 0) {
+    node_to_station_table_[next_station->id()] = next_station;
+    // The newly created station will only be added to the queue
+    // if the target node is reached. Otherwise (the ego vehicle
+    // did not reach end target node in time), we will consider
+    // the new station as a terminate.
+    if (next_station->id() == target_node->id()) station_queue.push(next_station);
+  }
+
   return;
 }
+
 void ConformalLatticePlanner::exploreRightStation(
     const boost::shared_ptr<Station>& station,
     std::queue<boost::shared_ptr<Station>>& station_queue) {
+
+  // Check the right front and right back vehicles.
+  //
+  // If there are vehicles at the right front or right back of the ego,
+  // meanwhile those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> right_front =
+    station->snapshot().trafficLattice()->rightFront(station->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> right_back =
+    station->snapshot().trafficLattice()->rightBack(station->snapshot().ego().id());
+
+  if (right_front && right_front->second <= 0.0) return;
+  if (right_back  && right_back->second  <= 0.0) return;
+
+  // Find the target node on the waypoint lattice.
+  // If the target node is not the lattice, we have reached the planning horizon.
+  // TODO: Maybe check both \c rightFront and \c frontRight.
+  boost::shared_ptr<const WaypointNode> target_node =
+    waypoint_lattice_->rightFront(station->node().lock()->waypoint(), 50.0);
+  if (!target_node) return;
+
+  // Plan a path between the node at the current station to the target node.
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        station->transform(),
+        target_node->waypoint()->GetTransform(),
+        ContinuousPath::LaneChangeType::RightLaneChange);
+  } catch (...) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    return;
+  }
+
+  // Now, simulate the traffic forward.
+  TrafficSimulator simulator(station->snapshot(), map_);
+  double simulation_time = 0.0; double stage_cost = 0.0;
+  const bool no_collision = simulator.simulate(
+      *path, time_step_, 5.0, simulation_time, stage_cost);
+
+  // There a collision is detected in the simulation, this option is ignored.
+  if (!no_collision) return;
+
+  // Create a new station with the end snapshot of the simulation.
+  boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
+      simulator.snapshot(), waypoint_lattice_, map_);
+
+  // Set the child station of the input station.
+  station->updateRightChild(*path, stage_cost, next_station);
+  // Set the parent station of the newly created station.
+  if (station->hasParent()) {
+    next_station->updateRightParent(
+        station->optimalParent()->first+stage_cost, station);
+  } else {
+    next_station->updateRightParent(stage_cost, station);
+  }
+
+  // Add the new station to the table and queue if necessary.
+  if (node_to_station_table_.count(next_station->id()) == 0) {
+    node_to_station_table_[next_station->id()] = next_station;
+    // The newly created station will only be added to the queue
+    // if the target node is reached. Otherwise (the ego vehicle
+    // did not reach end target node in time), we will consider
+    // the new station as a terminate.
+    if (next_station->id() == target_node->id()) station_queue.push(next_station);
+  }
+
   return;
 }
 
