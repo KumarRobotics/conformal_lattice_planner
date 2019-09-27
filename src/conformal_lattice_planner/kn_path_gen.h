@@ -323,19 +323,19 @@ public:
 /****************
     Overloaded Output Streams for KN Path Classes.
  ****************/
-std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath::State &s) {
-  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa << ")\n";
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath &p) {
-  os << "NonHolonomicPath (a=" << p.a
-     << ", b=" << p.b
-     << ", c=" << p.c
-     << ", d=" << p.d
-     << ", sf=" << p.sf
-     << ")";
-  return os;
-}
+//std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath::State &s) {
+//  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa << ")\n";
+//  return os;
+//}
+//
+//std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath &p) {
+//  os << "NonHolonomicPath (a=" << p.a
+//     << ", b=" << p.b
+//     << ", c=" << p.c
+//     << ", d=" << p.d
+//     << ", sf=" << p.sf
+//     << ")";
+//  return os;
+//}
 
 #endif //KN_PATH_GEN_KN_PATH_GEN_H

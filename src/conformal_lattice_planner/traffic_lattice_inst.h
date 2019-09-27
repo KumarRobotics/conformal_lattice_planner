@@ -288,6 +288,31 @@ std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
 }
 
 template<typename Router>
+int32_t TrafficLattice<Router>::isChangingLane(const size_t vehicle) const {
+  if (vehicle_to_nodes_table_.count(vehicle) == 0)
+    throw std::runtime_error("The input vehicle does not exist on the traffic lattice.");
+
+  boost::shared_ptr<const Node> rear_node = vehicleRearNode(vehicle);
+  boost::shared_ptr<const Node> head_node = vehicleHeadNode(vehicle);
+  const int length = vehicle_to_nodes_table_.find(vehicle)->second.size();
+
+  // Find the \c front_node on the same lane of the \c read_node, which is
+  // also at the same distance of the \c head_node.
+  // FIXME: We assume there the \c front_node is always available.
+  boost::shared_ptr<const Node> front_node = rear_node;
+  for (int i = 0; i < length; ++i) {
+    front_node = front_node->front();
+    if (!front_node)
+      throw std::runtime_error("There is no more front node on the same lane of the rear node.");
+  }
+
+  if (front_node->id() == head_node->id()) return 0;
+  if (front_node->left() && front_node->left()->id() == head_node->id()) return -1;
+  if (front_node->right() && front_node->right()->id() == head_node->id()) return 1;
+  throw std::runtime_error("Cannot match to the head node of the vehicle.");
+}
+
+template<typename Router>
 int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
   // If the vehicle is not being tracked, there is nothing to be deleted.
   if (vehicle_to_nodes_table_.count(vehicle) == 0) return 0;

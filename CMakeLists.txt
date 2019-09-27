@@ -164,6 +164,9 @@ add_library(all_planning
   src/conformal_lattice_planner/lane_follower.cpp
   src/conformal_lattice_planner/utils.cpp
   src/conformal_lattice_planner/loop_router.cpp
+  src/conformal_lattice_planner/vehicle_path.cpp
+  src/conformal_lattice_planner/snapshot.cpp
+  src/conformal_lattice_planner/traffic_simulator.cpp
   src/conformal_lattice_planner/conformal_lattice_planner.cpp
 )
 target_link_libraries(all_planning

@@ -213,6 +213,20 @@ public:
   std::unordered_set<size_t> vehicles() const;
 
   /**
+   * \brief Check if a vehicle is in the process of lane changing.
+   *
+   * In the case the input vehicle is not found on the lattice, the function
+   * throws \c std::runtime_error exception.
+   *
+   * \param[in] vehicle The ID of the vehicle to be checked.
+   * \return
+   *  -  0 If the vehicle is keep lane
+   *  - -1 If the vehicle is changing to the left lane.
+   *  -  1 If the vehicle is changing to the right lane.
+   */
+  int32_t isChangingLane(const size_t vehicle) const;
+
+  /**
    * \brief Delete a vehicle on the lattice.
    *
    * \param[in] vehicle The ID of the vehicle to be deleted.
