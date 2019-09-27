@@ -23,6 +23,9 @@
 
 namespace planner {
 
+class ContinuousPath;
+class DiscretePath;
+
 class VehiclePath {
 
 public:
@@ -69,6 +72,9 @@ public:
   /// i.e. distance from the start of the path.
   virtual const CarlaTransform transformAt(const double s) const = 0;
 
+  /// Returns samples on the path from the start to the end with 0.1m resolution.
+  virtual const std::vector<CarlaTransform> samples() const;
+
 protected:
 
   NonHolonomicPath::State carlaTransformToPathState(
@@ -105,6 +111,8 @@ public:
                  const CarlaTransform& end,
                  const LaneChangeType& lane_change_type);
 
+  ContinuousPath(const DiscretePath& discrete_path);
+
   virtual ~ContinuousPath() {}
 
   virtual const CarlaTransform startTransform() const override { return start_; }
@@ -138,6 +146,8 @@ public:
                const CarlaTransform& end,
                const LaneChangeType& lane_change_type);
 
+  DiscretePath(const ContinuousPath& continuous_path);
+
   virtual ~DiscretePath() {}
 
   virtual const CarlaTransform startTransform() const override {
@@ -153,6 +163,8 @@ public:
   }
 
   virtual const CarlaTransform transformAt(const double s) const override;
+
+  virtual const std::vector<CarlaTransform> samples() const override;
 
 }; // End class DiscretePath.
 

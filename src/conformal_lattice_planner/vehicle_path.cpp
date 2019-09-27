@@ -65,6 +65,19 @@ VehiclePath::CarlaTransform VehiclePath::interpolateTransform(
   return t;
 }
 
+const std::vector<VehiclePath::CarlaTransform> VehiclePath::samples() const {
+
+  double s = 0.0;
+  std::vector<CarlaTransform> samples;
+  for (; s < range(); s+=0.1)
+    samples.push_back(transformAt(s));
+
+  if (s < range())
+    samples.push_back(transformAt(range()));
+
+  return samples;
+}
+
 ContinuousPath::ContinuousPath(
     const CarlaTransform& start,
     const CarlaTransform& end,
@@ -74,8 +87,21 @@ ContinuousPath::ContinuousPath(
   end_  (end) {
 
   // Convert the start and end to right handed coordinate system.
-  const NonHolonomicPath::State start_state = carlaTransformToPathState(start);
-  const NonHolonomicPath::State end_state = carlaTransformToPathState(end);
+  const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
+  const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
+
+  path_.optimizePathFast(start_state, end_state);
+  return;
+}
+
+ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
+  Base  (discrete_path.laneChangeType()),
+  start_(discrete_path.startTransform()),
+  end_  (discrete_path.endTransform()) {
+
+  // Convert the start and end to right handed coordinate system.
+  const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
+  const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
   path_.optimizePathFast(start_state, end_state);
   return;
@@ -131,6 +157,24 @@ DiscretePath::DiscretePath(
   return;
 }
 
+DiscretePath::DiscretePath(const ContinuousPath& continuous_path) :
+  Base(continuous_path.laneChangeType()) {
+
+  double s = 0.0;
+  for (; s <= continuous_path.range(); s += 0.1)
+    samples_[s] = continuous_path.transformAt(s);
+
+  if (s < continuous_path.range()) {
+    samples_[continuous_path.range()] =
+      continuous_path.transformAt(continuous_path.range());
+  }
+
+  if (samples_.empty())
+    throw std::runtime_error("Empty discrete path.");
+
+  return;
+}
+
 const DiscretePath::CarlaTransform DiscretePath::transformAt(const double s) const {
 
   if (s < 0.0 || s > range())
@@ -152,6 +196,12 @@ const DiscretePath::CarlaTransform DiscretePath::transformAt(const double s) con
   std::map<double, CarlaTransform>::const_iterator iter2 = iter;
   const double ratio = (iter2->first-s) / (iter2->first-iter1->first);
   return interpolateTransform(iter1->second, iter2->second, ratio);
+}
+
+const std::vector<DiscretePath::CarlaTransform> DiscretePath::samples() const {
+  std::vector<CarlaTransform> samples;
+  for (const auto& sample : samples_) samples.push_back(sample.second);
+  return samples;
 }
 
 } // End namespace planner.
