@@ -37,6 +37,7 @@
 #include <conformal_lattice_planner/waypoint_lattice.h>
 #include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/traffic_manager.h>
+#include <conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace carla {
 
@@ -52,17 +53,11 @@ visualization_msgs::MarkerPtr createJunctionMsg(
 visualization_msgs::MarkerArrayPtr createRoadIdsMsg(
     const std::unordered_map<uint32_t, carla::road::Road>&);
 
-//visualization_msgs::MarkerPtr createVehicleMsg(
-//    const boost::shared_ptr<const cc::Vehicle>&);
-
 visualization_msgs::MarkerArrayPtr createVehiclesMsg(
     const std::vector<boost::shared_ptr<const carla::client::Vehicle>>&);
 
 visualization_msgs::MarkerArrayPtr createVehicleIdsMsg(
     const std::vector<boost::shared_ptr<const carla::client::Vehicle>>&);
-
-//visualization_msgs::MarkerArrayPtr createVehicleIdsMsg(
-//    const std::unordered_map<size_t, carla::geom::Transform>&);
 
 geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const boost::shared_ptr<const carla::client::Vehicle>&, const std::string&);
@@ -75,5 +70,8 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
 
 visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
     const boost::shared_ptr<const planner::TrafficManager<router::LoopRouter>>&);
+
+visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
 
 } // End namespace carla.
