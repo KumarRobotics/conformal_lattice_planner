@@ -35,7 +35,7 @@ public:
 
 protected:
 
-  boost::shared_ptr<planner::ConformalLatticePlanner> planner_ = nullptr;
+  ros::Publisher conformal_lattice_pub_;
 
 public:
 

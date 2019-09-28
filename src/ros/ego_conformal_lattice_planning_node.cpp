@@ -19,6 +19,7 @@
 #include <unordered_set>
 #include <boost/timer/timer.hpp>
 #include <ros/ego_conformal_lattice_planning_node.h>
+#include <ros/convert_to_visualization_msgs.h>
 
 using namespace planner;
 using namespace router;
@@ -28,6 +29,10 @@ namespace carla {
 bool EgoConformalLatticePlanningNode::initialize() {
 
   bool all_param_exist = true;
+
+  // Create the publishers.
+  conformal_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "conformal_lattice", 1, true);
 
   std::string host = "localhost";
   int port = 2000;
@@ -64,12 +69,13 @@ void EgoConformalLatticePlanningNode::executeCallback(
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
   // TODO: construct the planner.
-  double fixed_delta_seconds = 0.05;
-  nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  //double fixed_delta_seconds = 0.05;
+  //nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
   boost::shared_ptr<LoopRouter> loop_router = boost::make_shared<LoopRouter>();
 
-  planner_ = boost::make_shared<ConformalLatticePlanner>(
-      fixed_delta_seconds, ego_policy.first, 155.0, loop_router);
+  boost::shared_ptr<ConformalLatticePlanner> planner_ =
+    boost::make_shared<ConformalLatticePlanner>(
+        0.1, ego_policy.first, 55.0, loop_router);
 
   // Update the world for the planner.
   boost::shared_ptr<CarlaWorld> world =
@@ -78,6 +84,9 @@ void EgoConformalLatticePlanningNode::executeCallback(
 
   // Plan for the ego vehicle.
   planner_->plan(ego_policy, agent_policies);
+
+  // Publish the station graph.
+  conformal_lattice_pub_.publish(createConformalLatticeMsg(planner_));
 
   // Inform the client the result of plan.
   conformal_lattice_planner::EgoPlanResult result;
