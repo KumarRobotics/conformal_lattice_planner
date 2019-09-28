@@ -94,7 +94,7 @@ bool NoTrafficNode::initialize() {
 
   // Wait for the planner servers.
   ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
-  ego_client_.waitForServer(ros::Duration(5.0));
+  ego_client_.waitForServer(ros::Duration(2.0));
   //agents_client_.waitForServer(ros::Duration(5.0));
 
   // Send out the first goal of ego.
@@ -142,7 +142,7 @@ void NoTrafficNode::spawnVehicles() {
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer
   // in the front of the ego vehicle.
   boost::shared_ptr<const CarlaWaypoint> ego_waypoint =
-    waypoint_lattice->front(start_waypoint, 50.0)->waypoint();
+    waypoint_lattice->rightFront(start_waypoint, 50.0)->waypoint();
   if (!ego_waypoint) {
     throw std::runtime_error("Cannot find the ego waypoint on the traffic lattice.");
   }
