@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <string>
+#include <boost/format.hpp>
 #include <carla/client/Vehicle.h>
 #include <carla/geom/Transform.h>
 
@@ -122,6 +124,28 @@ public:
    */
   std::tuple<size_t, CarlaTransform, CarlaBoundingBox> tuple() const {
     return std::make_tuple(id_, transform_, bounding_box_);
+  }
+
+  /**
+   * \brief Get a string containing the information of this vehicle.
+   */
+  std::string string(const std::string& prefix = "") const {
+
+    std::string output = prefix;
+    boost::format vehicle_format(
+        "id:%1% x:%2% y:%3% z:%4% policy:%5% speed:%6% accel:%7%\n");
+
+    vehicle_format % id_;
+    vehicle_format % transform_.location.x;
+    vehicle_format % transform_.location.y;
+    vehicle_format % transform_.location.z;
+    vehicle_format % policy_speed_;
+    vehicle_format % speed_;
+    vehicle_format % acceleration_;
+
+    output += vehicle_format.str();
+
+    return output;
   }
 
   // TODO: Add a function to update the vehicle's transform and speed

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+#include <cmath>
 #include <stdexcept>
 #include <algorithm>
+#include <boost/format.hpp>
 #include <conformal_lattice_planner/vehicle_path.h>
 #include <conformal_lattice_planner/utils.h>
 
@@ -26,7 +28,7 @@ NonHolonomicPath::State VehiclePath::carlaTransformToPathState(
   const CarlaTransform transform_rh = utils::convertTransform(transform);
   return NonHolonomicPath::State(transform_rh.location.x,
                                  transform_rh.location.y,
-                                 transform_rh.rotation.yaw,
+                                 transform_rh.rotation.yaw / 180.0 * M_PI,
                                  0.0);
 }
 
@@ -39,7 +41,7 @@ carla::geom::Transform VehiclePath::pathStateToCarlaTransform(
   CarlaTransform transform = utils::convertTransform(base_transform);
   transform.location.x = state.x;
   transform.location.y = state.y;
-  transform.rotation.yaw = state.theta;
+  transform.rotation.yaw = state.theta / M_PI * 180.0;
 
   // Convert to left handed coordinates.
   utils::convertTransformInPlace(transform);
@@ -90,7 +92,13 @@ ContinuousPath::ContinuousPath(
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
-  path_.optimizePathFast(start_state, end_state);
+  std::printf("start x:%f y:%f theta:%f kappa:%f\n",
+      start_state.x, start_state.y, start_state.theta, start_state.kappa);
+  std::printf("end   x:%f y:%f theta:%f kappa:%f\n",
+      end_state.x, end_state.y, end_state.theta, end_state.kappa);
+
+  const bool success = path_.optimizePath(start_state, end_state);
+  if (!success) throw std::runtime_error("Path optimization diverges.\n");
   return;
 }
 
@@ -103,7 +111,8 @@ ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
-  path_.optimizePathFast(start_state, end_state);
+  const bool success = path_.optimizePath(start_state, end_state);
+  if (!success) throw std::runtime_error("Path optimization diverges.\n");
   return;
 }
 
@@ -122,6 +131,23 @@ const ContinuousPath::CarlaTransform ContinuousPath::transformAt(const double s)
   return pathStateToCarlaTransform(state, base_transform);
 }
 
+std::string ContinuousPath::string(const std::string& prefix) const {
+  boost::format transform_format("x:%1% y:%2% yaw:%3%\n");
+  std::string output = prefix;
+  output += "start: ";
+  output += (transform_format % start_.location.x
+                              % start_.location.y
+                              % start_.rotation.yaw).str();
+  output += "end: ";
+  output += (transform_format % end_.location.x
+                              % end_.location.y
+                              % end_.rotation.yaw).str();
+  boost::format path_format("a:%1% b:%2% c:%3% d:%4% sf:%5%\n");
+  output += "path: ";
+  output += (path_format % path_.a % path_.b % path_.c % path_.d % path_.sf).str();
+  return output;
+}
+
 DiscretePath::DiscretePath(
     const CarlaTransform& start,
     const CarlaTransform& end,
@@ -134,7 +160,8 @@ DiscretePath::DiscretePath(
 
   // Compute the Kelly-Navy path.
   NonHolonomicPath path;
-  path.optimizePathFast(start_state, end_state);
+  const bool success = path.optimizePath(start_state, end_state);
+  if (!success) throw std::runtime_error("Path optimization diverges.\n");
 
   // Sample the path with 0.1m resolution.
   double s = 0.0;
@@ -202,6 +229,24 @@ const std::vector<DiscretePath::CarlaTransform> DiscretePath::samples() const {
   std::vector<CarlaTransform> samples;
   for (const auto& sample : samples_) samples.push_back(sample.second);
   return samples;
+}
+
+std::string DiscretePath::string(const std::string& prefix) const {
+  boost::format transform_format("x:%1% y:%2% yaw:%3%\n");
+  std::string output = prefix;
+  output += "start: ";
+  const CarlaTransform start = startTransform();
+  output += (transform_format % start.location.x
+                              % start.location.y
+                              % start.rotation.yaw).str();
+  output += "end: ";
+  const CarlaTransform end = endTransform();
+  output += (transform_format % end.location.x
+                              % end.location.y
+                              % end.rotation.yaw).str();
+
+  output += (boost::format("path: range:%1% sample size:%2%\n") % range() % samples_.size()).str();
+  return output;
 }
 
 } // End namespace planner.

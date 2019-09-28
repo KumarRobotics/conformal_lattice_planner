@@ -90,6 +90,14 @@ public:
   bool updateTraffic(
       const std::vector<std::tuple<size_t, CarlaTransform, double, double>>& transforms);
 
+  std::string string(const std::string& prefix = "") const {
+    std::string output = prefix;
+    output += ego_.string("ego ");
+    for (const auto& agent : agents_)
+      output += agent.second.string("agent ");
+    return output;
+  }
+
 protected:
 
   //std::pair<size_t, boost::shared_ptr<CarlaVehicle>> carlaVehicle(

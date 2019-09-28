@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <map>
+#include <string>
 #include <carla/geom/Transform.h>
 #include <conformal_lattice_planner/kn_path_gen.h>
 
@@ -123,6 +124,8 @@ public:
 
   virtual const CarlaTransform transformAt(const double s) const override;
 
+  std::string string(const std::string& prefix="") const;
+
 }; // End class ContinuousPath.
 
 /**
@@ -165,6 +168,8 @@ public:
   virtual const CarlaTransform transformAt(const double s) const override;
 
   virtual const std::vector<CarlaTransform> samples() const override;
+
+  std::string string(const std::string& prefix="") const;
 
 }; // End class DiscretePath.
 
