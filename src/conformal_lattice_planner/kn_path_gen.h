@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cassert>
 #include <Eigen/Dense>
-#include <jsoncpp/json/json.h>
+//#include <json/json.h>
 
 //using namespace Eigen;
 
@@ -23,7 +23,7 @@ class NonHolonomicPath {
    * arbitrary points along the curve.
    */
 
-public:
+ public:
 
   struct State {
     /**
@@ -56,7 +56,7 @@ public:
     }
   };
 
-public:
+ public:
   // Curvature Polynomial Coefficients
   double a{0.0};
   double b{0.0};
@@ -139,31 +139,31 @@ public:
     return result;
   }
 
-  /**
-   * Optimize the path with respect to the initial and final state constraints.
-   * @param x0 The initial state constraint.
-   * @param xf The final state constraint.
-   * @param iterations The maximum number of iterations.
-   */
-  void optimizePath(const State &x0, const State &xf, unsigned iterations = 60) {
-    NonHolonomicPath initial_guess = initialGuess(x0, xf);
-    a = initial_guess.a;
-    b = initial_guess.b;
-    c = initial_guess.c;
-    d = initial_guess.d;
-    sf = initial_guess.sf;
-
-    for (int i = 0; i < iterations; ++i) {
-      Eigen::Matrix4d J = boundaryConstraintJacobian(x0, xf);
-      Eigen::Vector4d g = boundaryConstraint(x0, xf);
-
-      Eigen::Vector4d dq = J.colPivHouseholderQr().solve(-g);
-      b += dq[0];
-      c += dq[1];
-      d += dq[2];
-      sf += dq[3];
-    }
-  }
+//  /**
+//   * Optimize the path with respect to the initial and final state constraints.
+//   * @param x0 The initial state constraint.
+//   * @param xf The final state constraint.
+//   * @param iterations The maximum number of iterations.
+//   */
+//  void optimizePath(const State &x0, const State &xf, unsigned iterations = 60) {
+//    NonHolonomicPath initial_guess = initialGuess(x0, xf);
+//    a = initial_guess.a;
+//    b = initial_guess.b;
+//    c = initial_guess.c;
+//    d = initial_guess.d;
+//    sf = initial_guess.sf;
+//
+//    for (int i = 0; i < iterations; ++i) {
+//      Eigen::Matrix4d J = boundaryConstraintJacobian(x0, xf);
+//      Eigen::Vector4d g = boundaryConstraint(x0, xf);
+//
+//      Eigen::Vector4d dq = J.colPivHouseholderQr().solve(-g);
+//      b += dq[0];
+//      c += dq[1];
+//      d += dq[2];
+//      sf += dq[3];
+//    }
+//  }
 
   /**
   * Optimize the path with respect to the initial and final state constraints, using
@@ -171,8 +171,11 @@ public:
   * @param x0 The initial state constraint.
   * @param xf The final state constraint.
   * @param iterations The maximum number of iterations.
+  * @return True if the optimization has converged.
   */
-  void optimizePathFast(const State &x0, const State &xf, unsigned iterations = 100) {
+  bool optimizePath(const State &x0, const State &xf, unsigned iterations = 100) {
+
+    bool result = true;
     NonHolonomicPath initial_guess = initialGuess(x0, xf);
     a = initial_guess.a;
     b = initial_guess.b;
@@ -182,7 +185,7 @@ public:
 
     using std::pow;
     for (int i = 0; i < iterations; ++i) {
-      Eigen::Vector4d old_path {b, c, d, sf};
+      Eigen::Vector4d old_path{b, c, d, sf};
 
       Eigen::Matrix4d J = boundaryConstraintJacobian(x0, xf);
       Eigen::Vector4d g = boundaryConstraint(x0, xf);
@@ -204,11 +207,17 @@ public:
       d = cd[1];
 
       // Check for Convergence
-      Eigen::Vector4d new_path {b, c, d, sf};
+      Eigen::Vector4d new_path{b, c, d, sf};
       if ((old_path - new_path).norm() < 1e-3) {
         break; // Tolerance
       }
     }
+    // If all iterations are complete and the endpoint is not close to the desired endpoint,
+    // the problem has diverged.
+    auto state = evaluate(x0, sf);
+    if ((xf.toVector() - state.toVector()).norm() > 1e-2)
+      result = false;
+    return result;
   }
  private:
 
@@ -255,7 +264,7 @@ public:
     jacobian.row(1) << C2 / 2, C3 / 3, C4 / 4, std::sin(theta_f);
 
     // dth/dq
-    jacobian.row(2) << pow(sf,2) / 2, pow(sf, 3) / 3, pow(sf, 4) / 4, kappa_f;
+    jacobian.row(2) << pow(sf, 2) / 2, pow(sf, 3) / 3, pow(sf, 4) / 4, kappa_f;
 
     // dk/dq
     jacobian.row(3) << sf, pow(sf, 2), pow(sf, 3), b + 2 * c * sf + 3 * d * pow(sf, 2);
@@ -324,7 +333,7 @@ public:
     Overloaded Output Streams for KN Path Classes.
  ****************/
 //std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath::State &s) {
-//  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa << ")\n";
+//  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa;
 //  return os;
 //}
 //
