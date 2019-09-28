@@ -238,6 +238,12 @@ public:
   /// Get the router used by the planner.
   boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
 
+  /// Get the nodes on the lattice, corresponding to the stations.
+  std::vector<boost::shared_ptr<const Station>> nodes() const;
+
+  /// Get the edges on the lattice, corresponding to the path.
+  std::vector<ContinuousPath> edges() const;
+
   virtual void plan(const std::pair<size_t, double> ego,
                     const std::unordered_map<size_t, double>& agents) override;
 

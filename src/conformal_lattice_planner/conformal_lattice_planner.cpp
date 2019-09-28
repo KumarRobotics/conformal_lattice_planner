@@ -102,6 +102,34 @@ ConformalLatticePlanner::ConformalLatticePlanner(
   return;
 }
 
+std::vector<boost::shared_ptr<const Station>>
+  ConformalLatticePlanner::nodes() const {
+
+  std::vector<boost::shared_ptr<const Station>> stations;
+  for (const auto& item : node_to_station_table_)
+    stations.push_back(item.second);
+
+  return stations;
+}
+
+std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
+
+  std::vector<ContinuousPath> paths;
+  for (const auto& item : node_to_station_table_) {
+    const boost::shared_ptr<const Station> station = item.second;
+
+    if (station->hasFrontChild())
+      paths.push_back(std::get<0>(*(station->frontChild())));
+
+    if (station->hasLeftChild())
+      paths.push_back(std::get<0>(*(station->leftChild())));
+
+    if (station->hasRightChild())
+      paths.push_back(std::get<0>(*(station->rightChild())));
+  }
+
+  return paths;
+}
 
 void ConformalLatticePlanner::plan(
     const std::pair<size_t, double> ego,
