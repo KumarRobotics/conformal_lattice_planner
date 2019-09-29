@@ -242,6 +242,8 @@ public:
    * \param[in] movement How much distance to shift the lattice forward.
    */
   void shift(const double movement) {
+    if (movement <= 0.0)
+      throw std::runtime_error("movement <= 0.0");
     const double range = this->range();
     extend(range + movement);
     shorten(range);

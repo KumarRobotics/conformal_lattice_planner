@@ -59,6 +59,8 @@ Lattice<Node, Router>::Lattice(
 template<typename Node, typename Router>
 Lattice<Node, Router>::Lattice(const Lattice<Node, Router>& other) :
   router_(other.router_),
+  lattice_entries_(other.lattice_entries_),
+  lattice_exits_(other.lattice_exits_),
   roadlane_to_waypoints_table_(other.roadlane_to_waypoints_table_),
   longitudinal_resolution_(other.longitudinal_resolution_) {
 
@@ -221,6 +223,8 @@ void Lattice<Node, Router>::extend(const double range) {
   // If the current range of the lattice exceeds the given range,
   // no operation is performed.
   if (this->range() >= range) return;
+  if (range <= 0.0)
+    throw std::runtime_error("range <= 0.0");
 
   // A queue of nodes to be explored.
   // The queue is started from the lattice exits.
@@ -248,6 +252,8 @@ void Lattice<Node, Router>::shorten(const double range) {
   // If the current lattice range is already smaller than the given range,
   // no operation is performed.
   if (this->range() <= range) return;
+  if (range <= 0.0)
+    throw std::runtime_error("range <= 0.0");
 
   // The distance before which nodes should be removed.
   const double safe_distance = this->range() - range;
