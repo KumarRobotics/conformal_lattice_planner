@@ -109,7 +109,14 @@ class NonHolonomicPath {
     x = simpsonsRule(cos_arr, s_arr);
     y = simpsonsRule(sin_arr, s_arr);
 
-    return {x, y, theta, kappa}; // Construct a State object to return the resulting waypoint.
+    // Transform to Global Frame
+    Eigen::Matrix3d R; // Homogenous Coordinates Transformation
+    R << std::cos(x0.theta) , -std::sin(x0.theta), x0.x, std::sin(x0.theta), std::cos(x0.theta), x0.y, 0, 0, 1;
+    Eigen::Vector3d x1 {x, y, 1};
+    Eigen::Vector3d x2 = R * x1;
+
+
+    return {x2[0], x2[1], unrollAngle(theta + x0.theta), kappa}; // Construct a State object to return the resulting waypoint.
   }
 
   /**
@@ -139,32 +146,6 @@ class NonHolonomicPath {
     return result;
   }
 
-//  /**
-//   * Optimize the path with respect to the initial and final state constraints.
-//   * @param x0 The initial state constraint.
-//   * @param xf The final state constraint.
-//   * @param iterations The maximum number of iterations.
-//   */
-//  void optimizePath(const State &x0, const State &xf, unsigned iterations = 60) {
-//    NonHolonomicPath initial_guess = initialGuess(x0, xf);
-//    a = initial_guess.a;
-//    b = initial_guess.b;
-//    c = initial_guess.c;
-//    d = initial_guess.d;
-//    sf = initial_guess.sf;
-//
-//    for (int i = 0; i < iterations; ++i) {
-//      Eigen::Matrix4d J = boundaryConstraintJacobian(x0, xf);
-//      Eigen::Vector4d g = boundaryConstraint(x0, xf);
-//
-//      Eigen::Vector4d dq = J.colPivHouseholderQr().solve(-g);
-//      b += dq[0];
-//      c += dq[1];
-//      d += dq[2];
-//      sf += dq[3];
-//    }
-//  }
-
   /**
   * Optimize the path with respect to the initial and final state constraints, using
    * the exact solution of linear constraints method for improved speed.
@@ -176,7 +157,16 @@ class NonHolonomicPath {
   bool optimizePath(const State &x0, const State &xf, unsigned iterations = 100) {
 
     bool result = true;
-    NonHolonomicPath initial_guess = initialGuess(x0, xf);
+
+    // Transform to Local Frame
+    Eigen::Matrix3d R; // Homogenous Coordinates Transformation
+    R << std::cos(x0.theta) , -std::sin(x0.theta), x0.x, std::sin(x0.theta), std::cos(x0.theta), x0.y, 0, 0, 1;
+    State x0_L {0.0, 0.0, 0.0, 0.0};
+    Eigen::Vector3d x1 {xf.x, xf.y, 1};
+    Eigen::Vector3d x2 = R.inverse() * x1;
+    State xf_L {x2[0], x2[1], unrollAngle(xf.theta - x0.theta), 0.0};
+
+    NonHolonomicPath initial_guess = initialGuess(x0_L, xf_L);
     a = initial_guess.a;
     b = initial_guess.b;
     c = initial_guess.c;
@@ -187,21 +177,21 @@ class NonHolonomicPath {
     for (int i = 0; i < iterations; ++i) {
       Eigen::Vector4d old_path{b, c, d, sf};
 
-      Eigen::Matrix4d J = boundaryConstraintJacobian(x0, xf);
-      Eigen::Vector4d g = boundaryConstraint(x0, xf);
+      Eigen::Matrix4d J = boundaryConstraintJacobian(x0_L, xf_L);
+      Eigen::Vector4d g = boundaryConstraint(x0_L, xf_L);
 
       Eigen::Vector4d dq = J.colPivHouseholderQr().solve(-g);
       b += dq[0];
       sf += dq[3];
-      //      c += dq[1];
-      //      d += dq[2];
+//            c += dq[1];
+//            d += dq[2];
 
       // Solve Linear Equations A_x = b_ to compute exact solutions for c, and d.
       Eigen::Matrix2d A_;
       A_ << pow(sf, 2), pow(sf, 3), pow(sf, 3) / 3, pow(sf, 4) / 4;
       Eigen::Vector2d b_;
-      b_ << xf.kappa - x0.kappa - b * sf,
-          xf.theta - x0.kappa * sf - b * pow(sf, 2) / 2;
+      b_ << xf_L.kappa - x0_L.kappa - b * sf,
+          xf_L.theta - x0_L.kappa * sf - b * pow(sf, 2) / 2;
       Eigen::Vector2d cd = A_.colPivHouseholderQr().solve(b_);
       c = cd[0];
       d = cd[1];
