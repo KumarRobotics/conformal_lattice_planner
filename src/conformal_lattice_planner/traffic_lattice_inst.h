@@ -458,11 +458,11 @@ bool TrafficLattice<Router>::moveTrafficForward(
     update_vehicles.insert(std::get<0>(item));
 
   if (existing_vehicles != update_vehicles) {
-    std::printf("existing vehicles: ");
-    for (const auto id : existing_vehicles) std::printf("%lu ", id);
-    std::printf("\n update vehicles: ");
-    for (const auto id : update_vehicles) std::printf("%lu ", id);
-    std::printf("\n");
+    //std::printf("existing vehicles: ");
+    //for (const auto id : existing_vehicles) std::printf("%lu ", id);
+    //std::printf("\n update vehicles: ");
+    //for (const auto id : update_vehicles) std::printf("%lu ", id);
+    //std::printf("\n");
     throw std::runtime_error("The vehicles to update do not match the exisiting vehicles");
   }
 
@@ -482,6 +482,11 @@ bool TrafficLattice<Router>::moveTrafficForward(
   // Modify the lattice to agree with the new start and range.
   boost::shared_ptr<Node> update_start_node = this->closestNode(
       update_start, this->longitudinal_resolution_);
+  //std::cout << "updated range: " << update_range << std::endl;
+  //std::cout << "current range: " << this->range() << std::endl;
+  //std::cout << "start node distance: " << update_start_node->distance() << std::endl;
+  if (!update_start_node)
+    throw std::runtime_error("All vehicles moves outside the old lattice.");
   this->shorten(this->range()-update_start_node->distance());
   this->extend(update_range);
 
