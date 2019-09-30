@@ -95,6 +95,7 @@ public:
     output += ego_.string("ego ");
     for (const auto& agent : agents_)
       output += agent.second.string("agent ");
+    output += "waypoint lattice range: " + std::to_string(traffic_lattice_->range()) + "\n";
     return output;
   }
 

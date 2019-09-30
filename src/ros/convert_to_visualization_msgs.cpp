@@ -654,9 +654,9 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
     path_msg->lifetime = ros::Duration(0.0);
     path_msg->frame_locked = false;
     path_msg->pose.orientation.w = 1.0;
-    path_msg->scale.x = 2.0;
-    path_msg->scale.y = 2.0;
-    path_msg->scale.z = 2.0;
+    path_msg->scale.x = 0.5;
+    path_msg->scale.y = 0.5;
+    path_msg->scale.z = 0.5;
     path_msg->color = path_color;
 
     std::vector<CarlaTransform> transforms = path.samples();
@@ -685,11 +685,11 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
       path_msg->action = visualization_msgs::Marker::DELETE;
       path_msg->lifetime = ros::Duration(0.0);
       path_msg->frame_locked = false;
-      path_msg->pose.orientation.w = 1.0;
-      path_msg->scale.x = 2.0;
-      path_msg->scale.y = 2.0;
-      path_msg->scale.z = 2.0;
-      path_msg->color = path_color;
+      //path_msg->pose.orientation.w = 1.0;
+      //path_msg->scale.x = 1.0;
+      //path_msg->scale.y = 1.0;
+      //path_msg->scale.z = 1.0;
+      //path_msg->color = path_color;
       paths_msg->markers.push_back(*path_msg);
     }
   }

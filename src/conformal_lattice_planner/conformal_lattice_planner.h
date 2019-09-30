@@ -18,6 +18,7 @@
 
 #include <tuple>
 #include <queue>
+#include <string>
 #include <unordered_map>
 #include <boost/optional.hpp>
 #include <boost/core/noncopyable.hpp>
@@ -172,6 +173,8 @@ public:
                         const double stage_cost,
                         const boost::shared_ptr<Station>& child_station);
 
+  std::string string(const std::string& prefix = "") const;
+
 protected:
 
   /// Update the optimal parent station, which has the minimum cost-to-come.
@@ -218,7 +221,8 @@ public:
       const double time_step,
       const size_t ego,
       const double plan_horizon,
-      const boost::shared_ptr<router::LoopRouter>& router);
+      const boost::shared_ptr<router::LoopRouter>& router,
+      const boost::shared_ptr<CarlaWorld>& world);
 
   /// Destructor of the class.
   virtual ~ConformalLatticePlanner() {}

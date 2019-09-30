@@ -122,6 +122,14 @@ bool Snapshot::updateTraffic(
   for (const auto& agent : agents_)
     vehicles.push_back(agent.second.tuple());
 
+  //for (const auto& vehicle : vehicles) {
+  //  std::printf("id:%lu x:%f y:%f z:%f\n",
+  //      std::get<0>(vehicle),
+  //      std::get<1>(vehicle).location.x,
+  //      std::get<1>(vehicle).location.y,
+  //      std::get<1>(vehicle).location.z);
+  //}
+
   std::unordered_set<size_t> disappear_vehicles;
   const bool no_collision = traffic_lattice_->moveTrafficForward(vehicles, disappear_vehicles);
 

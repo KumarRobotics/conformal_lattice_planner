@@ -135,6 +135,8 @@ const bool TrafficSimulator::simulate(
     const Path& path, const double default_dt, const double max_time,
     double& time, double& cost) {
 
+  std::printf("simulate(): \n");
+
   time = 0.0;
   // TODO: Add the cost function later.
   cost = 0.0;
@@ -158,8 +160,14 @@ const bool TrafficSimulator::simulate(
     dt = dt <= remaining_time ? dt : remaining_time;
     dt = dt <= max_time-time  ? dt : max_time-time;
 
+    std::printf("============================================\n");
+    std::printf("time: %f dt: %f\n", time, dt);
+    std::cout << snapshot_.string("simulation snapshot:\n");
+
     // Update the distance of the ego on the path.
     ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
+    if (ego_distance > path.range()) ego_distance = path.range();
+    std::printf("ego distance: %f\n", ego_distance);
 
     // Store the updated status of the ego.
     updated_tuples.push_back(std::make_tuple(

@@ -222,7 +222,7 @@ public:
    * \param[in] range The new range of the lattice. If this is less than
    *                  the current range, no operation is performed.
    */
-  void extend(const double range);
+  void extend(double range);
 
   /**
    * \brief Shorten the range of the current lattice.
@@ -232,7 +232,7 @@ public:
    * \param[in] range The new range of the lattice. If this is more than
    *                  the current range, no operation is performed.
    */
-  void shorten(const double range);
+  void shorten(double range);
 
   /**
    * \brief Shift the lattice forward by some distance.

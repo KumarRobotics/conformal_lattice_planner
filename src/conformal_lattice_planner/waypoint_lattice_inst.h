@@ -218,13 +218,15 @@ double Lattice<Node, Router>::range() const {
 }
 
 template<typename Node, typename Router>
-void Lattice<Node, Router>::extend(const double range) {
+void Lattice<Node, Router>::extend(double range) {
+
+  if (range <= 0.0)
+    throw std::runtime_error("range <= 0.0");
 
   // If the current range of the lattice exceeds the given range,
   // no operation is performed.
+  range = std::ceil(range);
   if (this->range() >= range) return;
-  if (range <= 0.0)
-    throw std::runtime_error("range <= 0.0");
 
   // A queue of nodes to be explored.
   // The queue is started from the lattice exits.
@@ -248,12 +250,15 @@ void Lattice<Node, Router>::extend(const double range) {
 }
 
 template<typename Node, typename Router>
-void Lattice<Node, Router>::shorten(const double range) {
+void Lattice<Node, Router>::shorten(double range) {
+
+  if (range < 0.0)
+    throw std::runtime_error("range < 0.0");
+
   // If the current lattice range is already smaller than the given range,
   // no operation is performed.
+  range = std::ceil(range);
   if (this->range() <= range) return;
-  if (range <= 0.0)
-    throw std::runtime_error("range <= 0.0");
 
   // The distance before which nodes should be removed.
   const double safe_distance = this->range() - range;
@@ -722,8 +727,6 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
   // Otherwise, we have to do a bit more work.
   // Compare the given waypoint with the waypoints on the same road+lane.
   // Find the closest waypoint node on the same road+lane.
-  //const size_t roadlane_id = hashRoadLaneIds(
-  //    waypoint->GetRoadId(), waypoint->GetLaneId());
   size_t roadlane_id = 0;
   utils::hashCombine(roadlane_id, waypoint->GetRoadId(), waypoint->GetLaneId());
 
@@ -750,11 +753,31 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
 
     // Check if the closest distance is within the tolerance.
     if (closest_distance <= tolerance) return closest_node;
-    else return nullptr;
+    //else return nullptr;
   }
 
-  // If we still cannot find anything, return nullptr.
-  return nullptr;
+  // Now, we really have to pull out the big gun, searching through all
+  // nodes on the lattice in order to find the closest node.
+  double closest_distance = std::numeric_limits<double>::max();
+  boost::shared_ptr<Node> closest_node = nullptr;
+
+  for (const auto& item : waypoint_to_node_table_) {
+
+    const double distance = (
+        item.second->waypoint()->GetTransform().location -
+        waypoint->GetTransform().location).Length();
+
+    if (distance < closest_distance) {
+      closest_distance = distance;
+      closest_node = item.second;
+    }
+  }
+
+  std::printf("closest distance:%f tolerance:%f\n", closest_distance, tolerance);
+
+  if (closest_distance < tolerance) return closest_node;
+  else return nullptr;
+  //return nullptr;
 }
 
 } // End namespace planner.

@@ -19,7 +19,7 @@
   </include>
 
   <!-- Ego vehicle planner -->
-  <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
+  <include file="$(find conformal_lattice_planner)/launch/ego_conformal_lattice_planning.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>

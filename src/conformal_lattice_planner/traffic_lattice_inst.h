@@ -359,8 +359,9 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
 
   // If we can not add the whole vehicle onto the lattice, we won't add it.
   if (!head_node || !rear_node || !mid_node) {
-    //if (!head_node) std::printf("Cannot find vehicle head\n");
-    //if (!rear_node) std::printf("Cannot find vehicle rear\n");
+    if (!head_node) std::printf("Cannot find vehicle head.\n");
+    if (!rear_node) std::printf("Cannot find vehicle rear.\n");
+    if (!mid_node)  std::printf("Cannot find vehicle mid.\n");
     return 0;
   }
 
