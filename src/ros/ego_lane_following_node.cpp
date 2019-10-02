@@ -17,8 +17,12 @@
 #include <string>
 #include <chrono>
 #include <unordered_set>
-#include <boost/timer/timer.hpp>
+
+#include <conformal_lattice_planner/vehicle_path.h>
+#include <conformal_lattice_planner/vehicle_speed_planner.h>
+#include <conformal_lattice_planner/lane_follower.h>
 #include <ros/ego_lane_following_node.h>
+#include <ros/convert_to_visualization_msgs.h>
 
 using namespace planner;
 using namespace router;
@@ -27,6 +31,10 @@ namespace carla {
 
 bool EgoLaneFollowingNode::initialize() {
 
+  // Create publishers and subscribers.
+  path_pub_ = nh_.advertise<visualization_msgs::Marker>("ego_path", 1, true);
+
+  // Load parameters.
   bool all_param_exist = true;
 
   std::string host = "localhost";
@@ -39,12 +47,6 @@ bool EgoLaneFollowingNode::initialize() {
   client_ = boost::make_shared<CarlaClient>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
-
-  // Initialize the planner.
-  ROS_INFO_NAMED("ego_lane_following_planner", "initialize lane following planner.");
-  double fixed_delta_seconds = 0.05;
-  all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
-  planner_ = boost::make_shared<LaneFollower>(fixed_delta_seconds);
 
   // Start the action server.
   ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
@@ -59,36 +61,44 @@ void EgoLaneFollowingNode::executeCallback(
 
   ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
 
-  // Get the ego policy.
-  const std::pair<size_t, double> ego_policy = egoPolicy(goal);
+  // Update the carla world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
 
-  // Get the agents IDs.
-  // Do not need the desired speed for them.
+  // Get the ego and agent policies.
+  const std::pair<size_t, double> ego_policy = egoPolicy(goal);
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
-  // Update the world for the planner.
-  boost::shared_ptr<CarlaWorld> world =
-    boost::make_shared<CarlaWorld>(client_->GetWorld());
-  planner_->updateWorld(world);
+  // Create the current snapshot.
+  boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
 
-  // Update the router for the planner.
-  // FIXME: Not really need to do this now.
-  planner_->updateRouter(LoopRouter());
+  // Plan path.
+  // The range of the lattice is just enough for the ego vehicle.
+  boost::shared_ptr<LaneFollower> path_planner =
+    boost::make_shared<LaneFollower>(
+      map_, carlaVehicleWaypoint(ego_policy.first), 55.0, router_);
+  const ContinuousPath ego_path =
+    path_planner->plan<ContinuousPath>(ego_policy.first, *snapshot);
 
-  // Update the traffic lattice for the planner.
-  std::unordered_set<size_t> all_ids;
-  all_ids.insert(ego_policy.first);
-  for (const auto& agent : agent_policies) all_ids.insert(agent.first);
-  //boost::timer::cpu_timer timer;
-  planner_->updateTrafficLattice(all_ids);
-  //std::cout << "updateTrafficLattice() : " << timer.format();
-  //timer.stop();
+  // Plan speed.
+  boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
+    boost::make_shared<VehicleSpeedPlanner>();
+  const double ego_accel = speed_planner->plan(ego_policy.first, *snapshot);
 
-  if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
-    ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");
+  // Update the ego vehicle in the simulator.
+  double dt = 0.05;
+  nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
-  // Plan for the ego vehicle.
-  planner_->plan(ego_policy, agent_policies);
+  const double movement = snapshot->ego().speed()*dt + 0.5*ego_accel*dt*dt;
+  const CarlaTransform updated_transform = ego_path.transformAt(movement);
+  const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
+
+  boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);
+  ego_vehicle->SetTransform(updated_transform);
+  ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
+
+  // Publish the path planned for the ego.
+  path_pub_.publish(createEgoPathMsg(ego_path));
 
   // Inform the client the result of plan.
   conformal_lattice_planner::EgoPlanResult result;

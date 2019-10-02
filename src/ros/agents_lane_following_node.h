@@ -16,37 +16,43 @@
 
 #pragma once
 
-#include <conformal_lattice_planner/lane_follower.h>
-#include <ros/agents_planning_node.h>
+#include <actionlib/server/simple_action_server.h>
+#include <ros/planning_node.h>
+#include <conformal_lattice_planner/AgentPlanAction.h>
 
 namespace carla {
 
-class AgentsLaneFollowingNode : public AgentsPlanningNode {
-
-public:
-
-  using Ptr = boost::shared_ptr<AgentsLaneFollowingNode>;
-  using ConstPtr = boost::shared_ptr<AgentsLaneFollowingNode>;
+class AgentsLaneFollowingNode : public PlanningNode {
 
 private:
 
-  using Base = AgentsPlanningNode;
+  using Base = PlanningNode;
   using This = AgentsLaneFollowingNode;
-
-protected:
-
-  boost::shared_ptr<planner::LaneFollower> planner_ = nullptr;
 
 public:
 
-  AgentsLaneFollowingNode(ros::NodeHandle& nh) : Base(nh) {}
+  using Ptr = boost::shared_ptr<This>;
+  using ConstPtr = boost::shared_ptr<const This>;
+
+protected:
+
+  mutable actionlib::SimpleActionServer<
+    conformal_lattice_planner::AgentPlanAction> server_;
+
+public:
+
+  AgentsLaneFollowingNode(ros::NodeHandle& nh) :
+    Base(nh),
+    server_(nh, "agents_plan", boost::bind(&AgentsLaneFollowingNode::executeCallback, this, _1), false) {}
+
+  virtual ~AgentsLaneFollowingNode() {}
 
   virtual bool initialize() override;
 
 protected:
 
   virtual void executeCallback(
-      const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) override;
+      const conformal_lattice_planner::AgentPlanGoalConstPtr& goal);
 
 }; // End class AgentsLaneFollowingNode.
 

@@ -15,9 +15,14 @@
  */
 
 #include <string>
+#include <vector>
 #include <chrono>
 #include <unordered_set>
+
+#include <conformal_lattice_planner/vehicle_path.h>
 #include <ros/agents_lane_following_node.h>
+#include <conformal_lattice_planner/vehicle_speed_planner.h>
+#include <conformal_lattice_planner/lane_follower.h>
 
 using namespace router;
 using namespace planner;
@@ -39,12 +44,6 @@ bool AgentsLaneFollowingNode::initialize() {
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
-  // Initialize the planner.
-  ROS_INFO_NAMED("agents_lane_following_planner", "initialize lane following planner.");
-  double fixed_delta_seconds = 0.05;
-  all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
-  planner_ = boost::make_shared<LaneFollower>(fixed_delta_seconds);
-
   // Start the action server.
   ROS_INFO_NAMED("agents_lane_following_planner", "start action server.");
   server_.start();
@@ -55,40 +54,65 @@ bool AgentsLaneFollowingNode::initialize() {
 
 void AgentsLaneFollowingNode::executeCallback(
     const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) {
+
   ROS_INFO_NAMED("agents_lane_following_planner", "executeCallback()");
 
-  // Get the ego ID.
+  // Update the carla world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
+
+  // Get the ego and agent policies.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
+  std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
-  // Get the agents IDs.
-  const std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
+  // Create the current snapshot.
+  std::printf("Create snapshot.\n");
+  boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
 
-  // Update the world for the planner.
-  SharedPtr<CarlaWorld> world = boost::make_shared<CarlaWorld>(client_->GetWorld());
-  planner_->updateWorld(world);
+  // Create Path planner.
+  std::printf("Create path planner.\n");
+  std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
+    traffic_lattice_entries = snapshot->trafficLattice()->latticeEntries();
 
-  // Update the router for the planner.
-  // FIXME: Not really need to do this now.
-  planner_->updateRouter(LoopRouter());
+  const double range = snapshot->trafficLattice()->range() + 55.0;
+  boost::shared_ptr<const CarlaWaypoint> waypoint = nullptr;
+  for (const auto& node : traffic_lattice_entries) {
+    if (node->distance() != 0.0) continue;
+    waypoint = node->waypoint();
+    std::printf("waypoint lattice start road id: %u\n", waypoint->GetRoadId());
+    break;
+  }
 
-  // Update the traffic lattice for the planner.
-  std::unordered_set<size_t> all_ids;
-  all_ids.insert(ego_policy.first);
-  for (const auto& agent : agent_policies) all_ids.insert(agent.first);
+  if (!waypoint) throw std::runtime_error("No node with distance 0.");
 
-  planner_->updateTrafficLattice(all_ids);
+  boost::shared_ptr<LaneFollower> path_planner =
+    boost::make_shared<LaneFollower>(map_, waypoint, range, router_);
 
-  //if (planner_->trafficLattice()->vehicles().size() < all_ids.size())
-  //  ROS_WARN_NAMED("ego_lane_following_planner", "missing vehicle.");
+  // Create speed planner.
+  std::printf("Create speed planner.\n");
+  boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
+    boost::make_shared<VehicleSpeedPlanner>();
 
-  // Plan for every agent vehicle.
-  std::unordered_map<size_t, double> all_policies = agent_policies;
-  all_policies[ego_policy.first] = ego_policy.second;
+  double dt = 0.05;
+  nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
-  for (const auto& policy : agent_policies) {
-    all_policies.erase(policy.first);
-    planner_->plan(policy, all_policies);
-    all_policies.insert(policy);
+  std::printf("Start plan for agents.\n");
+  for (const auto& item : snapshot->agents()) {
+    const Vehicle& agent = item.second;
+    std::printf("agent: %lu\n", agent.id());
+    std::printf("plan path.\n");
+    const ContinuousPath path = path_planner->plan<ContinuousPath>(agent.id(), *snapshot);
+    std::printf("plan speed.\n");
+    const double accel = speed_planner->plan(agent.id(), *snapshot);
+
+    const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
+    const CarlaTransform updated_transform = path.transformAt(movement);
+    const double updated_speed = agent.speed() + accel*dt;
+    std::printf("plan finished.\n");
+
+    boost::shared_ptr<CarlaVehicle> vehicle = carlaVehicle(agent.id());
+    vehicle->SetTransform(updated_transform);
+    vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
   }
 
   // Inform the client the result of plan.

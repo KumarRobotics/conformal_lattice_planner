@@ -16,17 +16,17 @@
 
 #pragma once
 
-#include <ros/ego_planning_node.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/lane_follower.h>
+#include <actionlib/server/simple_action_server.h>
+#include <ros/planning_node.h>
+#include <conformal_lattice_planner/EgoPlanAction.h>
 
 namespace carla {
 
-class EgoLaneFollowingNode : public EgoPlanningNode {
+class EgoLaneFollowingNode : public PlanningNode {
 
 private:
 
-  using Base = EgoPlanningNode;
+  using Base = PlanningNode;
   using This = EgoLaneFollowingNode;
 
 public:
@@ -36,11 +36,15 @@ public:
 
 protected:
 
-  boost::shared_ptr<planner::LaneFollower> planner_ = nullptr;
+  mutable ros::Publisher path_pub_;
+  mutable actionlib::SimpleActionServer<
+    conformal_lattice_planner::EgoPlanAction> server_;
 
 public:
 
-  EgoLaneFollowingNode(ros::NodeHandle& nh) : Base(nh) {}
+  EgoLaneFollowingNode(ros::NodeHandle& nh) :
+    Base(nh),
+    server_(nh, "ego_plan", boost::bind(&EgoLaneFollowingNode::executeCallback, this, _1), false) {}
 
   virtual ~EgoLaneFollowingNode() {}
 
@@ -49,7 +53,7 @@ public:
 protected:
 
   virtual void executeCallback(
-      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) override;
+      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
 
 }; // End class EgoLaneFollowingNode.
 

@@ -92,9 +92,14 @@ ContinuousPath::ContinuousPath(
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
+  //std::printf("start tranform: x:%f y:%f yaw:%f\n",
+  //    start_.location.x, start_.location.y, start_.rotation.yaw);
+  //std::printf("end tranform: x:%f y:%f yaw:%f\n\n",
+  //    end_.location.x, end_.location.y, end_.rotation.yaw);
+
   //std::printf("start x:%f y:%f theta:%f kappa:%f\n",
   //    start_state.x, start_state.y, start_state.theta, start_state.kappa);
-  //std::printf("end   x:%f y:%f theta:%f kappa:%f\n",
+  //std::printf("end x:%f y:%f theta:%f kappa:%f\n",
   //    end_state.x, end_state.y, end_state.theta, end_state.kappa);
 
   const bool success = path_.optimizePath(start_state, end_state);

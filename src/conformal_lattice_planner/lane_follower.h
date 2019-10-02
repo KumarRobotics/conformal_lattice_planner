@@ -17,97 +17,125 @@
 #pragma once
 
 #include <boost/core/noncopyable.hpp>
-#include <conformal_lattice_planner/vehicle_planner.h>
-#include <conformal_lattice_planner/intelligent_driver_model.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/traffic_lattice.h>
+#include <conformal_lattice_planner/waypoint_lattice.h>
+#include <conformal_lattice_planner/vehicle_path.h>
+#include <conformal_lattice_planner/vehicle_path_planner.h>
 
 namespace planner {
 
 /**
- * \brief LaneFollower is supposed to control the target vehicle to follow
- *        the route defined by a router.
- *
- * The LaneFollower planner will adjust the speed of the target vehicle,
- * ensuring it won't collide with the vehicle at its front.
- *
- * To invoid the plan() interface, one should call updateWorld() and then
- * updateTrafficLattice() to make sure the planner will function correctly.
- *
- * \note The objects of this class are noncopyable, since two objects should not
- * share the same TrafficLattice.
+ * \brief LaneFollower is supposed to control the target vehicle to follow a predefine route.
  */
-class LaneFollower : public VehiclePlanner,
+class LaneFollower : public VehiclePathPlanner,
                      private boost::noncopyable {
 
 private:
 
-  using Base = VehiclePlanner;
+  using Base = VehiclePathPlanner;
+  using This = LaneFollower;
 
 protected:
 
-  /// Used to generate acceleration for a target vehicle.
-  boost::shared_ptr<IntelligentDriverModel> idm_ = nullptr;
+  using CarlaWaypoint = carla::client::Waypoint;
 
-  /// Used to organize the traffic.
-  boost::shared_ptr<TrafficLattice<router::LoopRouter>> traffic_lattice_ = nullptr;
+protected:
 
-  /// Used to determine the roads and lanes to follow.
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+  // Used to find the waypoint on the same lane.
+  boost::shared_ptr<WaypointLattice<router::LoopRouter>> waypoint_lattice_ = nullptr;
 
 public:
 
   /**
    * \brief Class constructor.
    *
-   * The constructor will use the default IntelligentDriverModel constructor.
-   *
-   * \param[in] time_step The fixed time step of the simulator.
+   * \param[in] map The carla map pointer.
+   * \param[in] lattice_start The start waypoint of the lattice.
+   * \param[in] lattice_range The range of the lattice.
+   * \param[in] router The router to be used in creating the waypoint lattice.
    */
-  LaneFollower(const double time_step) :
-    Base(time_step),
-    idm_(boost::make_shared<IntelligentDriverModel>()),
-    router_(boost::make_shared<router::LoopRouter>()) {}
+  LaneFollower(const boost::shared_ptr<CarlaMap>& map,
+               const boost::shared_ptr<const CarlaWaypoint>& lattice_start,
+               const double lattice_range,
+               const boost::shared_ptr<router::LoopRouter>& router) :
+    Base(map),
+    waypoint_lattice_(boost::make_shared<WaypointLattice<router::LoopRouter>>(
+          lattice_start, lattice_range, 5.0, router)) {}
 
-  /// Update the IDM.
-  void updateIDM(const IntelligentDriverModel& idm) {
-    idm_ = boost::make_shared<IntelligentDriverModel>(idm);
-    return;
+  /// Get the waypoint lattice maintained in the object.
+  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypointLattice() const {
+    return waypoint_lattice_;
   }
 
-  /// Update the IDM.
-  void updateIDM(const boost::shared_ptr<const IntelligentDriverModel>& idm) {
-    updateIDM(*idm);
-    return;
-  }
-
-  /// Update the router.
-  void updateRouter(const router::LoopRouter& router) {
-    router_ = boost::make_shared<router::LoopRouter>(router);
-    return;
-  }
-
-  /// Update the router.
-  void updateRouter(const boost::shared_ptr<const router::LoopRouter>& router) {
-    updateRouter(*router);
-    return;
-  }
-
-  /// Get the const TrafficLattice.
-  boost::shared_ptr<const TrafficLattice<router::LoopRouter>> trafficLattice() const {
-    return traffic_lattice_;
+  /// Get or set the waypoint lattice maintained in the object.
+  boost::shared_ptr<WaypointLattice<router::LoopRouter>>& waypointLattice() {
+    return waypoint_lattice_;
   }
 
   /**
-   * \brief Update the traffic lattice.
-   * \param[in] vehicles IDs of all vehicles to be considered when planning for
-   *                     the target vehicle.
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] target The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \return The planned path.
    */
-  void updateTrafficLattice(const std::unordered_set<size_t>& vehicles);
+  template<typename Path>
+  Path plan(const size_t target, const Snapshot& snapshot);
 
-  void plan(const std::pair<size_t, double> target,
-                    const std::unordered_map<size_t, double>& others) override;
+  /**
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] target The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \param[out] path The planned path.
+   */
+  template<typename Path>
+  void plan(const size_t target, const Snapshot& snapshot, Path& path) {
+    path = plan<Path>(target, snapshot);
+    return;
+  }
 };
+
+template<typename Path>
+Path LaneFollower::plan(const size_t target, const Snapshot& snapshot) {
+
+  // Get the target vehicle and its waypoint.
+  const Vehicle target_vehicle = snapshot.vehicle(target);
+
+  const boost::shared_ptr<CarlaWaypoint> target_waypoint =
+    map_->GetWaypoint(target_vehicle.transform().location);
+
+  // Waypoint lattice is created if not available.
+  if (!waypoint_lattice_)
+    throw std::runtime_error("The waypoint lattice is not available.\n");
+
+  // Find the waypoint 50m ahead of the current postion of the target vehicle.
+  const boost::shared_ptr<const WaypointNode> front_node =
+    waypoint_lattice_->front(target_waypoint, 50.0);
+  boost::shared_ptr<const CarlaWaypoint> front_waypoint = nullptr;
+
+  if (!front_node) {
+    if (target_vehicle.id() == snapshot.ego().id()) {
+      // If there is no front node for the ego, there must be something else wrong.
+      // The ego should be always follow the route.
+      throw std::runtime_error("Ego vehicle can no longer keep the current lane.");
+    } else {
+      // If there is no front node for an agent vehicle. We may just find its next
+      // accessible waypoint with some distance.
+      std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
+        target_waypoint->GetNext(10.0);
+      if (front_waypoints.size() <= 0)
+        throw std::runtime_error("The agent vehicle cannot proceed further.");
+      front_waypoint = front_waypoints[0];
+    }
+  } else {
+    front_waypoint = front_node->waypoint();
+  }
+
+  // Generate the path.
+  return Path(target_waypoint->GetTransform(),
+              front_waypoint->GetTransform(),
+              VehiclePath::LaneChangeType::KeepLane);
+}
 
 } // End namespace planner.
 
