@@ -75,6 +75,15 @@ Vehicle& Snapshot::agent(const size_t id) {
   return iter->second;
 }
 
+const Vehicle& Snapshot::vehicle(const size_t id) const {
+  if (id == ego_.id()) return ego_;
+  else return agent(id);
+}
+
+Vehicle& Snapshot::vehicle(const size_t id) {
+  if (id == ego_.id()) return ego_;
+  else return agent(id);
+}
 
 bool Snapshot::updateTraffic(
     const std::vector<std::tuple<size_t, CarlaTransform, double, double>>& updates) {

@@ -80,6 +80,9 @@ public:
   const Vehicle& agent(const size_t id) const;
   Vehicle& agent(const size_t id);
 
+  const Vehicle& vehicle(const size_t id) const;
+  Vehicle& vehicle(const size_t id);
+
   const boost::shared_ptr<const TrafficLattice<router::LoopRouter>>
     trafficLattice() const { return traffic_lattice_; }
   const boost::shared_ptr<TrafficLattice<router::LoopRouter>>
