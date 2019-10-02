@@ -37,7 +37,8 @@
 #include <conformal_lattice_planner/waypoint_lattice.h>
 #include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/traffic_manager.h>
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <conformal_lattice_planner/utils.h>
+//#include <conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace carla {
 
@@ -71,7 +72,55 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
 visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
     const boost::shared_ptr<const planner::TrafficManager<router::LoopRouter>>&);
 
-visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
+template<typename Path>
+void populatePathMsg(const Path& path, const visualization_msgs::MarkerPtr& path_msg) {
+
+  std::vector<carla::geom::Transform> transforms = path.samples();
+
+  for (auto& transform : transforms) {
+    utils::convertTransformInPlace(transform);
+    geometry_msgs::Point pt;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
+
+    path_msg->points.push_back(pt);
+    path_msg->colors.push_back(path_msg->color);
+  }
+
+  return;
+}
+
+template<typename Path>
+visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
+
+  visualization_msgs::MarkerPtr path_msg(new visualization_msgs::Marker);
+
+  std_msgs::ColorRGBA path_color;
+  path_color.r = 0.3;
+  path_color.g = 0.6;
+  path_color.b = 1.0;
+  path_color.a = 1.0;
+
+  path_msg->header.stamp = ros::Time::now();
+  path_msg->header.frame_id = "map";
+  path_msg->ns = "ego_path";
+  path_msg->id = 0;
+  path_msg->type = visualization_msgs::Marker::LINE_STRIP;
+  path_msg->action = visualization_msgs::Marker::ADD;
+  path_msg->lifetime = ros::Duration(0.0);
+  path_msg->frame_locked = false;
+  path_msg->pose.orientation.w = 1.0;
+  path_msg->scale.x = 2.0;
+  path_msg->scale.y = 2.0;
+  path_msg->scale.z = 2.0;
+  path_msg->color = path_color;
+
+  populatePathMsg(path, path_msg);
+  return path_msg;
+}
+
+//visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+//    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
 
 } // End namespace carla.
