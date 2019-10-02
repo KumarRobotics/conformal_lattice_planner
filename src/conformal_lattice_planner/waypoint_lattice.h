@@ -58,7 +58,7 @@ protected:
 protected:
 
   /// Carla waypoint of this node.
-  boost::shared_ptr<CarlaWaypoint> waypoint_ = nullptr;
+  boost::shared_ptr<const CarlaWaypoint> waypoint_ = nullptr;
 
   /**
    * The distance of this waypoint in the lattice.
@@ -77,7 +77,7 @@ public:
    * \brief Construct a node with a carla waypoint.
    * \param[in] waypoint A carla waypoint at which a node should be created.
    */
-  WaypointNode(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
+  WaypointNode(const boost::shared_ptr<const CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
   /// Get the ID of the underlying waypoint, which can also be used as the
@@ -87,7 +87,7 @@ public:
   }
 
   /// Get or set the pointer to the carla waypoint of the node.
-  boost::shared_ptr<CarlaWaypoint>& waypoint() {
+  boost::shared_ptr<const CarlaWaypoint>& waypoint() {
     return waypoint_;
   }
 
@@ -165,7 +165,7 @@ public:
    *            The distance between two consecutive nodes of the lattice on the same lane.
    * \param[in] router Used to tell roads and waypoints.
    */
-  Lattice(const boost::shared_ptr<CarlaWaypoint>& start,
+  Lattice(const boost::shared_ptr<const CarlaWaypoint>& start,
           const double range,
           const double longitudinal_resolution,
           const boost::shared_ptr<Router>& router);
@@ -242,8 +242,6 @@ public:
    * \param[in] movement How much distance to shift the lattice forward.
    */
   void shift(const double movement) {
-    if (movement <= 0.0)
-      throw std::runtime_error("movement <= 0.0");
     const double range = this->range();
     extend(range + movement);
     shorten(range);

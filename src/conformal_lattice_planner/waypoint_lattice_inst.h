@@ -29,7 +29,7 @@ namespace planner {
 
 template<typename Node, typename Router>
 Lattice<Node, Router>::Lattice(
-    const boost::shared_ptr<CarlaWaypoint>& start,
+    const boost::shared_ptr<const CarlaWaypoint>& start,
     const double range,
     const double longitudinal_resolution,
     const boost::shared_ptr<Router>& router) :
@@ -773,7 +773,7 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
     }
   }
 
-  std::printf("closest distance:%f tolerance:%f\n", closest_distance, tolerance);
+  //std::printf("closest distance:%f tolerance:%f\n", closest_distance, tolerance);
 
   if (closest_distance < tolerance) return closest_node;
   else return nullptr;
