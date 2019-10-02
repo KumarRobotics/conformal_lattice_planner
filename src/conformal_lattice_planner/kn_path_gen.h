@@ -205,8 +205,12 @@ class NonHolonomicPath {
     // If all iterations are complete and the endpoint is not close to the desired endpoint,
     // the problem has diverged.
     auto state = evaluate(x0, sf);
-    if ((xf.toVector() - state.toVector()).norm() > 1e-2)
-      result = false;
+    Eigen::Vector4d state_diff(xf.x - state.x,
+                               xf.y - state.y,
+                               shortestAngle(xf.theta, state.theta),
+                               xf.kappa - state.kappa);
+    if (state_diff.norm() > 1e-2) result = false;
+
     return result;
   }
  private:
@@ -313,7 +317,8 @@ class NonHolonomicPath {
    * @return The value when restricted to [-pi, pi].
    */
   static double unrollAngle(double angle) {
-    return std::fmod(angle + M_PI, (2 * M_PI)) - M_PI;
+    //return std::fmod(angle + M_PI, (2 * M_PI)) - M_PI;
+    return std::remainder(angle, 2.0*M_PI);
   }
 };
 
@@ -322,19 +327,19 @@ class NonHolonomicPath {
 /****************
     Overloaded Output Streams for KN Path Classes.
  ****************/
-//std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath::State &s) {
-//  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa;
-//  return os;
-//}
-//
-//std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath &p) {
-//  os << "NonHolonomicPath (a=" << p.a
-//     << ", b=" << p.b
-//     << ", c=" << p.c
-//     << ", d=" << p.d
-//     << ", sf=" << p.sf
-//     << ")";
-//  return os;
-//}
+inline std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath::State &s) {
+  os << "State (x=" << s.x << ", y=" << s.y << ", theta=" << s.theta << ", kappa=" << s.kappa;
+  return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const planner::NonHolonomicPath &p) {
+  os << "NonHolonomicPath (a=" << p.a
+     << ", b=" << p.b
+     << ", c=" << p.c
+     << ", d=" << p.d
+     << ", sf=" << p.sf
+     << ")";
+  return os;
+}
 
 #endif //KN_PATH_GEN_KN_PATH_GEN_H
