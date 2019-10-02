@@ -41,7 +41,7 @@ protected:
 protected:
 
   /// Carla waypoint of this node.
-  boost::shared_ptr<CarlaWaypoint> waypoint_ = nullptr;
+  boost::shared_ptr<const CarlaWaypoint> waypoint_ = nullptr;
 
   /**
    * The distance of this waypoint in the lattice.
@@ -63,7 +63,7 @@ public:
    * \brief Construct a node with a carla waypoint.
    * \param[in] waypoint A carla waypoint at which a node should be created.
    */
-  WaypointNodeWithVehicle(const boost::shared_ptr<CarlaWaypoint>& waypoint) :
+  WaypointNodeWithVehicle(const boost::shared_ptr<const CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
   /// Get the ID of the underlying waypoint, which can also be used as the
@@ -73,7 +73,7 @@ public:
   }
 
   /// Get or set the pointer to the carla waypoint of the node.
-  boost::shared_ptr<CarlaWaypoint>& waypoint() {
+  boost::shared_ptr<const CarlaWaypoint>& waypoint() {
     return waypoint_;
   }
 
@@ -328,7 +328,7 @@ protected:
       double& range) const;
 
   void baseConstructor(
-      const boost::shared_ptr<CarlaWaypoint>& start,
+      const boost::shared_ptr<const CarlaWaypoint>& start,
       const double range,
       const double longitudinal_resolution,
       const boost::shared_ptr<Router>& router);

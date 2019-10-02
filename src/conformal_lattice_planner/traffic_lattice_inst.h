@@ -39,6 +39,7 @@ TrafficLattice<Router>::TrafficLattice(
   boost::shared_ptr<CarlaWaypoint> start_waypoint = nullptr;
   double range = 0.0;
   latticeStartAndRange(vehicles, start_waypoint, range);
+  std::printf("start_waypoint road: %u\n", start_waypoint->GetRoadId());
 
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
@@ -50,7 +51,7 @@ TrafficLattice<Router>::TrafficLattice(
   if(!registerVehicles(vehicles, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
-  if (disappear_vehicles) disappear_vehicles = remove_vehicles;
+  if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
   return;
 }
@@ -522,7 +523,7 @@ bool TrafficLattice<Router>::moveTrafficForward(
 
 template<typename Router>
 void TrafficLattice<Router>::baseConstructor(
-    const boost::shared_ptr<CarlaWaypoint>& start,
+    const boost::shared_ptr<const CarlaWaypoint>& start,
     const double range,
     const double longitudinal_resolution,
     const boost::shared_ptr<Router>& router) {
@@ -568,27 +569,49 @@ void TrafficLattice<Router>::latticeStartAndRange(
     vehicle_bounding_boxes[id] = bounding_box;
   }
 
-  // Arrange the vehicles by roads.
-  //std::printf("Arrange the vehicles by roads.\n");
-  std::unordered_map<size_t, std::vector<size_t>> road_to_vehicles_table;
+  // Arrange the critial waypoint according to roads.
+  // In case a waypoint is not on any of the roads on route,
+  // the waypoint is ignored.
+  std::unordered_map<
+    size_t,
+    std::vector<boost::shared_ptr<CarlaWaypoint>>> road_to_waypoints_table;
+
   for (const auto& vehicle : vehicle_transforms) {
-    const size_t road = vehicleWaypoint(vehicle.second)->GetRoadId();
-    // Initialize the vector if necessary.
-    if (road_to_vehicles_table.count(road) == 0)
-      road_to_vehicles_table[road] = std::vector<size_t>();
-    road_to_vehicles_table[road].push_back(vehicle.first);
+
+    const size_t id = vehicle.first;
+
+    boost::shared_ptr<CarlaWaypoint> head =
+      vehicleHeadWaypoint(vehicle_transforms[id], vehicle_bounding_boxes[id]);
+    boost::shared_ptr<CarlaWaypoint> rear =
+      vehicleRearWaypoint(vehicle_transforms[id], vehicle_bounding_boxes[id]);
+    boost::shared_ptr<CarlaWaypoint> mid  =
+      vehicleWaypoint(vehicle_transforms[id]);
+
+    std::vector<boost::shared_ptr<CarlaWaypoint>> vehicle_waypoints;
+    vehicle_waypoints.push_back(head);
+    vehicle_waypoints.push_back(mid);
+    vehicle_waypoints.push_back(rear);
+
+    for (const auto& waypoint : vehicle_waypoints) {
+      const size_t road = waypoint->GetRoadId();
+      if (!(this->router_->hasRoad(road))) continue;
+
+      if (road_to_waypoints_table.count(road) == 0) {
+        road_to_waypoints_table[road] =
+          std::vector<boost::shared_ptr<CarlaWaypoint>>();
+      }
+      road_to_waypoints_table[road].push_back(waypoint);
+    }
   }
 
-  // Sort the vehicles on each road based on its distance.
-  // Vehicles with smaller distance are at the beginning of the vector.
-  //std::printf("Sort the vehicles on each road.\n");
-  for (auto& road : road_to_vehicles_table) {
+  // Sort the waypoints on each road based on its distance.
+  // Waypoints with smaller distance are at the beginning of the vector.
+  for (auto& road : road_to_waypoints_table) {
     std::sort(road.second.begin(), road.second.end(),
-        [this, &vehicle_transforms](const size_t v0, const size_t v1)->bool{
-          const double d0 = waypointToRoadStartDistance(
-              vehicleWaypoint(vehicle_transforms[v0]));
-          const double d1 = waypointToRoadStartDistance(
-              vehicleWaypoint(vehicle_transforms[v1]));
+        [this](const boost::shared_ptr<CarlaWaypoint>& w0,
+               const boost::shared_ptr<CarlaWaypoint>& w1)->bool{
+          const double d0 = waypointToRoadStartDistance(w0);
+          const double d1 = waypointToRoadStartDistance(w1);
           return d0 < d1;
         });
   }
@@ -596,21 +619,20 @@ void TrafficLattice<Router>::latticeStartAndRange(
   // Connect the roads into a chain.
   //std::printf("Connect the roads into a chain.\n");
   std::unordered_set<size_t> roads;
-  for (const auto& road : road_to_vehicles_table)
+  for (const auto& road : road_to_waypoints_table)
     roads.insert(road.first);
 
+  //std::printf("roads to be sorted: ");
+  //for (const size_t road : roads) std::printf("%lu ", road);
+  //std::printf("\n");
   std::deque<size_t> sorted_roads = sortRoads(roads);
 
   // Find the first (minimum distance) and last (maximum distance)
-  // waypoint of the input vehicles.
-  //std::printf("Find the first and last vehicle and their waypoints.\n");
-  const size_t first_vehicle = road_to_vehicles_table[sorted_roads.front()].front();
-  const size_t last_vehicle  = road_to_vehicles_table[sorted_roads.back()].back();
-
-  boost::shared_ptr<CarlaWaypoint> first_waypoint = vehicleRearWaypoint(
-      vehicle_transforms[first_vehicle], vehicle_bounding_boxes[first_vehicle]);
-  boost::shared_ptr<CarlaWaypoint> last_waypoint = vehicleHeadWaypoint(
-      vehicle_transforms[last_vehicle], vehicle_bounding_boxes[last_vehicle]);
+  // waypoint of all available waypoints.
+  boost::shared_ptr<CarlaWaypoint> first_waypoint =
+    road_to_waypoints_table[sorted_roads.front()].front();
+  boost::shared_ptr<CarlaWaypoint> last_waypoint  =
+    road_to_waypoints_table[sorted_roads.back()].back();
 
   // Set the output start.
   start = first_waypoint;
