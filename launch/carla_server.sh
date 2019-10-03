@@ -2,7 +2,8 @@
 trap "trap - TERM && kill -- -$$" INT TERM EXIT
 
 CWD=`pwd`
-cd ~/RosWorkSpace/self_driving_ws/src/carla/Dist/CARLA_Shipping_0.9.6-16-gd1d9174a-dirty/LinuxNoEditor
+#cd ~/RosWorkSpace/self_driving_ws/src/carla/Dist/CARLA_Shipping_0.9.6-16-gd1d9174a-dirty/LinuxNoEditor
+cd /home/ke/RosWorkSpace/carla_ws/carla/Dist/CARLA_Shipping_0.9.6-23-g89e329b7-dirty/LinuxNoEditor
 
 # Start Carla server without display
 echo "Start CARLA server (-opengl -quality-level=low)."
@@ -10,7 +11,7 @@ DISPLAY=
 ./CarlaUE4.sh -opengl -quality-level=low &
 SERVER_PID=$!
 
-sleep 3s
+sleep 5s
 
 # Change the the map
 echo "Change map to Town04."
