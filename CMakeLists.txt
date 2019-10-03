@@ -131,17 +131,17 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   src
-  /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include
-  /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/include/system
+  $ENV{Carla_INCLUDE_DIRS}
+  $ENV{Carla_INCLUDE_DIRS}/system
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
 link_directories(
-  /home/ke/RosWorkSpace/self_driving_ws/src/carla/Examples/CppClient/libcarla-install/lib
+  $ENV{Carla_LIB_DIRS}
 )
 
-set(CARLA_LIBS
+set(Carla_LIBRARIES
   carla_client
   rpc
   Recast
@@ -161,7 +161,6 @@ set(CARLA_LIBS
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_library(all_planning
-  #src/conformal_lattice_planner/lane_follower.cpp
   src/conformal_lattice_planner/utils.cpp
   src/conformal_lattice_planner/loop_router.cpp
   src/conformal_lattice_planner/vehicle_path.cpp
@@ -170,7 +169,7 @@ add_library(all_planning
   #  src/conformal_lattice_planner/conformal_lattice_planner.cpp
 )
 target_link_libraries(all_planning
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
@@ -193,7 +192,7 @@ add_library(all_ros_nodes
 )
 target_link_libraries(all_ros_nodes
   all_planning
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
@@ -228,7 +227,7 @@ add_executable(random_traffic_node
 target_link_libraries(random_traffic_node
   all_planning
   all_ros_nodes
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
@@ -243,7 +242,7 @@ add_executable(no_traffic_node
 target_link_libraries(no_traffic_node
   all_planning
   all_ros_nodes
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
@@ -258,7 +257,7 @@ add_executable(ego_lane_following_node
 target_link_libraries(ego_lane_following_node
   all_planning
   all_ros_nodes
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
@@ -273,7 +272,7 @@ add_dependencies(ego_lane_following_node
 #target_link_libraries(ego_conformal_lattice_planning_node
 #  all_planning
 #  all_ros_nodes
-#  ${CARLA_LIBS}
+#  ${Carla_LIBRARIES}
 #  ${Boost_LIBRARIES}
 #  ${catkin_LIBRARIES}
 #)
@@ -288,7 +287,7 @@ add_executable(agents_lane_following_node
 target_link_libraries(agents_lane_following_node
   all_planning
   all_ros_nodes
-  ${CARLA_LIBS}
+  ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
