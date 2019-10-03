@@ -18,6 +18,8 @@
 #include <chrono>
 #include <unordered_set>
 #include <boost/timer/timer.hpp>
+
+#include <conformal_lattice_planner/conformal_lattice_planner.h>
 #include <ros/ego_conformal_lattice_planning_node.h>
 #include <ros/convert_to_visualization_msgs.h>
 
@@ -28,11 +30,11 @@ namespace carla {
 
 bool EgoConformalLatticePlanningNode::initialize() {
 
-  bool all_param_exist = true;
-
   // Create the publishers.
   conformal_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
       "conformal_lattice", 1, true);
+
+  bool all_param_exist = true;
 
   std::string host = "localhost";
   int port = 2000;
@@ -45,8 +47,8 @@ bool EgoConformalLatticePlanningNode::initialize() {
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
-  double fixed_delta_seconds = 0.05;
-  all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  //double fixed_delta_seconds = 0.05;
+  //all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
 
   // Start the action server.
   ROS_INFO_NAMED("ego_conformal_lattice_planner", "start action server.");
@@ -61,37 +63,53 @@ void EgoConformalLatticePlanningNode::executeCallback(
 
   ROS_INFO_NAMED("ego_conformal_lattice_planner", "executeCallback()");
 
-  // Get the ego policy.
+  // Update the carla world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
+
+  // Get the ego and agent policies.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
-  std::printf("ego:%lu policy:%f\n", ego_policy.first, ego_policy.second);
-
-  // Get the agents IDs.
-  // Do not need the desired speed for them.
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
-  for (const auto& agent : agent_policies)
-    std::printf("agent:%lu policy:%f\n", agent.first, agent.second);
 
-  // TODO: construct the planner.
+  // Create the current snapshot.
+  boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
+
+
   //double fixed_delta_seconds = 0.05;
   //nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  // Create the loop router.
   boost::shared_ptr<LoopRouter> loop_router = boost::make_shared<LoopRouter>();
-  boost::shared_ptr<CarlaWorld> world = boost::make_shared<CarlaWorld>(client_->GetWorld());
 
+  // Construct the planner.
   std::printf("Construct conformal lattice planner.\n");
-  boost::shared_ptr<ConformalLatticePlanner> planner_ =
+  boost::shared_ptr<ConformalLatticePlanner> path_planner_ =
     boost::make_shared<ConformalLatticePlanner>(
-        0.1, ego_policy.first, 205.0, loop_router, world);
+        0.1, 205.0, loop_router, map_);
 
-  // Update the world for the planner.
-  //planner_->updateWorld(world);
-
-  // Plan for the ego vehicle.
+  // Plan path.
   std::printf("Calling conformal lattice planner.\n");
-  planner_->plan(ego_policy, agent_policies);
+  const ContinuousPath path = path_planner_->plan<ContinuousPath>(ego_policy.first, *snapshot);
 
   // Publish the station graph.
   std::printf("Publish conformal lattice message.\n");
-  conformal_lattice_pub_.publish(createConformalLatticeMsg(planner_));
+  conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
+
+  //// Plan speed.
+  //boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
+  //  boost::make_shared<VehicleSpeedPlanner>();
+  //const double ego_accel = speed_planner->plan(ego_policy.first, *snapshot);
+
+  //// Update the ego vehicle in the simulator.
+  //double dt = 0.05;
+  //nh_.param<double>("fixed_delta_seconds", dt, 0.05);
+
+  //const double movement = snapshot->ego().speed()*dt + 0.5*ego_accel*dt*dt;
+  //const CarlaTransform updated_transform = ego_path.transformAt(movement);
+  //const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
+
+  //boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);
+  //ego_vehicle->SetTransform(updated_transform);
+  //ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
 
   // Inform the client the result of plan.
   std::printf("Wrap up the callback function.\n");

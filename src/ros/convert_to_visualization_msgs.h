@@ -38,7 +38,7 @@
 #include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/traffic_manager.h>
 #include <conformal_lattice_planner/utils.h>
-//#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace carla {
 
@@ -120,7 +120,7 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
   return path_msg;
 }
 
-//visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-//    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
+visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
 
 } // End namespace carla.

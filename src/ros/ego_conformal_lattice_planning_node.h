@@ -16,16 +16,16 @@
 
 #pragma once
 
-#include <ros/ego_planning_node.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <actionlib/server/simple_action_server.h>
+#include <ros/planning_node.h>
+#include <conformal_lattice_planner/EgoPlanAction.h>
 
 namespace carla {
-class EgoConformalLatticePlanningNode : public EgoPlanningNode {
+class EgoConformalLatticePlanningNode : public PlanningNode {
 
 private:
 
-  using Base = EgoPlanningNode;
+  using Base = PlanningNode;
   using This = EgoConformalLatticePlanningNode;
 
 public:
@@ -36,10 +36,14 @@ public:
 protected:
 
   ros::Publisher conformal_lattice_pub_;
+  mutable actionlib::SimpleActionServer<
+    conformal_lattice_planner::EgoPlanAction> server_;
 
 public:
 
-  EgoConformalLatticePlanningNode(ros::NodeHandle& nh) : Base(nh) {}
+  EgoConformalLatticePlanningNode(ros::NodeHandle& nh) :
+    Base(nh),
+    server_(nh, "ego_plan", boost::bind(&EgoConformalLatticePlanningNode::executeCallback, this, _1), false) {}
 
   virtual ~EgoConformalLatticePlanningNode() {}
 
@@ -48,7 +52,7 @@ public:
 protected:
 
   virtual void executeCallback(
-      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) override;
+      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
 
 }; // End class EgoConformalLatticePlanningNode.
 

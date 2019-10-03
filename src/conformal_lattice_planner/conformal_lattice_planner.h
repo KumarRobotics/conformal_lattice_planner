@@ -23,12 +23,13 @@
 #include <boost/optional.hpp>
 #include <boost/core/noncopyable.hpp>
 
-#include <conformal_lattice_planner/vehicle_planner.h>
+
 #include <conformal_lattice_planner/traffic_lattice.h>
 #include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/snapshot.h>
 #include <conformal_lattice_planner/vehicle_path.h>
 #include <conformal_lattice_planner/utils.h>
+#include <conformal_lattice_planner/vehicle_path_planner.h>
 
 namespace planner {
 
@@ -185,15 +186,29 @@ protected:
 /**
  * \brief ConformalLatticePlanner implements the actual algorithm.
  */
-class ConformalLatticePlanner : public VehiclePlanner,
+class ConformalLatticePlanner : public VehiclePathPlanner,
                                 private boost::noncopyable{
 
 private:
 
-  using Base = VehiclePlanner;
+  using Base = VehiclePathPlanner;
   using This = ConformalLatticePlanner;
 
 protected:
+
+  using CarlaWaypoint    = carla::client::Waypoint;
+  using CarlaTransform   = carla::geom::Transform;
+  using CarlaBoundingBox = carla::geom::BoundingBox;
+
+protected:
+
+  /// Simulation time step.
+  double sim_time_step_;
+
+  /// The spatio planning horizon.
+  /// There is no strict temporal planning horizon, which is determined implicitly
+  /// by the spatio horizion, and traffic scenario.
+  double spatio_horizon_;
 
   /// The router to be used.
   boost::shared_ptr<router::LoopRouter> router_ = nullptr;
@@ -218,11 +233,14 @@ public:
 
   /// Constructor of the class.
   ConformalLatticePlanner(
-      const double time_step,
-      const size_t ego,
-      const double plan_horizon,
+      const double sim_time_step,
+      const double spatio_horizon,
       const boost::shared_ptr<router::LoopRouter>& router,
-      const boost::shared_ptr<CarlaWorld>& world);
+      const boost::shared_ptr<CarlaMap>& map) :
+    Base(map),
+    sim_time_step_(sim_time_step),
+    spatio_horizon_(spatio_horizon),
+    router_(router) {}
 
   /// Destructor of the class.
   virtual ~ConformalLatticePlanner() {}
@@ -248,14 +266,36 @@ public:
   /// Get the edges on the lattice, corresponding to the path.
   std::vector<ContinuousPath> edges() const;
 
-  virtual void plan(const std::pair<size_t, double> ego,
-                    const std::unordered_map<size_t, double>& agents) override;
+  /**
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] ego The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \return The planned path.
+   */
+  template<typename Path>
+  Path plan(const size_t ego, const Snapshot& snapshot);
+
+  /**
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] ego The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \param[out] path The planned path.
+   */
+  template<typename Path>
+  void plan(const size_t ego, const Snapshot& snapshot, Path& path) {
+    path = plan<Path>(ego, snapshot);
+    return;
+  }
 
 protected:
 
   /// Initialize the root station.
-  void initializeRootStation(const std::pair<size_t, double> ego,
-                             const std::unordered_map<size_t, double>& agents);
+  void initializeRootStation(const Snapshot& snapshot);
+
+  /// Initialize the waypoint lattice.
+  void initializeWaypointLattice(const Vehicle& ego);
 
   /// Construct the station graph.
   void constructStationGraph();
@@ -269,24 +309,37 @@ protected:
 
 
   /// Get the carla vehicle by the vehicle ID.
-  boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
-    boost::shared_ptr<CarlaVehicle> vehicle =
-      boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
-    if (!vehicle) throw std::runtime_error("Cannot get the required vehicle in the carla server.");
-    return vehicle;
-  }
+  //boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
+  //  boost::shared_ptr<CarlaVehicle> vehicle =
+  //    boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
+  //  if (!vehicle) throw std::runtime_error("Cannot get the required vehicle in the carla server.");
+  //  return vehicle;
+  //}
 
   /// Get the carla vehicle transform by the vehicle ID.
-  CarlaTransform carlaVehicleTransform(const size_t id) const {
-    return carlaVehicle(id)->GetTransform();
-  }
+  //CarlaTransform carlaVehicleTransform(const size_t id) const {
+  //  return carlaVehicle(id)->GetTransform();
+  //}
 
   /// Get the carla waypoint a vehicle is at by its ID.
-  boost::shared_ptr<CarlaWaypoint> carlaVehicleWaypoint(const size_t id) const {
-    return map_->GetWaypoint(carlaVehicleTransform(id).location);
-  }
+  //boost::shared_ptr<CarlaWaypoint> carlaVehicleWaypoint(const size_t id) const {
+  //  return map_->GetWaypoint(carlaVehicleTransform(id).location);
+  //}
 
 }; // End class ConformalLatticePlanner.
 
+template<typename Path>
+Path ConformalLatticePlanner::plan(const size_t ego, const Snapshot& snapshot) {
+  if (ego != snapshot.ego().id())
+    throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
+
+  initializeWaypointLattice(snapshot.ego());
+  initializeRootStation(snapshot);
+  constructStationGraph();
+
+  // For now just return the lane following path from the root station,
+  // assuming it exists.
+  return std::get<0>(*(root_.lock()->frontChild()));
+}
 
 } // End namespace planner.

@@ -139,27 +139,6 @@ std::string Station::string(const std::string& prefix) const {
   return output;
 }
 
-ConformalLatticePlanner::ConformalLatticePlanner(
-    const double time_step,
-    const size_t ego,
-    const double plan_horizon,
-    const boost::shared_ptr<router::LoopRouter>& router,
-    const boost::shared_ptr<CarlaWorld>& world) :
-  Base   (time_step),
-  router_(router) {
-
-  std::printf("ConformalLatticePlanner(): \n");
-
-  world_ = world;
-  map_ = world->GetMap();
-
-  boost::shared_ptr<CarlaWaypoint> ego_waypoint = carlaVehicleWaypoint(ego);
-  waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
-      ego_waypoint, plan_horizon, 2.0, router_);
-
-  return;
-}
-
 std::vector<boost::shared_ptr<const Station>>
   ConformalLatticePlanner::nodes() const {
 
@@ -189,35 +168,22 @@ std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
   return paths;
 }
 
-void ConformalLatticePlanner::plan(
-    const std::pair<size_t, double> ego,
-    const std::unordered_map<size_t, double>& agents) {
+void ConformalLatticePlanner::initializeWaypointLattice(const Vehicle& ego) {
 
-  initializeRootStation(ego, agents);
-  constructStationGraph();
+  std::printf("initializeWaypointLattice(): \n");
 
-  std::printf("Station #: %lu\n", node_to_station_table_.size());
+  boost::shared_ptr<CarlaWaypoint> ego_waypoint =
+    map_->GetWaypoint(ego.transform().location);
+  waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
+      ego_waypoint, spatio_horizon_, 2.0, router_);
 
   return;
 }
 
-void ConformalLatticePlanner::initializeRootStation(
-    const std::pair<size_t, double> ego,
-    const std::unordered_map<size_t, double>& agents) {
+void ConformalLatticePlanner::initializeRootStation(const Snapshot& snapshot) {
 
   std::printf("initializeRootStation(): \n");
 
-  Vehicle ego_vehicle = Vehicle(carlaVehicle(ego.first), ego.second);
-  std::unordered_map<size_t, Vehicle> agent_vehicles;
-  for (const auto& agent : agents) {
-    agent_vehicles.insert(std::make_pair(
-          agent.first, Vehicle(carlaVehicle(agent.first), agent.second)));
-  }
-
-  // Get the start snapshot.
-  Snapshot snapshot(ego_vehicle, agent_vehicles, router_, map_);
-
-  // Create the starting node.
   boost::shared_ptr<Station> root = boost::make_shared<Station>(
       snapshot, waypoint_lattice_, map_);
   node_to_station_table_[root->id()] = root;
@@ -285,7 +251,7 @@ void ConformalLatticePlanner::exploreFrontStation(
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
-      *path, time_step_, 5.0, simulation_time, stage_cost);
+      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
   if (!no_collision) return;
@@ -382,7 +348,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
-      *path, time_step_, 5.0, simulation_time, stage_cost);
+      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
   if (!no_collision) return;
@@ -478,7 +444,7 @@ void ConformalLatticePlanner::exploreRightStation(
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
-      *path, time_step_, 5.0, simulation_time, stage_cost);
+      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
   if (!no_collision) return;

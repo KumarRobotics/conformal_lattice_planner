@@ -66,11 +66,9 @@ void AgentsLaneFollowingNode::executeCallback(
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
   // Create the current snapshot.
-  std::printf("Create snapshot.\n");
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
 
   // Create Path planner.
-  std::printf("Create path planner.\n");
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
     traffic_lattice_entries = snapshot->trafficLattice()->latticeEntries();
 
@@ -79,7 +77,6 @@ void AgentsLaneFollowingNode::executeCallback(
   for (const auto& node : traffic_lattice_entries) {
     if (node->distance() != 0.0) continue;
     waypoint = node->waypoint();
-    std::printf("waypoint lattice start road id: %u\n", waypoint->GetRoadId());
     break;
   }
 
@@ -89,26 +86,20 @@ void AgentsLaneFollowingNode::executeCallback(
     boost::make_shared<LaneFollower>(map_, waypoint, range, router_);
 
   // Create speed planner.
-  std::printf("Create speed planner.\n");
   boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
     boost::make_shared<VehicleSpeedPlanner>();
 
   double dt = 0.05;
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
-  std::printf("Start plan for agents.\n");
   for (const auto& item : snapshot->agents()) {
     const Vehicle& agent = item.second;
-    std::printf("agent: %lu\n", agent.id());
-    std::printf("plan path.\n");
     const ContinuousPath path = path_planner->plan<ContinuousPath>(agent.id(), *snapshot);
-    std::printf("plan speed.\n");
     const double accel = speed_planner->plan(agent.id(), *snapshot);
 
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
     const CarlaTransform updated_transform = path.transformAt(movement);
     const double updated_speed = agent.speed() + accel*dt;
-    std::printf("plan finished.\n");
 
     boost::shared_ptr<CarlaVehicle> vehicle = carlaVehicle(agent.id());
     vehicle->SetTransform(updated_transform);
