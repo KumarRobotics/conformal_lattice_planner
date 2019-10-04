@@ -78,10 +78,10 @@ protected:
    * path/trajectory.
    */
   /// @{
-  boost::optional<Parent> left_parent_;
-  boost::optional<Parent> back_parent_;
-  boost::optional<Parent> right_parent_;
-  boost::optional<Parent> optimal_parent_;
+  boost::optional<Parent> left_parent_    = boost::none;
+  boost::optional<Parent> back_parent_    = boost::none;
+  boost::optional<Parent> right_parent_   = boost::none;
+  boost::optional<Parent> optimal_parent_ = boost::none;
   /// @}
 
   /**
@@ -91,9 +91,9 @@ protected:
    * at the front of this station.
    */
   /// @{
-  boost::optional<Child> left_child_;
-  boost::optional<Child> front_child_;
-  boost::optional<Child> right_child_;
+  boost::optional<Child> left_child_  = boost::none;
+  boost::optional<Child> front_child_ = boost::none;
+  boost::optional<Child> right_child_ = boost::none;
   /// @}
 
 public:
@@ -307,24 +307,8 @@ protected:
   void exploreRightStation(const boost::shared_ptr<Station>& station,
                            std::queue<boost::shared_ptr<Station>>& station_queue);
 
-
-  /// Get the carla vehicle by the vehicle ID.
-  //boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
-  //  boost::shared_ptr<CarlaVehicle> vehicle =
-  //    boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
-  //  if (!vehicle) throw std::runtime_error("Cannot get the required vehicle in the carla server.");
-  //  return vehicle;
-  //}
-
-  /// Get the carla vehicle transform by the vehicle ID.
-  //CarlaTransform carlaVehicleTransform(const size_t id) const {
-  //  return carlaVehicle(id)->GetTransform();
-  //}
-
-  /// Get the carla waypoint a vehicle is at by its ID.
-  //boost::shared_ptr<CarlaWaypoint> carlaVehicleWaypoint(const size_t id) const {
-  //  return map_->GetWaypoint(carlaVehicleTransform(id).location);
-  //}
+  template<typename Path>
+  Path selectOptimalPath() const;
 
 }; // End class ConformalLatticePlanner.
 

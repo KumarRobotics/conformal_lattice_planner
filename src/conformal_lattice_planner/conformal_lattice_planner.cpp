@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <list>
 #include <conformal_lattice_planner/traffic_simulator.h>
 #include <conformal_lattice_planner/conformal_lattice_planner.h>
 
@@ -207,6 +208,11 @@ void ConformalLatticePlanner::constructStationGraph() {
     exploreRightStation(station, station_queue);
   }
 
+  for (const auto& item : node_to_station_table_) {
+    if (!item.second) throw std::runtime_error("node is not available.");
+    std::cout << item.second->string() << std::endl;;
+  }
+
   return;
 }
 
@@ -261,6 +267,18 @@ void ConformalLatticePlanner::exploreFrontStation(
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
+  // Add the new station to the table and queue if necessary.
+  if (node_to_station_table_.count(next_station->id()) == 0) {
+    node_to_station_table_[next_station->id()] = next_station;
+    // The newly created station will only be added to the queue
+    // if the target node is reached. Otherwise (the ego vehicle
+    // did not reach end target node in time), we will consider
+    // the new station as a terminate.
+    if (next_station->id() == target_node->id()) station_queue.push(next_station);
+  } else {
+    next_station = node_to_station_table_[next_station->id()];
+  }
+
   // Set the child station of the input station.
   //std::printf("Update the child station of the input station.\n");
   station->updateFrontChild(*path, stage_cost, next_station);
@@ -272,17 +290,6 @@ void ConformalLatticePlanner::exploreFrontStation(
         station->optimalParent()->first+stage_cost, station);
   } else {
     next_station->updateBackParent(stage_cost, station);
-  }
-
-  // Add the new station to the table and queue if necessary.
-  //std::printf("Add the new station to the table and queue.\n");
-  if (node_to_station_table_.count(next_station->id()) == 0) {
-    node_to_station_table_[next_station->id()] = next_station;
-    // The newly created station will only be added to the queue
-    // if the target node is reached. Otherwise (the ego vehicle
-    // did not reach end target node in time), we will consider
-    // the new station as a terminate.
-    if (next_station->id() == target_node->id()) station_queue.push(next_station);
   }
 
   return;
@@ -358,20 +365,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
-  // Set the child station of the input station.
-  station->updateLeftChild(*path, stage_cost, next_station);
-
-  // Set the parent station of the newly created station.
-  //std::printf("Update the parent station of the new station.\n");
-  if (station->hasParent()) {
-    next_station->updateLeftParent(
-        station->optimalParent()->first+stage_cost, station);
-  } else {
-    next_station->updateLeftParent(stage_cost, station);
-  }
-
   // Add the new station to the table and queue if necessary.
-  //std::printf("Add the new station to the table and queue.\n");
   if (node_to_station_table_.count(next_station->id()) == 0) {
     node_to_station_table_[next_station->id()] = next_station;
     // The newly created station will only be added to the queue
@@ -379,6 +373,20 @@ void ConformalLatticePlanner::exploreLeftStation(
     // did not reach end target node in time), we will consider
     // the new station as a terminate.
     if (next_station->id() == target_node->id()) station_queue.push(next_station);
+  } else {
+    next_station = node_to_station_table_[next_station->id()];
+  }
+
+  // Set the child station of the input station.
+  station->updateLeftChild(*path, stage_cost, next_station);
+
+  // Set the parent station of the newly created station.
+  //std::printf("Update the parent station of the new station.\n");
+  if (station->hasParent()) {
+    next_station->updateRightParent(
+        station->optimalParent()->first+stage_cost, station);
+  } else {
+    next_station->updateRightParent(stage_cost, station);
   }
 
   return;
@@ -454,20 +462,7 @@ void ConformalLatticePlanner::exploreRightStation(
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
-  // Set the child station of the input station.
-  station->updateRightChild(*path, stage_cost, next_station);
-
-  // Set the parent station of the newly created station.
-  //std::printf("Update the parent station of the new station.\n");
-  if (station->hasParent()) {
-    next_station->updateRightParent(
-        station->optimalParent()->first+stage_cost, station);
-  } else {
-    next_station->updateRightParent(stage_cost, station);
-  }
-
   // Add the new station to the table and queue if necessary.
-  //std::printf("Add the new station to the table and queue.\n");
   if (node_to_station_table_.count(next_station->id()) == 0) {
     node_to_station_table_[next_station->id()] = next_station;
     // The newly created station will only be added to the queue
@@ -475,9 +470,47 @@ void ConformalLatticePlanner::exploreRightStation(
     // did not reach end target node in time), we will consider
     // the new station as a terminate.
     if (next_station->id() == target_node->id()) station_queue.push(next_station);
+  } else {
+    next_station = node_to_station_table_[next_station->id()];
+  }
+
+  // Set the child station of the input station.
+  station->updateRightChild(*path, stage_cost, next_station);
+
+  // Set the parent station of the newly created station.
+  //std::printf("Update the parent station of the new station.\n");
+  if (station->hasParent()) {
+    next_station->updateLeftParent(
+        station->optimalParent()->first+stage_cost, station);
+  } else {
+    next_station->updateLeftParent(stage_cost, station);
   }
 
   return;
+}
+
+template<typename Path>
+Path ConformalLatticePlanner::selectOptimalPath() const {
+
+  //boost::shared_ptr<Station> optimal_station = nullptr;
+
+  //for (const auto& item : node_to_station_table_) {
+  //  boost::shared_ptr<Station> station = item.second;
+  //  // Only terminal stations are considered, i.e. stations without children.
+  //  if (station->hasChild()) continue;
+  //  // Set the optimal station if it has not been set yet.
+  //  if (!optimal_station) optimal_station = station;
+  //  // Update the optimal station if the candidate has small cost.
+  //  if ((*(station->optimalParent())).first <
+  //      (*(optimal_station->optimalParent())).first)
+  //    optimal_station = station;
+  //}
+
+  //if (!optimal_station)
+  //  throw std::runtime_error("The optimal terminal station is not set.");
+
+  //// Track back from the terminal station to find all the paths.
+  //std::list<Path> path_sequence;
 }
 
 } // End namespace planner.
