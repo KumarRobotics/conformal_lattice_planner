@@ -38,6 +38,9 @@ protected:
   double comfort_accel_ = 1.5;
   double comfort_decel_ = 2.5;
 
+  double max_accel_ = 5.0;
+  double max_decel_ = 8.0;
+
 public:
 
   /**
@@ -52,13 +55,18 @@ public:
       const boost::optional<double> distance_gap = boost::none,
       const boost::optional<double> accel_exp = boost::none,
       const boost::optional<double> comfort_accel = boost::none,
-      const boost::optional<double> comfort_decel = boost::none) {
+      const boost::optional<double> comfort_decel = boost::none,
+      const boost::optional<double> max_accel = boost::none,
+      const boost::optional<double> max_decel = boost::none) {
 
     if (time_gap)      time_gap_      = *time_gap;
     if (distance_gap)  distance_gap_  = *distance_gap;
     if (accel_exp)     accel_exp_     = *accel_exp;
     if (comfort_accel) comfort_accel_ = *comfort_accel;
     if (comfort_decel) comfort_decel_ = *comfort_decel;
+    if (max_accel)     max_accel_     = *max_accel;
+    if (max_decel)     max_decel_     = *max_decel;
+
     return;
   }
 
@@ -80,6 +88,13 @@ public:
 
   double comfortDecel() const { return comfort_decel_; }
   double& comfortDecel() { return comfort_decel_; }
+
+  double maxAccel() const { return max_accel_; }
+  double& maxAccel() { return max_accel_; }
+
+  double maxDecel() const { return max_decel_; }
+  double& maxDecel() {return max_decel_; }
+
   /// @}
 
   /**
@@ -113,7 +128,7 @@ public:
       accel = comfort_accel_ * (1.0 - std::pow(v_ratio, accel_exp_));
     }
 
-    return accel;
+    return saturateAccel(accel);
   }
 
 protected:
@@ -129,6 +144,12 @@ protected:
     const double distance = std::max(
         0.0, ego_v*time_gap_ + (ego_v*v_diff)/braking_coeff);
     return distance_gap_ + distance;
+  }
+
+  double saturateAccel(double accel) const {
+    if (accel > max_accel_) accel = max_accel_;
+    if (accel < -max_decel_) accel = -max_decel_;
+    return accel;
   }
 
 }; // End class IntelligentDriverModel.
