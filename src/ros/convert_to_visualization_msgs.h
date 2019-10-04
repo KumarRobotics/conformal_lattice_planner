@@ -97,9 +97,9 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
   visualization_msgs::MarkerPtr path_msg(new visualization_msgs::Marker);
 
   std_msgs::ColorRGBA path_color;
-  path_color.r = 0.3;
-  path_color.g = 0.6;
-  path_color.b = 1.0;
+  path_color.r = 0.4;
+  path_color.g = 1.0;
+  path_color.b = 0.4;
   path_color.a = 1.0;
 
   path_msg->header.stamp = ros::Time::now();
