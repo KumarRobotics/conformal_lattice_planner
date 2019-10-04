@@ -41,6 +41,7 @@ const double TrafficSimulator::egoAcceleration() const {
                      snapshot_.ego().policySpeed(),
                      lead_speed,
                      following_distance);
+    std::printf("lead speed: %f distance: %f\n", lead_speed, following_distance);
   } else {
     accel = idm_->idm(snapshot_.ego().speed(),
                      snapshot_.ego().policySpeed());
@@ -89,6 +90,7 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
     boost::shared_ptr<CarlaWaypoint> waypoint =
       map_->GetWaypoint(agent.transform().location);
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
+    std::printf("movement: %f\n", movement);
     boost::shared_ptr<CarlaWaypoint> next_waypoint =
       router_->frontWaypoint(waypoint, movement);
 

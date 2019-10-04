@@ -168,8 +168,9 @@ const bool TrafficSimulator::simulate(
     dt = dt <= max_time-time  ? dt : max_time-time;
 
     std::printf("============================================\n");
-    std::printf("time: %f dt: %f\n", time, dt);
     std::cout << snapshot_.string("simulation snapshot:\n");
+    std::printf("ego accel: %f\n", ego_accel);
+    std::printf("time: %f dt: %f\n", time, dt);
 
     // Update the distance of the ego on the path.
     ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
@@ -191,7 +192,10 @@ const bool TrafficSimulator::simulate(
     }
 
     // Update the snapshot.
-    if (!snapshot_.updateTraffic(updated_tuples)) return false;
+    if (!snapshot_.updateTraffic(updated_tuples)) {
+      std::printf("Collision detected in the simulation.\n");
+      return false;
+    }
 
     // TODO: Accumulate the cost.
     // Compute the headway.
@@ -210,12 +214,12 @@ const bool TrafficSimulator::simulate(
     for (const auto& item : snapshot_.agents()) {
       const Vehicle& agent = item.second;
       if (agent.acceleration() >= 0.0) continue;
-      brake_sum.first += -agent.acceleration;
+      brake_sum.first += -agent.acceleration();
       brake_sum.second += 1;
     }
 
     if (brake_sum.second > 0) brake.push_back(brake_sum.first/brake_sum.second);
-    else brake_sum.push_back(0.0);
+    else brake.push_back(0.0);
 
     // Tick the time.
     time += dt;
@@ -227,8 +231,8 @@ const bool TrafficSimulator::simulate(
   for (const auto c : brake) brake_cost += c;
   brake_cost /= brake.size();
 
-  std::printf("average headway: %f\n", );
-  std::printf("average brake: %f\n");
+  std::printf("average headway: %f\n", headway_cost);
+  std::printf("average brake: %f\n", brake_cost);
 
   return true;
 }
