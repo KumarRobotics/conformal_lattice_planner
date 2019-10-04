@@ -175,7 +175,7 @@ void ConformalLatticePlanner::initializeWaypointLattice(const Vehicle& ego) {
   boost::shared_ptr<CarlaWaypoint> ego_waypoint =
     map_->GetWaypoint(ego.transform().location);
   waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
-      ego_waypoint, spatio_horizon_, 2.0, router_);
+      ego_waypoint, spatial_horizon_, 2.0, router_);
 
   return;
 }

@@ -90,6 +90,9 @@ void EgoConformalLatticePlanningNode::executeCallback(
   std::printf("Calling conformal lattice planner.\n");
   const ContinuousPath path = path_planner_->plan<ContinuousPath>(ego_policy.first, *snapshot);
 
+  std::printf("nodes #: %lu\n", path_planner_->nodes().size());
+  std::printf("edges #: %lu\n", path_planner_->edges().size());
+
   // Publish the station graph.
   std::printf("Publish conformal lattice message.\n");
   conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));

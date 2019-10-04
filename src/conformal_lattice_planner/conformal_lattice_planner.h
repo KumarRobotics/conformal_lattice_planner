@@ -205,10 +205,10 @@ protected:
   /// Simulation time step.
   double sim_time_step_;
 
-  /// The spatio planning horizon.
+  /// The spatial planning horizon.
   /// There is no strict temporal planning horizon, which is determined implicitly
-  /// by the spatio horizion, and traffic scenario.
-  double spatio_horizon_;
+  /// by the spatial horizion, and traffic scenario.
+  double spatial_horizon_;
 
   /// The router to be used.
   boost::shared_ptr<router::LoopRouter> router_ = nullptr;
@@ -234,12 +234,12 @@ public:
   /// Constructor of the class.
   ConformalLatticePlanner(
       const double sim_time_step,
-      const double spatio_horizon,
+      const double spatial_horizon,
       const boost::shared_ptr<router::LoopRouter>& router,
       const boost::shared_ptr<CarlaMap>& map) :
     Base(map),
     sim_time_step_(sim_time_step),
-    spatio_horizon_(spatio_horizon),
+    spatial_horizon_(spatial_horizon),
     router_(router) {}
 
   /// Destructor of the class.

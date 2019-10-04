@@ -18,6 +18,8 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <boost/optional.hpp>
+
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 #include <conformal_lattice_planner/intelligent_driver_model.h>
@@ -27,14 +29,6 @@
 namespace planner {
 
 class TrafficSimulator : private boost::noncopyable {
-
-public:
-
-  //enum SimulationResult {
-  //  MaxPathLenght = 0,
-  //  MaxSimulationTime = 1,
-  //  Collision = 2
-  //};
 
 protected:
 
@@ -137,13 +131,26 @@ const bool TrafficSimulator::simulate(
 
   std::printf("simulate(): \n");
 
+  // Reset the output to 0.
   time = 0.0;
   // TODO: Add the cost function later.
   cost = 0.0;
+
   // The actual simulation time step, which may vary for different iterations.
   double dt = default_dt;
   // The distance that ego has travelled on the input path.
   double ego_distance = 0.0;
+
+  // FIXME: This is just a trial for defining the stage costs.
+  // \c headway stores the time gap between the ego and its front vehicle.
+  // In case that the ego does not have a front vehicle, the headway is
+  // set to 100, which is assumed to be a large enough number.
+  std::vector<double> headway;
+  // \c brake stores the brakes, and brakes only, of all vehicles in the
+  // current snapshot. At each instances, the stored number should be
+  // the average brake of all vehicles that brakes. If no vehicle brakes,
+  // 0 is added to the vector.
+  std::vector<double> brake;
 
   while (time < max_time && dt >= default_dt) {
 
@@ -187,10 +194,41 @@ const bool TrafficSimulator::simulate(
     if (!snapshot_.updateTraffic(updated_tuples)) return false;
 
     // TODO: Accumulate the cost.
+    // Compute the headway.
+    boost::optional<std::pair<size_t, double>> ego_lead =
+      snapshot_.trafficLattice()->front(snapshot_.ego().id());
+    if (!ego_lead) headway.push_back(100.0);
+    else headway.push_back(ego_lead->second / snapshot_.ego().speed());
+
+    // Compute the average brake.
+    std::pair<double, size_t> brake_sum = std::make_pair(0.0, 0);
+    if (snapshot_.ego().acceleration() < 0.0) {
+      brake_sum.first += -snapshot_.ego().acceleration();
+      brake_sum.second += 1.0;
+    }
+
+    for (const auto& item : snapshot_.agents()) {
+      const Vehicle& agent = item.second;
+      if (agent.acceleration() >= 0.0) continue;
+      brake_sum.first += -agent.acceleration;
+      brake_sum.second += 1;
+    }
+
+    if (brake_sum.second > 0) brake.push_back(brake_sum.first/brake_sum.second);
+    else brake_sum.push_back(0.0);
 
     // Tick the time.
     time += dt;
   }
+
+  double headway_cost = 0.0, brake_cost = 0.0;
+  for (const auto c : headway) headway_cost += 1.0 / c;
+  headway_cost /= headway.size();
+  for (const auto c : brake) brake_cost += c;
+  brake_cost /= brake.size();
+
+  std::printf("average headway: %f\n", );
+  std::printf("average brake: %f\n");
 
   return true;
 }
