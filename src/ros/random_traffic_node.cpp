@@ -116,9 +116,9 @@ void RandomTrafficNode::spawnCamera() {
   if (!settings.no_rendering_mode) {
 
     auto camera_blueprint = world_->GetBlueprintLibrary()->at("sensor.camera.rgb");
-    camera_blueprint.SetAttribute("sensor_tick", "0.2");
-    camera_blueprint.SetAttribute("image_size_x", "320");
-    camera_blueprint.SetAttribute("image_size_y", "240");
+    camera_blueprint.SetAttribute("sensor_tick", "0.05");
+    camera_blueprint.SetAttribute("image_size_x", "1280");
+    camera_blueprint.SetAttribute("image_size_y", "720");
     camera_blueprint.SetAttribute("fov", "120");
 
     CarlaTransform camera_transform = CarlaTransform{
