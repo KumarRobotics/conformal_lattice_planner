@@ -155,6 +155,15 @@ void NoTrafficNode::spawnVehicles() {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
+  // Spawn agent vehicles.
+  {
+    boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
+      waypoint_lattice->rightFront(ego_waypoint, 40.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
+
   // Let the server know about the vehicles.
   world_->Tick();
   return;
@@ -204,6 +213,54 @@ boost::optional<size_t> NoTrafficNode::spawnEgoVehicle(
   } else {
     vehicle->SetVelocity(transform.GetForwardVector() *
                          ego_policy_.second);
+  }
+
+  return vehicle->GetId();
+}
+
+boost::optional<size_t> NoTrafficNode::spawnAgentVehicle(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+    const double policy_speed,
+    const bool noisy_policy_speed,
+    const bool noisy_start_speed) {
+
+  // Get the blueprint of the vehicle, which is randomly chosen from the
+  // vehicle blueprint library.
+  boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
+    world_->GetBlueprintLibrary()->Filter("vehicle");
+  auto blueprint = (*blueprint_library)[std::rand() % blueprint_library->size()];
+
+  // Make sure the vehicle will fall onto the ground instead of fall endlessly.
+  CarlaTransform transform = waypoint->GetTransform();
+  transform.location.z += 1.5;
+
+  boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
+  boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
+
+  if (!actor) {
+    // Cannot spawn the actor.
+    // There might be a collision at the waypoint or something.
+    ROS_ERROR_NAMED("carla simulator", "Cannot spawn the agent vehicle.");
+    return boost::none;
+  }
+
+  // Set the agent vehicle policy
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
+
+  if (noisy_policy_speed) {
+    agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
+  } else {
+    agent_policies_[vehicle->GetId()] = policy_speed;
+  }
+
+  if (noisy_start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         (agent_policies_[vehicle->GetId()]+uni_real_dist(rand_gen)));
+  } else {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         agent_policies_[vehicle->GetId()]);
   }
 
   return vehicle->GetId();
