@@ -4,39 +4,41 @@
   <arg name="fixed_delta_seconds" default="0.05"/>
 
   <!-- CARLA simulator -->
+  <!--
   <include file="$(find conformal_lattice_planner)/launch/random_traffic_simulator.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
+  -->
 
-  <!--
   <include file="$(find conformal_lattice_planner)/launch/no_traffic_simulator.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
-  -->
 
   <!-- Ego vehicle planner -->
-  <!--
   <include file="$(find conformal_lattice_planner)/launch/ego_conformal_lattice_planning.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
-  -->
+  <!--
   <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
+  -->
 
   <!-- Agent vehicles' planner -->
+  <!--
   <include file="$(find conformal_lattice_planner)/launch/agents_lane_following.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
+  -->
 
 </launch>
