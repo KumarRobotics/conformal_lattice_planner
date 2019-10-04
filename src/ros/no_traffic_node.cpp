@@ -158,6 +158,14 @@ void NoTrafficNode::spawnVehicles() {
   // Spawn agent vehicles.
   {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
+      waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 23.0, false, false)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
+
+  {
+    boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
       waypoint_lattice->rightFront(ego_waypoint, 40.0)->waypoint();
     if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");

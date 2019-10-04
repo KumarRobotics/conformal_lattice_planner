@@ -84,7 +84,7 @@ void EgoConformalLatticePlanningNode::executeCallback(
   std::printf("Construct conformal lattice planner.\n");
   boost::shared_ptr<ConformalLatticePlanner> path_planner_ =
     boost::make_shared<ConformalLatticePlanner>(
-        0.1, 55.0, loop_router, map_);
+        0.1, 105.0, loop_router, map_);
 
   // Plan path.
   std::printf("Calling conformal lattice planner.\n");
