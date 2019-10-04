@@ -218,7 +218,7 @@ void ConformalLatticePlanner::exploreFrontStation(
 
   // Find the target node on the waypoint lattice.
   // If the target node is not the lattice, we have reached the planning horizon.
-  std::printf("Find target node.\n");
+  //std::printf("Find target node.\n");
   boost::shared_ptr<const WaypointNode> target_node =
     waypoint_lattice_->front(station->node().lock()->waypoint(), 50.0);
   if (!target_node) {
@@ -227,7 +227,7 @@ void ConformalLatticePlanner::exploreFrontStation(
   }
 
   // Plan a path between the node at the current station to the target node.
-  std::printf("Compute Kelly-Nagy path.\n");
+  //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
   path = boost::make_shared<ContinuousPath>(
       station->transform(),
@@ -247,7 +247,7 @@ void ConformalLatticePlanner::exploreFrontStation(
   std::cout << path->string() << std::endl;
 
   // Now, simulate the traffic forward.
-  std::printf("Simulate the traffic.\n");
+  //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
@@ -257,16 +257,16 @@ void ConformalLatticePlanner::exploreFrontStation(
   if (!no_collision) return;
 
   // Create a new station with the end snapshot of the simulation.
-  std::printf("Create child station.\n");
+  //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
   // Set the child station of the input station.
-  std::printf("Update the child station of the input station.\n");
+  //std::printf("Update the child station of the input station.\n");
   station->updateFrontChild(*path, stage_cost, next_station);
 
   // Set the parent station of the newly created station.
-  std::printf("Update the parent station of the new station.\n");
+  //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateBackParent(
         station->optimalParent()->first+stage_cost, station);
@@ -275,7 +275,7 @@ void ConformalLatticePlanner::exploreFrontStation(
   }
 
   // Add the new station to the table and queue if necessary.
-  std::printf("Add the new station to the table and queue.\n");
+  //std::printf("Add the new station to the table and queue.\n");
   if (node_to_station_table_.count(next_station->id()) == 0) {
     node_to_station_table_[next_station->id()] = next_station;
     // The newly created station will only be added to the queue
@@ -326,7 +326,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   }
 
   // Plan a path between the node at the current station to the target node.
-  std::printf("Compute Kelly-Nagy path.\n");
+  //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
   path = boost::make_shared<ContinuousPath>(
       station->transform(),
@@ -344,7 +344,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   //}
 
   // Now, simulate the traffic forward.
-  std::printf("Simulate the traffic.\n");
+  //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
@@ -354,7 +354,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   if (!no_collision) return;
 
   // Create a new station with the end snapshot of the simulation.
-  std::printf("Create child station.\n");
+  //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
@@ -362,7 +362,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   station->updateLeftChild(*path, stage_cost, next_station);
 
   // Set the parent station of the newly created station.
-  std::printf("Update the parent station of the new station.\n");
+  //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateLeftParent(
         station->optimalParent()->first+stage_cost, station);
@@ -371,7 +371,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   }
 
   // Add the new station to the table and queue if necessary.
-  std::printf("Add the new station to the table and queue.\n");
+  //std::printf("Add the new station to the table and queue.\n");
   if (node_to_station_table_.count(next_station->id()) == 0) {
     node_to_station_table_[next_station->id()] = next_station;
     // The newly created station will only be added to the queue
@@ -422,7 +422,7 @@ void ConformalLatticePlanner::exploreRightStation(
   }
 
   // Plan a path between the node at the current station to the target node.
-  std::printf("Compute Kelly-Nagy path.\n");
+  //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
   path = boost::make_shared<ContinuousPath>(
       station->transform(),
@@ -440,7 +440,7 @@ void ConformalLatticePlanner::exploreRightStation(
   //}
 
   // Now, simulate the traffic forward.
-  std::printf("Simulate the traffic.\n");
+  //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
@@ -450,7 +450,7 @@ void ConformalLatticePlanner::exploreRightStation(
   if (!no_collision) return;
 
   // Create a new station with the end snapshot of the simulation.
-  std::printf("Create child station.\n");
+  //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
 
@@ -458,7 +458,7 @@ void ConformalLatticePlanner::exploreRightStation(
   station->updateRightChild(*path, stage_cost, next_station);
 
   // Set the parent station of the newly created station.
-  std::printf("Update the parent station of the new station.\n");
+  //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateRightParent(
         station->optimalParent()->first+stage_cost, station);
@@ -467,7 +467,7 @@ void ConformalLatticePlanner::exploreRightStation(
   }
 
   // Add the new station to the table and queue if necessary.
-  std::printf("Add the new station to the table and queue.\n");
+  //std::printf("Add the new station to the table and queue.\n");
   if (node_to_station_table_.count(next_station->id()) == 0) {
     node_to_station_table_[next_station->id()] = next_station;
     // The newly created station will only be added to the queue
