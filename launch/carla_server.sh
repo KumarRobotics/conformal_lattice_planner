@@ -2,7 +2,6 @@
 trap "trap - TERM && kill -- -$$" INT TERM EXIT
 
 CWD=`pwd`
-#cd ~/RosWorkSpace/self_driving_ws/src/carla/Dist/CARLA_Shipping_0.9.6-16-gd1d9174a-dirty/LinuxNoEditor
 cd ${Carla_DIST}
 
 # Start Carla server without display
