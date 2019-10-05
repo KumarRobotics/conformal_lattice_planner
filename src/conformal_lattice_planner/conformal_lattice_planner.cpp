@@ -489,25 +489,86 @@ void ConformalLatticePlanner::exploreRightStation(
   return;
 }
 
+const double ConformalLatticePlanner::terminalSpeedCost(
+    const boost::shared_ptr<Station>& station) const {
+
+  if (station->hasChild())
+    throw std::runtime_error("The station is not a terminal station.");
+
+  static std::unordered_map<int, double> cost_map {
+    {0, 3.0}, {1, 3.0}, {2, 2.0}, {3, 2.0}, {4, 2.0},
+    {5, 2.0}, {6, 1.0}, {7, 1.0}, {8, 0.0}, {9, 0.0},
+  };
+
+  const double ego_speed = station->snapshot().ego().speed();
+  const double ego_policy_speed = station->snapshot().ego().policySpeed();
+  if (ego_speed < 0.0 || ego_policy_speed < 0.0)
+    throw std::runtime_error("invalid ego speed or ego policy speed.");
+
+  // FIXME: What if the policy speed is 0.
+  //        Should not worry about this too much here since,
+  //        1) IDM does not support 0 policy speed.
+  //        2) 0 policy speed may cause some invalidity in carla, such as
+  //           looking for a waypoint 0m ahead.
+  const double speed_ratio = ego_speed / ego_policy_speed;
+
+  // There is no cost if the speed of the ego matches or exceeds the policy speed.
+  if (speed_ratio >= 1.0) return 0.0;
+  else return cost_map[static_cast<int>(speed_ratio*10.0)];
+}
+
+const double ConformalLatticePlanner::terminalDistanceCost(
+    const boost::shared_ptr<Station>& station) const {
+
+  if (station->hasChild())
+    throw std::runtime_error("The station is not a terminal station.");
+
+  static std::unordered_map<int, double> cost_map {
+    {0, 3.0}, {1, 3.0}, {2, 3.0}, {3, 3.0}, {4, 2.0},
+    {5, 2.0}, {6, 2.0}, {7, 1.0}, {8, 1.0}, {9, 1.0},
+  };
+
+  const double distance_ratio = station->node().lock()->distance() / spatial_horizon_;
+
+  if (distance_ratio >= 1.0) return 0.0;
+  else return cost_map[static_cast<int>(distance_ratio*10.0)];
+}
+
+const double ConformalLatticePlanner::costFromRootToTerminal(
+    const boost::shared_ptr<Station>& terminal) const {
+
+  if (terminal->hasChild())
+    throw std::runtime_error("The station is not a terminal station.");
+
+  const double path_cost = (*(terminal->optimalParent())).first;
+  const double terminal_speed_cost = terminalSpeedCost(terminal);
+  const double terminal_distance_cost = terminalDistanceCost(terminal);
+
+  // TODO: Weight the cost properly.
+  return path_cost + terminal_speed_cost + terminal_distance_cost;
+}
+
 std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
   boost::shared_ptr<Station> optimal_station = nullptr;
+  // Set the initial cost to a large enough number.
+  double optimal_cost = 1.0e10;
 
   for (const auto& item : node_to_station_table_) {
-    boost::shared_ptr<Station> station = item.second;
 
+    boost::shared_ptr<Station> station = item.second;
     // Only terminal stations are considered, i.e. stations without children.
     if (station->hasChild()) continue;
-
-    // Set the optimal station if it has not been set yet.
-    if (!optimal_station) optimal_station = station;
+    const double station_cost = costFromRootToTerminal(station);
 
     // Update the optimal station if the candidate has small cost.
     // Here we assume terminal station always has at least one parent station.
     // Otherwise, there is just on root station in the graph.
-    if ((*(station->optimalParent())).first <
-        (*(optimal_station->optimalParent())).first)
+    // FIXME: Add the terminal cost as well.
+    if (station_cost < optimal_cost) {
       optimal_station = station;
+      optimal_cost = station_cost;
+    }
   }
 
   // There should be at least one parent node.

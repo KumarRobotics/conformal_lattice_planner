@@ -307,6 +307,14 @@ protected:
   void exploreRightStation(const boost::shared_ptr<Station>& station,
                            std::queue<boost::shared_ptr<Station>>& station_queue);
 
+  /// Compute the speed cost for a terminal station.
+  const double terminalSpeedCost(const boost::shared_ptr<Station>& station) const;
+
+  /// Compute the distance cost for a terminal station.
+  const double terminalDistanceCost(const boost::shared_ptr<Station>& station) const;
+
+  const double costFromRootToTerminal(const boost::shared_ptr<Station>& terminal) const;
+
   /// Select the optimal path sequence based on the constructed station graph.
   std::list<ContinuousPath> selectOptimalPath() const;
 
