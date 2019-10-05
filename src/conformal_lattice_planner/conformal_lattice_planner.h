@@ -307,8 +307,8 @@ protected:
   void exploreRightStation(const boost::shared_ptr<Station>& station,
                            std::queue<boost::shared_ptr<Station>>& station_queue);
 
-  template<typename Path>
-  Path selectOptimalPath() const;
+  /// Select the optimal path sequence based on the constructed station graph.
+  std::list<ContinuousPath> selectOptimalPath() const;
 
 }; // End class ConformalLatticePlanner.
 
@@ -317,13 +317,19 @@ Path ConformalLatticePlanner::plan(const size_t ego, const Snapshot& snapshot) {
   if (ego != snapshot.ego().id())
     throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
 
+  // Construct the waypoint lattice.
   initializeWaypointLattice(snapshot.ego());
+
+  // Initialize the root station with the current snapshot.
   initializeRootStation(snapshot);
+
+  // Construct the station graph.
   constructStationGraph();
 
-  // For now just return the lane following path from the root station,
-  // assuming it exists.
-  return std::get<0>(*(root_.lock()->frontChild()));
+  // Select the optimal path sequence from the station graph.
+  std::list<ContinuousPath> optimal_path_seq = selectOptimalPath();
+
+  return Path(optimal_path_seq.front());
 }
 
 } // End namespace planner.

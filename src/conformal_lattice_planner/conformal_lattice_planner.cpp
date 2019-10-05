@@ -489,28 +489,83 @@ void ConformalLatticePlanner::exploreRightStation(
   return;
 }
 
-template<typename Path>
-Path ConformalLatticePlanner::selectOptimalPath() const {
+std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
-  //boost::shared_ptr<Station> optimal_station = nullptr;
+  boost::shared_ptr<Station> optimal_station = nullptr;
 
-  //for (const auto& item : node_to_station_table_) {
-  //  boost::shared_ptr<Station> station = item.second;
-  //  // Only terminal stations are considered, i.e. stations without children.
-  //  if (station->hasChild()) continue;
-  //  // Set the optimal station if it has not been set yet.
-  //  if (!optimal_station) optimal_station = station;
-  //  // Update the optimal station if the candidate has small cost.
-  //  if ((*(station->optimalParent())).first <
-  //      (*(optimal_station->optimalParent())).first)
-  //    optimal_station = station;
-  //}
+  for (const auto& item : node_to_station_table_) {
+    boost::shared_ptr<Station> station = item.second;
 
-  //if (!optimal_station)
-  //  throw std::runtime_error("The optimal terminal station is not set.");
+    // Only terminal stations are considered, i.e. stations without children.
+    if (station->hasChild()) continue;
 
-  //// Track back from the terminal station to find all the paths.
-  //std::list<Path> path_sequence;
+    // Set the optimal station if it has not been set yet.
+    if (!optimal_station) optimal_station = station;
+
+    // Update the optimal station if the candidate has small cost.
+    // Here we assume terminal station always has at least one parent station.
+    // Otherwise, there is just on root station in the graph.
+    if ((*(station->optimalParent())).first <
+        (*(optimal_station->optimalParent())).first)
+      optimal_station = station;
+  }
+
+  // There should be at least one parent node.
+  if (!optimal_station)
+    throw std::runtime_error("No terminal station in the graph.");
+
+  // There should always be parent stations for a terminal station.
+  if (!optimal_station->hasParent())
+    throw std::runtime_error("Graph only consists of one root station.");
+
+  // Lambda function to get the child station IDs given a parent station.
+  auto frontChildId = [this](const boost::shared_ptr<Station>& station)->boost::optional<size_t>{
+    if (!(station->frontChild())) return boost::none;
+    else return std::get<2>(*(station->frontChild())).lock()->id();
+  };
+  auto leftChildId = [this](const boost::shared_ptr<Station>& station)->boost::optional<size_t>{
+    if (!(station->leftChild())) return boost::none;
+    else return std::get<2>(*(station->leftChild())).lock()->id();
+  };
+  auto rightChildId = [this](const boost::shared_ptr<Station>& station)->boost::optional<size_t>{
+    if (!(station->rightChild())) return boost::none;
+    else return std::get<2>(*(station->rightChild())).lock()->id();
+  };
+
+  // Track back from the terminal station to find all the paths.
+  std::list<ContinuousPath> path_sequence;
+  boost::shared_ptr<Station> station = optimal_station;
+
+  while (station->hasParent()) {
+
+    boost::shared_ptr<Station> parent_station =
+      (*(station->optimalParent())).second.lock();
+
+    // The station is the front child station of the parent.
+    if (frontChildId(parent_station) &&
+        frontChildId(parent_station) == station->id()) {
+      path_sequence.push_front(std::get<0>(*(parent_station->frontChild())));
+      continue;
+    }
+
+    // The station is the left child station of the parent.
+    if (leftChildId(parent_station) &&
+        leftChildId(parent_station) == station->id()) {
+      path_sequence.push_front(std::get<0>(*(parent_station->leftChild())));
+      continue;
+    }
+
+    // The station is the right child station of the parent.
+    if (rightChildId(parent_station) &&
+        rightChildId(parent_station) == station->id()) {
+      path_sequence.push_front(std::get<0>(*(parent_station->rightChild())));
+      continue;
+    }
+
+    station = parent_station;
+  }
+
+  return path_sequence;
 }
 
 } // End namespace planner.
