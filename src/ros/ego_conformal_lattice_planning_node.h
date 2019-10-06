@@ -35,7 +35,9 @@ public:
 
 protected:
 
-  ros::Publisher conformal_lattice_pub_;
+  mutable ros::Publisher path_pub_;
+  mutable ros::Publisher conformal_lattice_pub_;
+
   mutable actionlib::SimpleActionServer<
     conformal_lattice_planner::EgoPlanAction> server_;
 
