@@ -273,8 +273,7 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \return The planned path.
    */
-  template<typename Path>
-  Path plan(const size_t ego, const Snapshot& snapshot);
+  DiscretePath plan(const size_t ego, const Snapshot& snapshot);
 
   /**
    * \brief The main interface of the path planner.
@@ -283,9 +282,8 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \param[out] path The planned path.
    */
-  template<typename Path>
-  void plan(const size_t ego, const Snapshot& snapshot, Path& path) {
-    path = plan<Path>(ego, snapshot);
+  void plan(const size_t ego, const Snapshot& snapshot, DiscretePath& path) {
+    path = plan(ego, snapshot);
     return;
   }
 
@@ -318,26 +316,9 @@ protected:
   /// Select the optimal path sequence based on the constructed station graph.
   std::list<ContinuousPath> selectOptimalPath() const;
 
+  /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
+  DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
+
 }; // End class ConformalLatticePlanner.
-
-template<typename Path>
-Path ConformalLatticePlanner::plan(const size_t ego, const Snapshot& snapshot) {
-  if (ego != snapshot.ego().id())
-    throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
-
-  // Construct the waypoint lattice.
-  initializeWaypointLattice(snapshot.ego());
-
-  // Initialize the root station with the current snapshot.
-  initializeRootStation(snapshot);
-
-  // Construct the station graph.
-  constructStationGraph();
-
-  // Select the optimal path sequence from the station graph.
-  std::list<ContinuousPath> optimal_path_seq = selectOptimalPath();
-
-  return Path(optimal_path_seq.front());
-}
 
 } // End namespace planner.

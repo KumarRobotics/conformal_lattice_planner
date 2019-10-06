@@ -169,6 +169,30 @@ std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
   return paths;
 }
 
+DiscretePath ConformalLatticePlanner::plan(
+    const size_t ego, const Snapshot& snapshot) {
+
+  if (ego != snapshot.ego().id())
+    throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
+
+  // Construct the waypoint lattice.
+  initializeWaypointLattice(snapshot.ego());
+
+  // Initialize the root station with the current snapshot.
+  initializeRootStation(snapshot);
+
+  // Construct the station graph.
+  constructStationGraph();
+
+  // Select the optimal path sequence from the station graph.
+  std::list<ContinuousPath> optimal_path_seq = selectOptimalPath();
+
+  // Merge the path sequence into one discrete path.
+  DiscretePath optimal_path = mergePaths(optimal_path_seq);
+
+  return optimal_path;
+}
+
 void ConformalLatticePlanner::initializeWaypointLattice(const Vehicle& ego) {
 
   std::printf("initializeWaypointLattice(): \n");
@@ -208,10 +232,10 @@ void ConformalLatticePlanner::constructStationGraph() {
     exploreRightStation(station, station_queue);
   }
 
-  for (const auto& item : node_to_station_table_) {
-    if (!item.second) throw std::runtime_error("node is not available.");
-    std::cout << item.second->string() << std::endl;;
-  }
+  //for (const auto& item : node_to_station_table_) {
+  //  if (!item.second) throw std::runtime_error("node is not available.");
+  //  std::cout << item.second->string() << std::endl;;
+  //}
 
   return;
 }
@@ -227,10 +251,7 @@ void ConformalLatticePlanner::exploreFrontStation(
   //std::printf("Find target node.\n");
   boost::shared_ptr<const WaypointNode> target_node =
     waypoint_lattice_->front(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) {
-    std::printf("Cannot find target node.\n");
-    return;
-  }
+  if (!target_node) return;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
@@ -249,8 +270,6 @@ void ConformalLatticePlanner::exploreFrontStation(
   //  // just ignore this option.
   //  return;
   //}
-
-  std::cout << path->string() << std::endl;
 
   // Now, simulate the traffic forward.
   //std::printf("Simulate the traffic.\n");
@@ -327,10 +346,7 @@ void ConformalLatticePlanner::exploreLeftStation(
   // TODO: Maybe check both \c leftFront and \c frontLeft.
   boost::shared_ptr<const WaypointNode> target_node =
     waypoint_lattice_->leftFront(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) {
-    std::printf("Cannot find target node.\n");
-    return;
-  }
+  if (!target_node) return;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
@@ -424,10 +440,7 @@ void ConformalLatticePlanner::exploreRightStation(
   // TODO: Maybe check both \c rightFront and \c frontRight.
   boost::shared_ptr<const WaypointNode> target_node =
     waypoint_lattice_->rightFront(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) {
-    std::printf("Cannot find target node.\n");
-    return;
-  }
+  if (!target_node) return;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
@@ -550,6 +563,9 @@ const double ConformalLatticePlanner::costFromRootToTerminal(
 
 std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
+  std::printf("selectOptimalPath():\n");
+
+  std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Station> optimal_station = nullptr;
   // Set the initial cost to a large enough number.
   double optimal_cost = 1.0e10;
@@ -560,6 +576,10 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
     // Only terminal stations are considered, i.e. stations without children.
     if (station->hasChild()) continue;
     const double station_cost = costFromRootToTerminal(station);
+    std::printf("=============================================\n");
+    std::cout << station->string();
+    std::printf("cost:%f\n", station_cost);
+    std::printf("=============================================\n");
 
     // Update the optimal station if the candidate has small cost.
     // Here we assume terminal station always has at least one parent station.
@@ -597,7 +617,12 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   std::list<ContinuousPath> path_sequence;
   boost::shared_ptr<Station> station = optimal_station;
 
+  int counter = 0;
+
+  std::printf("Trace back parent stations.\n");
   while (station->hasParent()) {
+
+    std::cout << station->string() << std::endl;
 
     boost::shared_ptr<Station> parent_station =
       (*(station->optimalParent())).second.lock();
@@ -606,6 +631,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
     if (frontChildId(parent_station) &&
         frontChildId(parent_station) == station->id()) {
       path_sequence.push_front(std::get<0>(*(parent_station->frontChild())));
+      station = parent_station;
       continue;
     }
 
@@ -613,6 +639,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
     if (leftChildId(parent_station) &&
         leftChildId(parent_station) == station->id()) {
       path_sequence.push_front(std::get<0>(*(parent_station->leftChild())));
+      station = parent_station;
       continue;
     }
 
@@ -620,13 +647,24 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
     if (rightChildId(parent_station) &&
         rightChildId(parent_station) == station->id()) {
       path_sequence.push_front(std::get<0>(*(parent_station->rightChild())));
+      station = parent_station;
       continue;
     }
-
-    station = parent_station;
   }
 
   return path_sequence;
+}
+
+DiscretePath ConformalLatticePlanner::mergePaths(
+    const std::list<ContinuousPath>& paths) const {
+
+  //std::printf("mergePaths(): \n");
+  //std::printf("path #: %lu\n", paths.size());
+
+  DiscretePath path(paths.front());
+  for (std::list<ContinuousPath>::const_iterator iter = ++(paths.begin());
+       iter != paths.end(); ++iter) path.append(*iter);
+  return path;
 }
 
 } // End namespace planner.
