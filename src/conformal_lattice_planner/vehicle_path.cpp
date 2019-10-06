@@ -224,7 +224,7 @@ const DiscretePath::CarlaTransform DiscretePath::transformAt(const double s) con
   if (iter==samples_.begin() || iter==samples_.end())
     throw std::runtime_error("The input distance is out of the range of the path.");
 
-  std::map<double, CarlaTransform>::const_iterator iter1 = --iter;
+  std::map<double, CarlaTransform>::const_iterator iter1 = --iter; ++iter;
   std::map<double, CarlaTransform>::const_iterator iter2 = iter;
   const double ratio = (iter2->first-s) / (iter2->first-iter1->first);
   return interpolateTransform(iter1->second, iter2->second, ratio);
@@ -234,6 +234,24 @@ const std::vector<DiscretePath::CarlaTransform> DiscretePath::samples() const {
   std::vector<CarlaTransform> samples;
   for (const auto& sample : samples_) samples.push_back(sample.second);
   return samples;
+}
+
+void DiscretePath::append(const DiscretePath& path) {
+  // Check if the start of the input path matches the end of this path.
+  // Only location is compared.
+  const double gap = (endTransform().location - path.startTransform().location).Length();
+  std::printf("gap: %f\n", gap);
+  if (gap > 0.1) throw std::runtime_error("gap > 0.1m");
+
+  // Append the samples in the input path to this path.
+  // The first sample in the input path should be ignored.
+  const double offset = (--samples_.end())->first;
+  for (std::map<double, CarlaTransform>::const_iterator iter = ++(path.samples_.begin());
+       iter != path.samples_.end(); ++iter) {
+    samples_[iter->first+offset] = iter->second;
+  }
+
+  return;
 }
 
 std::string DiscretePath::string(const std::string& prefix) const {

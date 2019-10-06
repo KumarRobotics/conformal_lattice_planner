@@ -169,6 +169,14 @@ public:
 
   virtual const std::vector<CarlaTransform> samples() const override;
 
+  virtual void append(const DiscretePath& path);
+
+  virtual void append(const ContinuousPath& path) {
+    DiscretePath discrete_path(path);
+    append(discrete_path);
+    return;
+  }
+
   std::string string(const std::string& prefix="") const;
 
 }; // End class DiscretePath.
