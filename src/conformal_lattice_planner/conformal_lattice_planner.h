@@ -47,9 +47,9 @@ protected:
   /**
    * \brief Stores a parent station of this station.
    *
-   * The pair stores the cost-to-come at this station and the parent station.
+   * The tuple stores the snapshot and the cost-to-come if come form this parent station.
    */
-  using Parent = std::pair<double, boost::weak_ptr<Station>>;
+  using Parent = std::tuple<Snapshot, double, boost::weak_ptr<Station>>;
 
   /**
    * \brief Stores a child station of this station.
@@ -98,20 +98,24 @@ protected:
 
 public:
 
-  //Station(const boost::shared_ptr<const WaypointNode>& node, const Snapshot& snapshot) :
-  //  node_(node), snapshot_(snapshot) {}
+  Station(const Snapshot& snapshot, const boost::shared_ptr<const WaypointNode>& node) :
+    node_    (node),
+    snapshot_(snapshot) {
+    if (!node) throw std::runtime_error("node == nullptr");
+    return;
+  }
 
   Station(const Snapshot& snapshot,
           const boost::shared_ptr<const WaypointLattice<router::LoopRouter>>& waypoint_lattice,
           const boost::shared_ptr<CarlaMap>& map) :
     snapshot_(snapshot) {
-      boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
-          map->GetWaypoint(snapshot.ego().transform().location),
-          waypoint_lattice->longitudinalResolution());
-      if (!node) throw std::runtime_error("Cannot find a node on the waypoint lattice for the station");
-      node_ = node;
-      return;
-    }
+    boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
+        map->GetWaypoint(snapshot.ego().transform().location),
+        waypoint_lattice->longitudinalResolution());
+    if (!node) throw std::runtime_error("Cannot find a node on the waypoint lattice for the station");
+    node_ = node;
+    return;
+  }
 
   boost::shared_ptr<const WaypointNode> node() const { return node_.lock(); }
   boost::weak_ptr<const WaypointNode>& node() { return node_; }
@@ -122,10 +126,14 @@ public:
     return node_.lock()->id();
   }
 
-  const CarlaTransform transform() const { return snapshot_.ego().transform(); }
+  const CarlaTransform transform() const { return snapshot().ego().transform(); }
 
   const Snapshot& snapshot() const { return snapshot_; }
-  Snapshot& snapshot() { return snapshot_; }
+
+  const double costToCome() const {
+    if (!optimal_parent_) throw std::runtime_error("Optimal parent not available.");
+    return std::get<1>(*optimal_parent_);
+  }
 
   /// Accessors for the parent stations.
   const boost::optional<Parent>& leftParent() const { return left_parent_; }
@@ -156,11 +164,14 @@ public:
 
   /// Update a parent station.
   /// The \c optimal_parent_ station will be updated if necessary.
-  void updateLeftParent(const double cost_to_come,
+  void updateLeftParent(const Snapshot& snapshot,
+                        const double cost_to_come,
                         const boost::shared_ptr<Station>& parent_station);
-  void updateBackParent(const double cost_to_come,
+  void updateBackParent(const Snapshot& snapshot,
+                        const double cost_to_come,
                         const boost::shared_ptr<Station>& parent_station);
-  void updateRightParent(const double cost_to_come,
+  void updateRightParent(const Snapshot& snapshot,
+                         const double cost_to_come,
                          const boost::shared_ptr<Station>& parent_station);
 
   /// Update a child station.

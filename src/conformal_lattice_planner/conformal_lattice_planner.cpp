@@ -32,33 +32,43 @@ void Station::updateOptimalParent() {
   }
 
   // Set the \c optimal_parent_ to the existing parent with the minimum cost-to-come.
-  if (back_parent_ && back_parent_->first <= optimal_parent_->first)
+  // With the same cost-to-come, the back parent is preferred.
+  if (back_parent_ && std::get<1>(*back_parent_) <= std::get<1>(*optimal_parent_))
     optimal_parent_ = back_parent_;
-  if (left_parent_ && left_parent_->first < optimal_parent_->first)
+  if (left_parent_ && std::get<1>(*left_parent_) <= std::get<1>(*optimal_parent_))
     optimal_parent_ = left_parent_;
-  if (right_parent_ && right_parent_->first < optimal_parent_->first)
+  if (right_parent_ && std::get<1>(*right_parent_) <= std::get<1>(*optimal_parent_))
     optimal_parent_ = right_parent_;
+
+  // Update the snapshot at this station.
+  snapshot_ = std::get<0>(*optimal_parent_);
 
   return;
 }
 
 void Station::updateLeftParent(
-    const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  left_parent_ = std::make_pair(cost_to_come, parent_station);
+    const Snapshot& snapshot,
+    const double cost_to_come,
+    const boost::shared_ptr<Station>& parent_station) {
+  left_parent_ = std::make_tuple(snapshot, cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
 
 void Station::updateBackParent(
-    const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  back_parent_ = std::make_pair(cost_to_come, parent_station);
+    const Snapshot& snapshot,
+    const double cost_to_come,
+    const boost::shared_ptr<Station>& parent_station) {
+  back_parent_ = std::make_tuple(snapshot, cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
 
 void Station::updateRightParent(
-    const double cost_to_come, const boost::shared_ptr<Station>& parent_station) {
-  right_parent_ = std::make_pair(cost_to_come, parent_station);
+    const Snapshot& snapshot,
+    const double cost_to_come,
+    const boost::shared_ptr<Station>& parent_station) {
+  right_parent_ = std::make_tuple(snapshot, cost_to_come, parent_station);
   updateOptimalParent();
   return;
 }
@@ -96,22 +106,26 @@ std::string Station::string(const std::string& prefix) const {
 
   output += "back parent: ";
   if (back_parent_)
-    output += ((parent_format) % back_parent_->second.lock()->id() % back_parent_->first).str();
+    output += ((parent_format) % std::get<2>(*back_parent_).lock()->id()
+                               % std::get<1>(*back_parent_)).str();
   else output += "\n";
 
   output += "left parent: ";
   if (left_parent_)
-    output += ((parent_format) % left_parent_->second.lock()->id() % left_parent_->first).str();
+    output += ((parent_format) % std::get<2>(*left_parent_).lock()->id()
+                               % std::get<1>(*left_parent_)).str();
   else output += "\n";
 
   output += "right parent: ";
   if (right_parent_)
-    output += ((parent_format) % right_parent_->second.lock()->id() % right_parent_->first).str();
+    output += ((parent_format) % std::get<2>(*right_parent_).lock()->id()
+                               % std::get<1>(*right_parent_)).str();
   else output += "\n";
 
   output += "optimal parent: ";
   if (optimal_parent_)
-    output += ((parent_format) % optimal_parent_->second.lock()->id() % optimal_parent_->first).str();
+    output += ((parent_format) % std::get<2>(*optimal_parent_).lock()->id()
+                               % std::get<1>(*optimal_parent_)).str();
   else output += "\n";
 
   boost::format child_format("id:%1% path length:%2% stage cost:%3%\n");
@@ -209,8 +223,8 @@ void ConformalLatticePlanner::initializeRootStation(const Snapshot& snapshot) {
 
   std::printf("initializeRootStation(): \n");
 
-  boost::shared_ptr<Station> root = boost::make_shared<Station>(
-      snapshot, waypoint_lattice_, map_);
+  boost::shared_ptr<Station> root =
+    boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
   node_to_station_table_[root->id()] = root;
   root_ = root;
 
@@ -306,9 +320,10 @@ void ConformalLatticePlanner::exploreFrontStation(
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateBackParent(
-        station->optimalParent()->first+stage_cost, station);
+        simulator.snapshot(), station->costToCome()+stage_cost, station);
   } else {
-    next_station->updateBackParent(stage_cost, station);
+    next_station->updateBackParent(
+        simulator.snapshot(), stage_cost, station);
   }
 
   return;
@@ -400,9 +415,10 @@ void ConformalLatticePlanner::exploreLeftStation(
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateRightParent(
-        station->optimalParent()->first+stage_cost, station);
+        simulator.snapshot(), station->costToCome()+stage_cost, station);
   } else {
-    next_station->updateRightParent(stage_cost, station);
+    next_station->updateRightParent(
+        simulator.snapshot(), stage_cost, station);
   }
 
   return;
@@ -494,9 +510,10 @@ void ConformalLatticePlanner::exploreRightStation(
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateLeftParent(
-        station->optimalParent()->first+stage_cost, station);
+        simulator.snapshot(), station->costToCome()+stage_cost, station);
   } else {
-    next_station->updateLeftParent(stage_cost, station);
+    next_station->updateLeftParent(
+        simulator.snapshot(), stage_cost, station);
   }
 
   return;
@@ -553,7 +570,7 @@ const double ConformalLatticePlanner::costFromRootToTerminal(
   if (terminal->hasChild())
     throw std::runtime_error("The station is not a terminal station.");
 
-  const double path_cost = (*(terminal->optimalParent())).first;
+  const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
   const double terminal_distance_cost = terminalDistanceCost(terminal);
 
@@ -625,7 +642,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
     std::cout << station->string() << std::endl;
 
     boost::shared_ptr<Station> parent_station =
-      (*(station->optimalParent())).second.lock();
+      std::get<2>((*(station->optimalParent()))).lock();
 
     // The station is the front child station of the parent.
     if (frontChildId(parent_station) &&
