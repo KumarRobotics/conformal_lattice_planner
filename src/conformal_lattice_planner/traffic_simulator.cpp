@@ -179,9 +179,18 @@ const double TrafficSimulator::accelCost() const {
 
   double ego_brake_cost = accelCost(snapshot_.ego().acceleration());
   double agent_brake_cost = 0.0;
-  if (back)       agent_brake_cost += accelCost(snapshot_.agent(back->first).acceleration());
-  if (left_back)  agent_brake_cost += accelCost(snapshot_.agent(left_back->first).acceleration());
-  if (right_back) agent_brake_cost += accelCost(snapshot_.agent(right_back->first).acceleration());
+  if (back)       {
+    std::printf("cost from back agent %lu\n", back->first);
+    agent_brake_cost += accelCost(snapshot_.agent(back->first).acceleration());
+  }
+  if (left_back)  {
+    std::printf("cost from left back agent %lu\n", left_back->first);
+    agent_brake_cost += accelCost(snapshot_.agent(left_back->first).acceleration());
+  }
+  if (right_back) {
+    std::printf("cost from right back agent %lu\n", right_back->first);
+    agent_brake_cost += accelCost(snapshot_.agent(right_back->first).acceleration());
+  }
 
   return ego_brake_cost + 0.5*agent_brake_cost;
 }

@@ -174,15 +174,15 @@ const bool TrafficSimulator::simulate(
     dt = dt <= remaining_time ? dt : remaining_time;
     dt = dt <= max_time-time  ? dt : max_time-time;
 
-    //std::printf("============================================\n");
-    //std::cout << snapshot_.string("start snapshot:\n");
-    //std::printf("ego accel: %f\n", ego_accel);
-    //std::printf("time: %f dt: %f\n", time, dt);
+    std::printf("============================================\n");
+    std::cout << snapshot_.string("start snapshot:\n");
+    std::printf("ego accel: %f\n", ego_accel);
+    std::printf("time: %f dt: %f\n", time, dt);
 
     // Update the distance of the ego on the path.
     ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
     if (ego_distance > path.range()) ego_distance = path.range();
-    //std::printf("ego distance: %f\n", ego_distance);
+    std::printf("ego distance: %f path range: %f\n", ego_distance, path.range());
 
     // Store the updated status of the ego.
     updated_tuples.push_back(std::make_tuple(
@@ -196,6 +196,7 @@ const bool TrafficSimulator::simulate(
       const Vehicle& agent = item.second;
       const double agent_accel = agentAcceleration(agent.id());
       updated_tuples.push_back(updatedAgentTuple(agent.id(), agent_accel, dt));
+      std::printf("agent %lu accel: %f\n", agent.id(), agent_accel);
     }
 
     // Update the snapshot.
@@ -210,8 +211,8 @@ const bool TrafficSimulator::simulate(
     ttc_cost.push_back(ttcCost());
     brake_cost.push_back(accelCost());
 
-    //std::printf("ttc cost: %f\n", ttcCost());
-    //std::printf("brake cost: %f\n", accelCost());
+    std::printf("ttc cost: %f\n", ttcCost());
+    std::printf("brake cost: %f\n", accelCost());
 
     // Tick the time.
     time += dt;

@@ -111,9 +111,9 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
   path_msg->lifetime = ros::Duration(0.0);
   path_msg->frame_locked = false;
   path_msg->pose.orientation.w = 1.0;
-  path_msg->scale.x = 0.1;
-  path_msg->scale.y = 0.1;
-  path_msg->scale.z = 0.1;
+  path_msg->scale.x = 1.8;
+  path_msg->scale.y = 1.8;
+  path_msg->scale.z = 1.8;
   path_msg->color = path_color;
 
   populatePathMsg(path, path_msg);

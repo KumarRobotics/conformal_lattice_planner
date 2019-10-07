@@ -483,11 +483,12 @@ bool TrafficLattice<Router>::moveTrafficForward(
   // Modify the lattice to agree with the new start and range.
   boost::shared_ptr<Node> update_start_node = this->closestNode(
       update_start, this->longitudinal_resolution_);
-  //std::cout << "updated range: " << update_range << std::endl;
-  //std::cout << "current range: " << this->range() << std::endl;
-  //std::cout << "start node distance: " << update_start_node->distance() << std::endl;
-  if (!update_start_node)
+  if (!update_start_node) {
+    std::printf("new start waypoint on road %u\n", update_start->GetRoadId());
+    std::printf("updated range: %f\n", update_range);
+    std::printf("current range: %f\n", this->range());
     throw std::runtime_error("All vehicles moves outside the old lattice.");
+  }
   this->shorten(this->range()-update_start_node->distance());
   this->extend(update_range);
 

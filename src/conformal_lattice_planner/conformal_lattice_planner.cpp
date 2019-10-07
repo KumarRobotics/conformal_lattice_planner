@@ -429,6 +429,20 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
     // If for whatever reason, the path cannot be created, the station
     // cannot be created either.
     std::printf("Fail to generate keep lane change path.\n");
+    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        station->transform().location.x,
+        station->transform().location.y,
+        station->transform().location.z,
+        station->transform().rotation.roll,
+        station->transform().rotation.pitch,
+        station->transform().rotation.yaw);
+    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        target_node->waypoint()->GetTransform().location.x,
+        target_node->waypoint()->GetTransform().location.y,
+        target_node->waypoint()->GetTransform().location.z,
+        target_node->waypoint()->GetTransform().rotation.roll,
+        target_node->waypoint()->GetTransform().rotation.pitch,
+        target_node->waypoint()->GetTransform().rotation.yaw);
     return nullptr;
   }
 
@@ -508,6 +522,20 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
     // If for whatever reason, the path cannot be created,
     // just ignore this option.
     std::printf("Fail to generate left lane change path.\n");
+    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        station->transform().location.x,
+        station->transform().location.y,
+        station->transform().location.z,
+        station->transform().rotation.roll,
+        station->transform().rotation.pitch,
+        station->transform().rotation.yaw);
+    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        target_node->waypoint()->GetTransform().location.x,
+        target_node->waypoint()->GetTransform().location.y,
+        target_node->waypoint()->GetTransform().location.z,
+        target_node->waypoint()->GetTransform().rotation.roll,
+        target_node->waypoint()->GetTransform().rotation.pitch,
+        target_node->waypoint()->GetTransform().rotation.yaw);
     return nullptr;
   }
 
@@ -587,6 +615,20 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
     // If for whatever reason, the path cannot be created,
     // just ignore this option.
     std::printf("Fail to generate right lane change path.\n");
+    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        station->transform().location.x,
+        station->transform().location.y,
+        station->transform().location.z,
+        station->transform().rotation.roll,
+        station->transform().rotation.pitch,
+        station->transform().rotation.yaw);
+    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        target_node->waypoint()->GetTransform().location.x,
+        target_node->waypoint()->GetTransform().location.y,
+        target_node->waypoint()->GetTransform().location.z,
+        target_node->waypoint()->GetTransform().rotation.roll,
+        target_node->waypoint()->GetTransform().rotation.pitch,
+        target_node->waypoint()->GetTransform().rotation.yaw);
     return nullptr;
   }
 
@@ -687,7 +729,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
   std::printf("selectOptimalPath():\n");
 
-  std::printf("Find optimal terminal station.\n");
+  //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Station> optimal_station = nullptr;
   // Set the initial cost to a large enough number.
   double optimal_cost = 1.0e10;
@@ -695,13 +737,13 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   for (const auto& item : node_to_station_table_) {
 
     boost::shared_ptr<Station> station = item.second;
-    std::printf("=============================================\n");
-    std::cout << station->string();
+    //std::printf("=============================================\n");
+    //std::cout << station->string();
     // Only terminal stations are considered, i.e. stations without children.
     if (station->hasChild()) continue;
     const double station_cost = costFromRootToTerminal(station);
-    std::printf("cost:%f\n", station_cost);
-    std::printf("=============================================\n");
+    //std::printf("cost:%f\n", station_cost);
+    //std::printf("=============================================\n");
 
     // Update the optimal station if the candidate has small cost.
     // Here we assume terminal station always has at least one parent station.
@@ -739,7 +781,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   std::list<ContinuousPath> path_sequence;
   boost::shared_ptr<Station> station = optimal_station;
 
-  std::printf("Trace back parent stations.\n");
+  //std::printf("Trace back parent stations.\n");
   while (station->hasParent()) {
 
     //std::cout << station->string() << std::endl;

@@ -62,16 +62,19 @@ Snapshot& Snapshot::operator=(const Snapshot& other) {
 
 const Vehicle& Snapshot::agent(const size_t id) const {
   std::unordered_map<size_t, Vehicle>::const_iterator iter = agents_.find(id);
-  if (iter == agents_.end())
+  if (iter == agents_.end()) {
+    std::printf("Looking for %lu\n", id);
     throw std::out_of_range("The required agent vehicle does not exist in the snapshot");
+  }
   return iter->second;
 }
 
 Vehicle& Snapshot::agent(const size_t id) {
   std::unordered_map<size_t, Vehicle>::iterator iter = agents_.find(id);
-  if (iter == agents_.end())
+  if (iter == agents_.end()) {
+    std::printf("Looking for %lu\n", id);
     throw std::out_of_range("The required agent vehicle does not exist in the snapshot");
-
+  }
   return iter->second;
 }
 
