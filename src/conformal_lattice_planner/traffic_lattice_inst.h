@@ -39,7 +39,6 @@ TrafficLattice<Router>::TrafficLattice(
   boost::shared_ptr<CarlaWaypoint> start_waypoint = nullptr;
   double range = 0.0;
   latticeStartAndRange(vehicles, start_waypoint, range);
-  std::printf("start_waypoint road: %u\n", start_waypoint->GetRoadId());
 
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
