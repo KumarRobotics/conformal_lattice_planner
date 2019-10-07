@@ -5,9 +5,6 @@
   <arg name="no_rendering_mode" default="true"/>
   <arg name="synchronous_mode" default="true"/>
   <arg name="vehicle_name" default="vehicle.audi.tt"/>
-  <arg name="ego_initial_x" default="0"/>
-  <arg name="ego_initial_y" default="0"/>
-  <arg name="ego_initial_z" default="0"/>
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
@@ -23,9 +20,6 @@
       <param name="synchronous_mode" value="$(arg synchronous_mode)"/>
       <!-- ego vehicle -->
       <param name="vehicle_name" value="$(arg vehicle_name)"/>
-      <param name="ego_initial_x" value="$(arg ego_initial_x)"/>
-      <param name="ego_initial_y" value="$(arg ego_initial_y)"/>
-      <param name="ego_initial_z" value="$(arg ego_initial_z)"/>
     </node>
   </group>
 </launch>
