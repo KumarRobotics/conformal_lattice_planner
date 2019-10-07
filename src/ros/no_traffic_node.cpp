@@ -190,7 +190,7 @@ boost::optional<size_t> NoTrafficNode::spawnEgoVehicle(
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
-  transform.location.z += 1.5;
+  transform.location.z += 0.5;
 
   boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
   boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
@@ -240,7 +240,7 @@ boost::optional<size_t> NoTrafficNode::spawnAgentVehicle(
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
-  transform.location.z += 1.5;
+  transform.location.z += 0.5;
 
   boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
   boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
