@@ -8,7 +8,7 @@
 
   <!-- Which ego planner to use -->
   <!-- Only one of the variables should be true -->
-  <arg name="ego_lane_follwer" default="false"/>
+  <arg name="ego_lane_follower" default="false"/>
   <arg name="ego_conformal_lattice_planner" default="false"/>
 
   <!-- Which agents planner to use -->
