@@ -189,14 +189,14 @@ DiscretePath ConformalLatticePlanner::plan(
   if (ego != snapshot.ego().id())
     throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
 
-  // Construct the waypoint lattice.
-  initializeWaypointLattice(snapshot.ego());
+  // Update the waypoint lattice.
+  updateWaypointLattice(snapshot);
 
-  // Initialize the root station with the current snapshot.
-  initializeRootStation(snapshot);
+  // Prune the station graph.
+  std::queue<boost::shared_ptr<Station>> station_queue = pruneStationGraph(snapshot);
 
   // Construct the station graph.
-  constructStationGraph();
+  constructStationGraph(station_queue);
 
   // Select the optimal path sequence from the station graph.
   std::list<ContinuousPath> optimal_path_seq = selectOptimalPath();
@@ -207,44 +207,198 @@ DiscretePath ConformalLatticePlanner::plan(
   return optimal_path;
 }
 
-void ConformalLatticePlanner::initializeWaypointLattice(const Vehicle& ego) {
+bool ConformalLatticePlanner::immediateNextStationReached(
+    const Snapshot& snapshot) const {
 
-  std::printf("initializeWaypointLattice(): \n");
+  std::printf("immediateNextStationReached(): \n");
 
-  boost::shared_ptr<CarlaWaypoint> ego_waypoint =
-    map_->GetWaypoint(ego.transform().location);
-  waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
-      ego_waypoint, spatial_horizon_, 2.0, router_);
+  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
+    boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
+
+  // Find out the current distance of the ego on the lattice.
+  boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
+      map_->GetWaypoint(snapshot.ego().transform().location),
+      waypoint_lattice->longitudinalResolution());
+  double ego_distance = ego_node->distance();
+
+  // Find out the distance the ego need to achieve.
+  double target_distance = 0.0;
+  if (root_.lock()->hasLeftChild()) {
+    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->leftChild())).lock();
+    target_distance = station->node().lock()->distance();
+  } else if (root_.lock()->hasFrontChild()) {
+    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->frontChild())).lock();
+    target_distance = station->node().lock()->distance();
+  } else if (root_.lock()->hasRightChild()) {
+    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->rightChild())).lock();
+    target_distance = station->node().lock()->distance();
+  }
+
+  // If the difference is less than 0.2, or the ego has travelled beyond the
+  // the target distance, the immediate station is considered to be reached.
+  if (target_distance-ego_distance < 0.5) return true;
+  else return false;
+}
+
+void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
+
+  std::printf("updateWaypointLattice(): \n");
+
+  // If the waypoint lattice has not been initialized, a new one is created with
+  // the start waypoint as where the ego currently is. Meanwhile, the range of
+  // the lattice is set to the spatial horizon. The resolution is hardcoded as 1.0m.
+  if (!waypoint_lattice_) {
+    std::printf("Create new waypoint lattice.\n");
+    boost::shared_ptr<CarlaWaypoint> ego_waypoint =
+      map_->GetWaypoint(snapshot.ego().transform().location);
+    waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
+        ego_waypoint, spatial_horizon_, 1.0, router_);
+    return;
+  }
+
+  // If the waypoint lattice has been created before, we will choose to either
+  // update the lattice or leave it as it currently is based on whether the ego
+  // has reached one of the child stations of the root.
+  if (immediateNextStationReached(snapshot)) {
+    std::printf("Shift the waypoint lattice forward by 50.0m.\n");
+    waypoint_lattice_->shift(50.0);
+  }
 
   return;
 }
 
-void ConformalLatticePlanner::initializeRootStation(const Snapshot& snapshot) {
+std::queue<boost::shared_ptr<Station>>
+  ConformalLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
-  std::printf("initializeRootStation(): \n");
+  std::printf("pruneStationGraph(): \n");
 
-  boost::shared_ptr<Station> root =
-    boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
-  node_to_station_table_[root->id()] = root;
-  root_ = root;
-
-  std::cout << root_.lock()->string() << std::endl;
-
-  return;
-}
-
-void ConformalLatticePlanner::constructStationGraph() {
-  std::printf("constructStationGraph(): \n");
+  // Stores the stations to be explored.
   std::queue<boost::shared_ptr<Station>> station_queue;
-  station_queue.push(root_.lock());
+
+  // There are two cases we can basically start fresh in constructing the station graph:
+  // 1) This is the first time the plan() interface is called.
+  // 2) The ego reached one of the immediate child of the root station.
+  if ((!root_.lock()) || immediateNextStationReached(snapshot)) {
+    node_to_station_table_.clear();
+
+    // Initialize the new root station.
+    boost::shared_ptr<Station> root =
+      boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
+    node_to_station_table_[root->id()] = root;
+    root_ = root;
+
+    station_queue.push(root);
+    return station_queue;
+  }
+
+  // If the ego is in the progress of approaching one of the immedidate
+  // child of the root node, we have to keep these immediate child stations
+  // where they are.
+
+  // Create the new root station.
+  boost::shared_ptr<Station> new_root =
+    boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
+
+  // Find the immedidate waypoint nodes.
+  boost::shared_ptr<const WaypointNode> front_node = nullptr;
+  if (root_.lock()->hasFrontChild())
+    front_node = std::get<2>(*(root_.lock()->frontChild())).lock()->node().lock();
+
+  boost::shared_ptr<const WaypointNode> left_front_node = nullptr;
+  if (root_.lock()->hasLeftChild())
+    left_front_node = std::get<2>(*(root_.lock()->leftChild())).lock()->node().lock();
+
+  boost::shared_ptr<const WaypointNode> right_front_node = nullptr;
+  if (root_.lock()->hasRightChild())
+    right_front_node = std::get<2>(*(root_.lock()->rightChild())).lock()->node().lock();
+
+  // Clear all old stations.
+  // We are good with the above nodes already. All stations will be newly created.
+  node_to_station_table_.clear();
+
+  // Try to connect the new root with above nodes.
+  boost::shared_ptr<Station> front_station =
+    connectStationToFrontNode(new_root, front_node);
+  boost::shared_ptr<Station> left_front_station =
+    connectStationToLeftFrontNode(new_root, left_front_node);
+  boost::shared_ptr<Station> right_front_station =
+    connectStationToRightFrontNode(new_root, right_front_node);
+
+  // Save the new root to the table.
+  root_ = new_root;
+  node_to_station_table_[new_root->id()] = new_root;
+
+  // Save the newly created stations to the table and queue
+  // if they are successfully created.
+  if (front_station) {
+    node_to_station_table_[front_station->id()] = front_station;
+    if (front_station->id() == front_node->id())
+      station_queue.push(front_station);
+    std::printf("Add immediate front station to table.\n");
+  }
+
+  if (left_front_station) {
+    node_to_station_table_[left_front_station->id()] = left_front_station;
+    if (left_front_station->id() == left_front_node->id())
+      station_queue.push(left_front_station);
+    std::printf("Add immediate left front station to table.\n");
+  }
+
+  if (right_front_station) {
+    node_to_station_table_[right_front_station->id()] = right_front_station;
+    if (right_front_station->id() == right_front_node->id())
+      station_queue.push(right_front_station);
+    std::printf("Add immediate right front station to table.\n");
+  }
+
+  return station_queue;
+}
+
+void ConformalLatticePlanner::constructStationGraph(
+    std::queue<boost::shared_ptr<Station>>& station_queue) {
+
+  std::printf("constructStationGraph(): \n");
+  //std::queue<boost::shared_ptr<Station>> station_queue;
+  //station_queue.push(root_.lock());
+
+  auto addStationToTableAndQueue = [this, &station_queue](
+      const boost::shared_ptr<Station>& station,
+      const boost::shared_ptr<const WaypointNode>& node)->void{
+    if ((!station) || (!node)) return;
+    node_to_station_table_[station->id()] = station;
+    if (station->id() == node->id()) station_queue.push(station);
+  };
 
   while (!station_queue.empty()) {
     boost::shared_ptr<Station> station = station_queue.front();
     station_queue.pop();
-    exploreFrontStation(station, station_queue);
-    exploreLeftStation(station, station_queue);
-    exploreRightStation(station, station_queue);
+
+    // Try to connect to the front node.
+    boost::shared_ptr<const WaypointNode> front_node =
+      waypoint_lattice_->front(station->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Station> front_station =
+      connectStationToFrontNode(station, front_node);
+
+    addStationToTableAndQueue(front_station, front_node);
+
+    // Try to connect to the left front node.
+    boost::shared_ptr<const WaypointNode> left_front_node =
+      waypoint_lattice_->leftFront(station->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Station> left_front_station =
+      connectStationToLeftFrontNode(station, left_front_node);
+
+    addStationToTableAndQueue(left_front_station, left_front_node);
+
+    // Try to connect to the right front node.
+    boost::shared_ptr<const WaypointNode> right_front_node =
+      waypoint_lattice_->rightFront(station->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Station> right_front_station =
+      connectStationToRightFrontNode(station, right_front_node);
+
+    addStationToTableAndQueue(right_front_station, right_front_node);
   }
+
+  //std::printf("station #: %lu\n", node_to_station_table_.size());
 
   //for (const auto& item : node_to_station_table_) {
   //  if (!item.second) throw std::runtime_error("node is not available.");
@@ -254,38 +408,31 @@ void ConformalLatticePlanner::constructStationGraph() {
   return;
 }
 
-void ConformalLatticePlanner::exploreFrontStation(
+boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
     const boost::shared_ptr<Station>& station,
-    std::queue<boost::shared_ptr<Station>>& station_queue) {
+    const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("exploreFrontStation(): \n");
+  std::printf("connectStationToFrontNode(): \n");
 
-  // Find the target node on the waypoint lattice.
-  // If the target node is not the lattice, we have reached the planning horizon.
-  //std::printf("Find target node.\n");
-  boost::shared_ptr<const WaypointNode> target_node =
-    waypoint_lattice_->front(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) return;
+  // Return directly if the target node does not exisit.
+  if (!target_node) return nullptr;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
-  path = boost::make_shared<ContinuousPath>(
-      station->transform(),
-      target_node->waypoint()->GetTransform(),
-      ContinuousPath::LaneChangeType::KeepLane);
-  //try {
-  //  path = boost::make_shared<ContinuousPath>(
-  //      station->transform(),
-  //      target_node->waypoint()->GetTransform(),
-  //      ContinuousPath::LaneChangeType::KeepLane);
-  //} catch (...) {
-  //  // If for whatever reason, the path cannot be created,
-  //  // just ignore this option.
-  //  return;
-  //}
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        station->transform(),
+        target_node->waypoint()->GetTransform(),
+        ContinuousPath::LaneChangeType::KeepLane);
+  } catch (...) {
+    // If for whatever reason, the path cannot be created, the station
+    // cannot be created either.
+    std::printf("Fail to generate keep lane change path.\n");
+    return nullptr;
+  }
 
-  // Now, simulate the traffic forward.
+  // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
@@ -293,30 +440,20 @@ void ConformalLatticePlanner::exploreFrontStation(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return;
+  if (!no_collision) return nullptr;
 
-  // Create a new station with the end snapshot of the simulation.
+  // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
-
-  // Add the new station to the table and queue if necessary.
-  if (node_to_station_table_.count(next_station->id()) == 0) {
-    node_to_station_table_[next_station->id()] = next_station;
-    // The newly created station will only be added to the queue
-    // if the target node is reached. Otherwise (the ego vehicle
-    // did not reach end target node in time), we will consider
-    // the new station as a terminate.
-    if (next_station->id() == target_node->id()) station_queue.push(next_station);
-  } else {
+  if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
-  }
 
-  // Set the child station of the input station.
+  // Set the child station of the parent station.
   //std::printf("Update the child station of the input station.\n");
   station->updateFrontChild(*path, stage_cost, next_station);
 
-  // Set the parent station of the newly created station.
+  // Set the parent station of the child station.
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateBackParent(
@@ -326,14 +463,17 @@ void ConformalLatticePlanner::exploreFrontStation(
         simulator.snapshot(), stage_cost, station);
   }
 
-  return;
+  return next_station;
 }
 
-void ConformalLatticePlanner::exploreLeftStation(
+boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNode(
     const boost::shared_ptr<Station>& station,
-    std::queue<boost::shared_ptr<Station>>& station_queue) {
+    const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("exploreLeftStation(): \n");
+  std::printf("connectStationToLeftFrontNode(): \n");
+
+  // Return directly if the target node does not exisit.
+  if (!target_node) return nullptr;
 
   // Check the left front and left back vehicles.
   //
@@ -349,39 +489,29 @@ void ConformalLatticePlanner::exploreLeftStation(
 
   if (left_front && left_front->second <= 0.0) {
     std::printf("Close left front vehicle.\n");
-    return;
+    return nullptr;
   }
   if (left_back  && left_back->second  <= 0.0) {
     std::printf("Close left back vehicle.\n");
-    return;
+    return nullptr;
   }
-
-  // Find the target node on the waypoint lattice.
-  // If the target node is not the lattice, we have reached the planning horizon.
-  // TODO: Maybe check both \c leftFront and \c frontLeft.
-  boost::shared_ptr<const WaypointNode> target_node =
-    waypoint_lattice_->leftFront(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) return;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
-  path = boost::make_shared<ContinuousPath>(
-      station->transform(),
-      target_node->waypoint()->GetTransform(),
-      ContinuousPath::LaneChangeType::LeftLaneChange);
-  //try {
-  //  path = boost::make_shared<ContinuousPath>(
-  //      station->transform(),
-  //      target_node->waypoint()->GetTransform(),
-  //      ContinuousPath::LaneChangeType::LeftLaneChange);
-  //} catch (...) {
-  //  // If for whatever reason, the path cannot be created,
-  //  // just ignore this option.
-  //  return;
-  //}
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        station->transform(),
+        target_node->waypoint()->GetTransform(),
+        ContinuousPath::LaneChangeType::LeftLaneChange);
+  } catch (...) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    std::printf("Fail to generate left lane change path.\n");
+    return nullptr;
+  }
 
-  // Now, simulate the traffic forward.
+  // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
@@ -389,29 +519,20 @@ void ConformalLatticePlanner::exploreLeftStation(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return;
+  if (!no_collision) return nullptr;
 
-  // Create a new station with the end snapshot of the simulation.
+  // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
-
-  // Add the new station to the table and queue if necessary.
-  if (node_to_station_table_.count(next_station->id()) == 0) {
-    node_to_station_table_[next_station->id()] = next_station;
-    // The newly created station will only be added to the queue
-    // if the target node is reached. Otherwise (the ego vehicle
-    // did not reach end target node in time), we will consider
-    // the new station as a terminate.
-    if (next_station->id() == target_node->id()) station_queue.push(next_station);
-  } else {
+  if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
-  }
 
-  // Set the child station of the input station.
+  // Set the child station of the parent station.
+  //std::printf("Update the child station of the input station.\n");
   station->updateLeftChild(*path, stage_cost, next_station);
 
-  // Set the parent station of the newly created station.
+  // Set the parent station of the child station.
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateRightParent(
@@ -421,14 +542,17 @@ void ConformalLatticePlanner::exploreLeftStation(
         simulator.snapshot(), stage_cost, station);
   }
 
-  return;
+  return next_station;
 }
 
-void ConformalLatticePlanner::exploreRightStation(
+boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNode(
     const boost::shared_ptr<Station>& station,
-    std::queue<boost::shared_ptr<Station>>& station_queue) {
+    const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("exploreRightStation(): \n");
+  std::printf("connectStationToRightFrontNode(): \n");
+
+  // Return directly if the target node does not exisit.
+  if (!target_node) return nullptr;
 
   // Check the right front and right back vehicles.
   //
@@ -444,39 +568,29 @@ void ConformalLatticePlanner::exploreRightStation(
 
   if (right_front && right_front->second <= 0.0) {
     std::printf("Close right front vehicle.\n");
-    return;
+    return nullptr;
   }
   if (right_back  && right_back->second  <= 0.0) {
     std::printf("Close right back vehicle. \n");
-    return;
+    return nullptr;
   }
-
-  // Find the target node on the waypoint lattice.
-  // If the target node is not the lattice, we have reached the planning horizon.
-  // TODO: Maybe check both \c rightFront and \c frontRight.
-  boost::shared_ptr<const WaypointNode> target_node =
-    waypoint_lattice_->rightFront(station->node().lock()->waypoint(), 50.0);
-  if (!target_node) return;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
   boost::shared_ptr<ContinuousPath> path = nullptr;
-  path = boost::make_shared<ContinuousPath>(
-      station->transform(),
-      target_node->waypoint()->GetTransform(),
-      ContinuousPath::LaneChangeType::RightLaneChange);
-  //try {
-  //  path = boost::make_shared<ContinuousPath>(
-  //      station->transform(),
-  //      target_node->waypoint()->GetTransform(),
-  //      ContinuousPath::LaneChangeType::RightLaneChange);
-  //} catch (...) {
-  //  // If for whatever reason, the path cannot be created,
-  //  // just ignore this option.
-  //  return;
-  //}
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        station->transform(),
+        target_node->waypoint()->GetTransform(),
+        ContinuousPath::LaneChangeType::RightLaneChange);
+  } catch (...) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    std::printf("Fail to generate right lane change path.\n");
+    return nullptr;
+  }
 
-  // Now, simulate the traffic forward.
+  // Now, simulate the traffic forward with the ego following the created path.
   //std::printf("Simulate the traffic.\n");
   TrafficSimulator simulator(station->snapshot(), map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
@@ -484,29 +598,20 @@ void ConformalLatticePlanner::exploreRightStation(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
   // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return;
+  if (!no_collision) return nullptr;
 
-  // Create a new station with the end snapshot of the simulation.
+  // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
       simulator.snapshot(), waypoint_lattice_, map_);
-
-  // Add the new station to the table and queue if necessary.
-  if (node_to_station_table_.count(next_station->id()) == 0) {
-    node_to_station_table_[next_station->id()] = next_station;
-    // The newly created station will only be added to the queue
-    // if the target node is reached. Otherwise (the ego vehicle
-    // did not reach end target node in time), we will consider
-    // the new station as a terminate.
-    if (next_station->id() == target_node->id()) station_queue.push(next_station);
-  } else {
+  if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
-  }
 
-  // Set the child station of the input station.
+  // Set the child station of the parent station.
+  //std::printf("Update the child station of the input station.\n");
   station->updateRightChild(*path, stage_cost, next_station);
 
-  // Set the parent station of the newly created station.
+  // Set the parent station of the child station.
   //std::printf("Update the parent station of the new station.\n");
   if (station->hasParent()) {
     next_station->updateLeftParent(
@@ -516,7 +621,7 @@ void ConformalLatticePlanner::exploreRightStation(
         simulator.snapshot(), stage_cost, station);
   }
 
-  return;
+  return next_station;
 }
 
 const double ConformalLatticePlanner::terminalSpeedCost(
@@ -590,11 +695,11 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   for (const auto& item : node_to_station_table_) {
 
     boost::shared_ptr<Station> station = item.second;
+    std::printf("=============================================\n");
+    std::cout << station->string();
     // Only terminal stations are considered, i.e. stations without children.
     if (station->hasChild()) continue;
     const double station_cost = costFromRootToTerminal(station);
-    std::printf("=============================================\n");
-    std::cout << station->string();
     std::printf("cost:%f\n", station_cost);
     std::printf("=============================================\n");
 
@@ -634,15 +739,14 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   std::list<ContinuousPath> path_sequence;
   boost::shared_ptr<Station> station = optimal_station;
 
-  int counter = 0;
-
   std::printf("Trace back parent stations.\n");
   while (station->hasParent()) {
 
-    std::cout << station->string() << std::endl;
+    //std::cout << station->string() << std::endl;
 
     boost::shared_ptr<Station> parent_station =
       std::get<2>((*(station->optimalParent()))).lock();
+    if (!parent_station) throw std::runtime_error("Optimal parent does not exist.");
 
     // The station is the front child station of the parent.
     if (frontChildId(parent_station) &&

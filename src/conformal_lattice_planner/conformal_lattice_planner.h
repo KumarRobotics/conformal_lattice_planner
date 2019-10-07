@@ -126,7 +126,7 @@ public:
     return node_.lock()->id();
   }
 
-  const CarlaTransform transform() const { return snapshot().ego().transform(); }
+  const CarlaTransform transform() const { return snapshot_.ego().transform(); }
 
   const Snapshot& snapshot() const { return snapshot_; }
 
@@ -251,7 +251,12 @@ public:
     Base(map),
     sim_time_step_(sim_time_step),
     spatial_horizon_(spatial_horizon),
-    router_(router) {}
+    router_(router) {
+
+    if (!map_) throw std::runtime_error("map is not available.");
+    if (!router_) throw std::runtime_error("router is not available.");
+    return;
+  }
 
   /// Destructor of the class.
   virtual ~ConformalLatticePlanner() {}
@@ -300,21 +305,26 @@ public:
 
 protected:
 
-  /// Initialize the root station.
-  void initializeRootStation(const Snapshot& snapshot);
+  bool immediateNextStationReached(const Snapshot& snapshot) const;
 
   /// Initialize the waypoint lattice.
-  void initializeWaypointLattice(const Vehicle& ego);
+  void updateWaypointLattice(const Snapshot& snapshot);
+
+  /// Prune/update the station graph of last step.
+  std::queue<boost::shared_ptr<Station>> pruneStationGraph(const Snapshot& snapshot);
 
   /// Construct the station graph.
-  void constructStationGraph();
+  void constructStationGraph(std::queue<boost::shared_ptr<Station>>& station_queue);
 
-  void exploreFrontStation(const boost::shared_ptr<Station>& station,
-                           std::queue<boost::shared_ptr<Station>>& station_queue);
-  void exploreLeftStation(const boost::shared_ptr<Station>& station,
-                          std::queue<boost::shared_ptr<Station>>& station_queue);
-  void exploreRightStation(const boost::shared_ptr<Station>& station,
-                           std::queue<boost::shared_ptr<Station>>& station_queue);
+  boost::shared_ptr<Station> connectStationToFrontNode(
+      const boost::shared_ptr<Station>& station,
+      const boost::shared_ptr<const WaypointNode>& target_node);
+  boost::shared_ptr<Station> connectStationToLeftFrontNode(
+      const boost::shared_ptr<Station>& station,
+      const boost::shared_ptr<const WaypointNode>& target_node);
+  boost::shared_ptr<Station> connectStationToRightFrontNode(
+      const boost::shared_ptr<Station>& station,
+      const boost::shared_ptr<const WaypointNode>& target_node);
 
   /// Compute the speed cost for a terminal station.
   const double terminalSpeedCost(const boost::shared_ptr<Station>& station) const;
