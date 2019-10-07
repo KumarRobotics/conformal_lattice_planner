@@ -22,23 +22,22 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <boost/optional.hpp>
 
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <actionlib/client/simple_action_client.h>
+#include <image_transport/image_transport.h>
 
 #include <carla/client/Client.h>
 #include <carla/client/World.h>
 #include <carla/client/Map.h>
 #include <carla/client/BlueprintLibrary.h>
 #include <carla/client/ActorList.h>
-//#include <carla/client/Vehicle.h>
-//#include <carla/client/Waypoint.h>
-//#include <carla/client/Sensor.h>
-//#include <carla/geom/Transform.h>
-//#include <carla/sensor/data/Image.h>
+#include <carla/client/Sensor.h>
+#include <carla/sensor/data/Image.h>
 
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
@@ -57,6 +56,9 @@ protected:
   using CarlaActorList        = carla::client::ActorList;
   using CarlaVehicle          = carla::client::Vehicle;
   using CarlaWaypoint         = carla::client::Waypoint;
+  using CarlaSensor           = carla::client::Sensor;
+  using CarlaSensorData       = carla::sensor::SensorData;
+  using CarlaBGRAImage        = carla::sensor::data::Image;
   using CarlaTransform        = carla::geom::Transform;
 
 protected:
@@ -79,6 +81,9 @@ protected:
   /// Carla world object.
   boost::shared_ptr<CarlaWorld> world_ = nullptr;
 
+  // A camera following the ego vehicle to generate the third person view.
+  boost::shared_ptr<CarlaSensor> following_cam_ = nullptr;
+
   /**
    * @name ROS interface
    *
@@ -98,6 +103,12 @@ protected:
   /// Publish traffice relatated stuff.
   mutable ros::Publisher traffic_pub_;
 
+  /// ROS image transport.
+  mutable image_transport::ImageTransport img_transport_;
+
+  /// Publishing images for the following camera.
+  mutable image_transport::Publisher following_img_pub_;
+
   /// The actionlib client for the ego vehicle planner.
   mutable actionlib::SimpleActionClient<
     conformal_lattice_planner::EgoPlanAction> ego_client_;
@@ -111,6 +122,7 @@ public:
 
   SimulatorNode(ros::NodeHandle& nh) :
     nh_(nh),
+    img_transport_(nh),
     ego_client_(nh_, "ego_plan", false),
     agents_client_(nh_, "agents_plan", false) {}
 
@@ -124,15 +136,19 @@ protected:
   /// Spawn the vehicles.
   virtual void spawnVehicles() = 0;
 
-  //virtual boost::optional<size_t> spawnEgoVehicle(
-  //    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-  //    const double policy_speed,
-  //    const boost::optional<double> start_speed = boost::none) = 0;
+  virtual boost::optional<size_t> spawnEgoVehicle(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+      const double policy_speed,
+      const bool noisy_policy_speed = true,
+      const bool noisy_start_speed = true);
 
-  //virtual boost::optional<size_t> spawnAgentVehicle(
-  //    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-  //    const double policy_speed,
-  //    const boost::optional<double> start_speed = boost::none) = 0;
+  virtual boost::optional<size_t> spawnAgentVehicle(
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+      const double policy_speed,
+      const bool noisy_policy_speed = true,
+      const bool noisy_start_speed = true);
+
+  virtual void spawnCamera();
 
   /// Simulate the world forward by one time step.
   virtual void tickWorld() {
@@ -141,6 +157,9 @@ protected:
     sendEgoGoal();
     sendAgentsGoal();
   }
+
+  /// Publish the following image.
+  void publishImage(const boost::shared_ptr<CarlaSensorData>& data) const;
 
   /**
    * @name Accessors to carla vehicles.

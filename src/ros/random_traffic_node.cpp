@@ -108,38 +108,6 @@ void RandomTrafficNode::spawnVehicles() {
   return;
 }
 
-void RandomTrafficNode::spawnCamera() {
-
-  carla::rpc::EpisodeSettings settings = world_->GetSettings();
-
-  // The camera is only created if the rendering mode is on.
-  if (!settings.no_rendering_mode) {
-
-    auto camera_blueprint = world_->GetBlueprintLibrary()->at("sensor.camera.rgb");
-    camera_blueprint.SetAttribute("sensor_tick", "0.05");
-    camera_blueprint.SetAttribute("image_size_x", "1280");
-    camera_blueprint.SetAttribute("image_size_y", "720");
-    camera_blueprint.SetAttribute("fov", "120");
-
-    CarlaTransform camera_transform = CarlaTransform{
-      carla::geom::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
-      carla::geom::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
-
-    boost::shared_ptr<CarlaActor> cam_actor = world_->SpawnActor(
-        camera_blueprint, camera_transform, world_->GetActor(ego_policy_.first).get());
-    following_cam_ = boost::static_pointer_cast<CarlaSensor>(cam_actor);
-    following_cam_->Listen(boost::bind(&RandomTrafficNode::publishImage, this, _1));
-
-    // Create the image publisher for the following camera.
-    following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
-
-    // Let the server know about the camera.
-    world_->Tick();
-  }
-
-  return;
-}
-
 boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double policy_speed,
@@ -382,16 +350,6 @@ void RandomTrafficNode::tickWorld() {
   //std::cout << "sendEgoGoal() : " << timer.format();
   sendAgentsGoal();
   //std::cout << "sendAgentGoal() : " << timer.format();
-
-  return;
-}
-
-void RandomTrafficNode::publishImage(
-    const boost::shared_ptr<CarlaSensorData>& data) const {
-
-  const boost::shared_ptr<CarlaBGRAImage> img =
-    boost::static_pointer_cast<CarlaBGRAImage>(data);
-  following_img_pub_.publish(createImageMsg(img));
 
   return;
 }

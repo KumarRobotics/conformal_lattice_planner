@@ -16,13 +16,6 @@
 
 #pragma once
 
-#include <boost/optional.hpp>
-
-#include <image_transport/image_transport.h>
-
-#include <carla/client/Sensor.h>
-#include <carla/sensor/data/Image.h>
-
 #include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/traffic_manager.h>
 #include <ros/simulator_node.h>
@@ -55,40 +48,27 @@ protected:
   /// Traffic lattice.
   boost::shared_ptr<planner::TrafficManager<router::LoopRouter>> traffic_manager_;
 
-  // A camera following the ego vehicle to generate the third person view.
-  boost::shared_ptr<CarlaSensor> following_cam_ = nullptr;
-
-
-  /// ROS image transport.
-  mutable image_transport::ImageTransport img_transport_;
-
-  /// Publishing images for the following camera.
-  mutable image_transport::Publisher following_img_pub_;
-
 public:
 
   RandomTrafficNode(ros::NodeHandle nh) :
     Base(nh),
-    loop_router_(new router::LoopRouter),
-    img_transport_(nh_) {}
+    loop_router_(new router::LoopRouter) {}
 
 protected:
 
   virtual void spawnVehicles() override;
 
-  boost::optional<size_t> spawnEgoVehicle(
+  virtual boost::optional<size_t> spawnEgoVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
       const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
+      const bool noisy_start_speed = true) override;
 
-  boost::optional<size_t> spawnAgentVehicle(
+  virtual boost::optional<size_t> spawnAgentVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
       const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
-
-  void spawnCamera();
+      const bool noisy_start_speed = true) override;
 
   /// Manager (add/delete) the vehicles in the simulation.
   void manageTraffic();
@@ -96,9 +76,6 @@ protected:
   virtual void tickWorld() override;
 
   virtual void publishTraffic() const override;
-
-  /// Publish the following image.
-  void publishImage(const boost::shared_ptr<CarlaSensorData>& data) const;
 
 }; // End class RandomTrafficNode.
 

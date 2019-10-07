@@ -15,6 +15,9 @@
  */
 
 #include <string>
+#include <random>
+#include <chrono>
+
 #include <ros/simulator_node.h>
 #include <ros/convert_to_visualization_msgs.h>
 
@@ -99,6 +102,145 @@ bool SimulatorNode::initialize() {
 
   ROS_INFO_NAMED("carla_simulator", "initialization finishes.");
   return all_param_exist;
+}
+
+boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+    const double policy_speed,
+    const bool noisy_policy_speed,
+    const bool noisy_start_speed) {
+
+  // Get the blueprint of the ego vehicle.
+  boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
+    world_->GetBlueprintLibrary()->Filter("vehicle");
+  auto blueprint = blueprint_library->at("vehicle.audi.tt");
+
+  // Make sure the vehicle will fall onto the ground instead of fall endlessly.
+  CarlaTransform transform = waypoint->GetTransform();
+  transform.location.z += 0.5;
+
+  boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
+  boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
+
+  if (!actor) {
+    // Cannot spawn the actor.
+    // There might be a collision at the waypoint or something.
+    ROS_ERROR_NAMED("carla simulator", "Cannot spawn the ego vehicle.");
+    return boost::none;
+  }
+
+  // Set the ego vehicle policy.
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
+
+  if (noisy_policy_speed) {
+    ego_policy_.first = vehicle->GetId();
+    ego_policy_.second = policy_speed + uni_real_dist(rand_gen);
+  } else {
+    ego_policy_.first = vehicle->GetId();
+    ego_policy_.second = policy_speed;
+  }
+
+  if (noisy_start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         (ego_policy_.second + uni_real_dist(rand_gen)));
+  } else {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         ego_policy_.second);
+  }
+
+  return vehicle->GetId();
+}
+
+boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
+    const boost::shared_ptr<const CarlaWaypoint>& waypoint,
+    const double policy_speed,
+    const bool noisy_policy_speed,
+    const bool noisy_start_speed) {
+
+  // Get the blueprint of the vehicle, which is randomly chosen from the
+  // vehicle blueprint library.
+  boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
+    world_->GetBlueprintLibrary()->Filter("vehicle");
+  auto blueprint = (*blueprint_library)[std::rand() % blueprint_library->size()];
+
+  // Make sure the vehicle will fall onto the ground instead of fall endlessly.
+  CarlaTransform transform = waypoint->GetTransform();
+  transform.location.z += 0.5;
+
+  boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
+  boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
+
+  if (!actor) {
+    // Cannot spawn the actor.
+    // There might be a collision at the waypoint or something.
+    ROS_ERROR_NAMED("carla simulator", "Cannot spawn the agent vehicle.");
+    return boost::none;
+  }
+
+  // Set the agent vehicle policy
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
+
+  if (noisy_policy_speed) {
+    agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
+  } else {
+    agent_policies_[vehicle->GetId()] = policy_speed;
+  }
+
+  if (noisy_start_speed) {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         (agent_policies_[vehicle->GetId()]+uni_real_dist(rand_gen)));
+  } else {
+    vehicle->SetVelocity(transform.GetForwardVector() *
+                         agent_policies_[vehicle->GetId()]);
+  }
+
+  return vehicle->GetId();
+}
+
+void SimulatorNode::spawnCamera() {
+
+  carla::rpc::EpisodeSettings settings = world_->GetSettings();
+
+  // The camera is only created if the rendering mode is on.
+  if (!settings.no_rendering_mode) {
+
+    auto camera_blueprint = world_->GetBlueprintLibrary()->at("sensor.camera.rgb");
+    camera_blueprint.SetAttribute("sensor_tick", "0.05");
+    camera_blueprint.SetAttribute("image_size_x", "1280");
+    camera_blueprint.SetAttribute("image_size_y", "720");
+    camera_blueprint.SetAttribute("fov", "120");
+
+    CarlaTransform camera_transform = CarlaTransform{
+      carla::geom::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
+      carla::geom::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
+
+    boost::shared_ptr<CarlaActor> cam_actor = world_->SpawnActor(
+        camera_blueprint, camera_transform, world_->GetActor(ego_policy_.first).get());
+    following_cam_ = boost::static_pointer_cast<CarlaSensor>(cam_actor);
+    following_cam_->Listen(boost::bind(&SimulatorNode::publishImage, this, _1));
+
+    // Create the image publisher for the following camera.
+    following_img_pub_ = img_transport_.advertise("third_person_view", 5, true);
+
+    // Let the server know about the camera.
+    world_->Tick();
+  }
+
+  return;
+}
+
+void SimulatorNode::publishImage(
+    const boost::shared_ptr<CarlaSensorData>& data) const {
+
+  const boost::shared_ptr<CarlaBGRAImage> img =
+    boost::static_pointer_cast<CarlaBGRAImage>(data);
+  following_img_pub_.publish(createImageMsg(img));
+
+  return;
 }
 
 boost::shared_ptr<SimulatorNode::CarlaVehicle>

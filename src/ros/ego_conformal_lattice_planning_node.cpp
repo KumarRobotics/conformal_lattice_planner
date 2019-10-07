@@ -108,14 +108,20 @@ void EgoConformalLatticePlanningNode::executeCallback(
   const CarlaTransform updated_transform = ego_path.transformAt(movement);
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
   std::printf("movement: %f\n", movement);
-  std::printf("current transform: x:%f y:%f z:%f\n",
+  std::printf("current transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
       snapshot->ego().transform().location.x,
       snapshot->ego().transform().location.y,
-      snapshot->ego().transform().location.z);
-  std::printf("updated transform: x:%f y:%f z:%f\n",
+      snapshot->ego().transform().location.z,
+      snapshot->ego().transform().rotation.roll,
+      snapshot->ego().transform().rotation.pitch,
+      snapshot->ego().transform().rotation.yaw);
+  std::printf("updated transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
       updated_transform.location.x,
       updated_transform.location.y,
-      updated_transform.location.z);
+      updated_transform.location.z,
+      updated_transform.rotation.roll,
+      updated_transform.rotation.pitch,
+      updated_transform.rotation.yaw);
   std::printf("updated speed: %f\n", updated_speed);
 
   boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);

@@ -49,18 +49,6 @@ protected:
 
   virtual void spawnVehicles() override;
 
-  boost::optional<size_t> spawnEgoVehicle(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-      const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
-
-  boost::optional<size_t> spawnAgentVehicle(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint,
-      const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
-
   /// Since there is no agent vehicles in this object, we don't have
   /// to send the goals for the agent vehicles.
   virtual void tickWorld() override {
