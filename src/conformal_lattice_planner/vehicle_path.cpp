@@ -58,11 +58,15 @@ VehiclePath::CarlaTransform VehiclePath::interpolateTransform(
         "Weight for the first transform should be within the range of [0, 1].");
   }
 
+  auto unrollAngle = [](const double angle)->double{
+    return std::remainder(angle, 360.0);
+  };
+
   CarlaTransform t;
   t.location = t1.location*w + t2.location*(1.0-w);
-  t.rotation.roll  = t1.rotation.roll *w + t2.rotation.roll *(1.0-w);
-  t.rotation.pitch = t1.rotation.pitch*w + t2.rotation.pitch*(1.0-w);
-  t.rotation.yaw   = t1.rotation.yaw  *w + t2.rotation.yaw  *(1.0-w);
+  t.rotation.roll  = unrollAngle(t1.rotation.roll) *w + unrollAngle(t2.rotation.roll) *(1.0-w);
+  t.rotation.pitch = unrollAngle(t1.rotation.pitch)*w + unrollAngle(t2.rotation.pitch)*(1.0-w);
+  t.rotation.yaw   = unrollAngle(t1.rotation.yaw)  *w + unrollAngle(t2.rotation.yaw)  *(1.0-w);
 
   return t;
 }
