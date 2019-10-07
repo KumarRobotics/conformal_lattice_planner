@@ -1,44 +1,81 @@
 <launch>
+
+  <!-- Which simulator to launch -->
+  <!-- Only one of the variables should be true -->
+  <arg name="no_traffic" default="false"/>
+  <arg name="fixed_scenario" default="false"/>
+  <arg name="random_traffic" default="false"/>
+
+  <!-- Which ego planner to use -->
+  <!-- Only one of the variables should be true -->
+  <arg name="ego_lane_follwer" default="false"/>
+  <arg name="ego_conformal_lattice_planner" default="false"/>
+
+  <!-- Which agents planner to use -->
+  <!-- Only one of the variables should be true -->
+  <arg name="agents_lane_follower" default="false"/>
+
   <arg name="host" default="localhost"/>
   <arg name="port" default="2000"/>
   <arg name="fixed_delta_seconds" default="0.05"/>
+  <arg name="no_rendering_mode" default="true"/>
+  <arg name="synchronous_mode" default="true"/>
 
   <!-- CARLA simulator -->
-  <!--
-  <include file="$(find conformal_lattice_planner)/launch/random_traffic_simulator.launch">
-    <arg name="host" value="$(arg host)"/>
-    <arg name="port" value="$(arg port)"/>
-    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-  </include>
-  -->
+  <group if="$(arg no_traffic)">
+    <include file="$(find conformal_lattice_planner)/launch/no_traffic_simulator.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+      <arg name="no_rendering_mode" value="$(arg no_rendering_mode)"/>
+      <arg name="synchronous_mode" value="$(arg synchronous_mode)"/>
+    </include>
+  </group>
 
-  <include file="$(find conformal_lattice_planner)/launch/no_traffic_simulator.launch">
-    <arg name="host" value="$(arg host)"/>
-    <arg name="port" value="$(arg port)"/>
-    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-  </include>
+  <group if="$(arg fixed_scenario)">
+    <include file="$(find conformal_lattice_planner)/launch/fixed_scenario_simulator.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+      <arg name="no_rendering_mode" value="$(arg no_rendering_mode)"/>
+      <arg name="synchronous_mode" value="$(arg synchronous_mode)"/>
+    </include>
+  </group>
+
+  <group if="$(arg random_traffic)">
+    <include file="$(find conformal_lattice_planner)/launch/random_traffic_simulator.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+      <arg name="no_rendering_mode" value="$(arg no_rendering_mode)"/>
+      <arg name="synchronous_mode" value="$(arg synchronous_mode)"/>
+    </include>
+  </group>
 
   <!-- Ego vehicle planner -->
-  <include file="$(find conformal_lattice_planner)/launch/ego_conformal_lattice_planning.launch">
-    <arg name="host" value="$(arg host)"/>
-    <arg name="port" value="$(arg port)"/>
-    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-  </include>
-  <!--
+  <group if="$(arg ego_lane_follower)">
   <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
     <arg name="host" value="$(arg host)"/>
     <arg name="port" value="$(arg port)"/>
     <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
   </include>
-  -->
+  </group>
+
+  <group if="$(arg ego_conformal_lattice_planner)">
+    <include file="$(find conformal_lattice_planner)/launch/ego_conformal_lattice_planning.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+    </include>
+  </group>
 
   <!-- Agent vehicles' planner -->
-  <!--
-  <include file="$(find conformal_lattice_planner)/launch/agents_lane_following.launch">
-    <arg name="host" value="$(arg host)"/>
-    <arg name="port" value="$(arg port)"/>
-    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-  </include>
-  -->
+  <group if="$(arg agents_lane_follower)">
+    <include file="$(find conformal_lattice_planner)/launch/agents_lane_following.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+    </include>
+  </group>
 
 </launch>
