@@ -19,8 +19,6 @@
 #include <unordered_set>
 #include <boost/timer/timer.hpp>
 
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
-#include <conformal_lattice_planner/vehicle_speed_planner.h>
 #include <ros/ego_conformal_lattice_planning_node.h>
 #include <ros/convert_to_visualization_msgs.h>
 
@@ -36,6 +34,8 @@ bool EgoConformalLatticePlanningNode::initialize() {
       "ego_path", 1, true);
   conformal_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
       "conformal_lattice", 1, true);
+  waypoint_lattice_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(
+      "waypoint_lattice", 1, true);
 
   bool all_param_exist = true;
 
@@ -50,8 +50,14 @@ bool EgoConformalLatticePlanningNode::initialize() {
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
-  //double fixed_delta_seconds = 0.05;
-  //all_param_exist &= nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+  // Get the world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
+
+  // Initialize the path and speed planner.
+  boost::shared_ptr<router::LoopRouter> router = boost::make_shared<router::LoopRouter>();
+  path_planner_ = boost::make_shared<planner::ConformalLatticePlanner>(0.1, 105.0, router, map_);
+  speed_planner_ = boost::make_shared<planner::VehicleSpeedPlanner>();
 
   // Start the action server.
   ROS_INFO_NAMED("ego_conformal_lattice_planner", "start action server.");
@@ -77,15 +83,6 @@ void EgoConformalLatticePlanningNode::executeCallback(
   // Create the current snapshot.
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
 
-  // Create the loop router.
-  boost::shared_ptr<LoopRouter> loop_router = boost::make_shared<LoopRouter>();
-
-  // Construct the planner.
-  //std::printf("Construct conformal lattice planner.\n");
-  boost::shared_ptr<ConformalLatticePlanner> path_planner_ =
-    boost::make_shared<ConformalLatticePlanner>(
-        0.1, 105.0, loop_router, map_);
-
   // Plan path.
   //std::printf("Calling conformal lattice planner.\n");
   const DiscretePath ego_path = path_planner_->plan(ego_policy.first, *snapshot);
@@ -97,11 +94,10 @@ void EgoConformalLatticePlanningNode::executeCallback(
   //std::printf("Publish conformal lattice message.\n");
   conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
   path_pub_.publish(createEgoPathMsg(ego_path));
+  waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
   // Plan speed.
-  boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
-    boost::make_shared<VehicleSpeedPlanner>();
-  const double ego_accel = speed_planner->plan(ego_policy.first, *snapshot);
+  const double ego_accel = speed_planner_->plan(ego_policy.first, *snapshot);
   std::printf("ego accel: %f\n", ego_accel);
 
   // Update the ego vehicle in the simulator.
@@ -112,9 +108,14 @@ void EgoConformalLatticePlanningNode::executeCallback(
   const CarlaTransform updated_transform = ego_path.transformAt(movement);
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
   std::printf("movement: %f\n", movement);
-  std::printf("updated transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-      updated_transform.location.x, updated_transform.location.y, updated_transform.location.z,
-      updated_transform.rotation.roll, updated_transform.rotation.pitch, updated_transform.rotation.yaw);
+  std::printf("current transform: x:%f y:%f z:%f\n",
+      snapshot->ego().transform().location.x,
+      snapshot->ego().transform().location.y,
+      snapshot->ego().transform().location.z);
+  std::printf("updated transform: x:%f y:%f z:%f\n",
+      updated_transform.location.x,
+      updated_transform.location.y,
+      updated_transform.location.z);
   std::printf("updated speed: %f\n", updated_speed);
 
   boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);

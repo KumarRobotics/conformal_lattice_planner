@@ -16,7 +16,11 @@
 
 #pragma once
 
+#include <boost/smart_ptr.hpp>
 #include <actionlib/server/simple_action_server.h>
+
+#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <conformal_lattice_planner/vehicle_speed_planner.h>
 #include <ros/planning_node.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
 
@@ -35,8 +39,12 @@ public:
 
 protected:
 
+  boost::shared_ptr<planner::ConformalLatticePlanner> path_planner_ = nullptr;
+  boost::shared_ptr<planner::VehicleSpeedPlanner> speed_planner_ = nullptr;
+
   mutable ros::Publisher path_pub_;
   mutable ros::Publisher conformal_lattice_pub_;
+  mutable ros::Publisher waypoint_lattice_pub_;
 
   mutable actionlib::SimpleActionServer<
     conformal_lattice_planner::EgoPlanAction> server_;
