@@ -30,6 +30,7 @@
 #include <carla/geom/Transform.h>
 #include <carla/road/Road.h>
 #include <carla/road/Lane.h>
+#include <carla/road/element/RoadInfoGeometry.h>
 
 #include <conformal_lattice_planner/utils.h>
 #include <conformal_lattice_planner/lattice_node.h>
@@ -53,6 +54,7 @@ class WaypointNode : public LatticeNode<WaypointNode> {
 
 protected:
 
+  using CarlaMap      = carla::client::Map;
   using CarlaWaypoint = carla::client::Waypoint;
 
 protected:
@@ -94,6 +96,40 @@ public:
   /// Get the const pointer to the carla waypoint of the node.
   boost::shared_ptr<const CarlaWaypoint> waypoint() const {
     return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
+  }
+
+  const double curvature(const boost::shared_ptr<CarlaMap>& map) const {
+    // Get the road.
+    const carla::road::Road& road =
+      map->GetMap().GetMap().GetRoad(waypoint_->GetRoadId());
+
+    // Get the road geometry info.
+    const carla::road::element::RoadInfoGeometry* road_info =
+      road.GetInfo<carla::road::element::RoadInfoGeometry>(waypoint_->GetDistance());
+
+    // Get the actual geometry of the road.
+    const carla::road::element::Geometry& geometry = road_info->GetGeometry();
+
+    if (geometry.GetType() == carla::road::element::GeometryType::LINE)
+      return 0.0;
+
+    if (geometry.GetType() == carla::road::element::GeometryType::ARC) {
+      const carla::road::element::GeometryArc& geometry_arc =
+        dynamic_cast<const carla::road::element::GeometryArc&>(geometry);
+      return geometry_arc.GetCurvature();
+    }
+
+    if (geometry.GetType() == carla::road::element::GeometryType::SPIRAL) {
+      //FIXME: Not sure how to deal with this. But there is no example for this road type
+      //       from Town01 to Town07.
+      throw std::runtime_error("Curvature for spiral road is not defined.\n");
+      //const carla::road::element::GeometrySpiral& geometry_spiral =
+      //  dynamic_cast<const carla::road::element::GeometrySpiral&>(geometry);
+      //return geometry_spiral.GetCurvatureEnd();
+    }
+
+    throw std::runtime_error("Unknown road geometry type.");
+    return 0.0;
   }
 
   /// Get or set the distance of the node.
