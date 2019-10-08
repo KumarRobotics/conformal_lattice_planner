@@ -143,6 +143,7 @@ void NoTrafficNode::spawnVehicles() {
   // in the front of the ego vehicle.
   boost::shared_ptr<const CarlaWaypoint> ego_waypoint =
     waypoint_lattice->rightFront(start_waypoint, 50.0)->waypoint();
+
   if (!ego_waypoint) {
     throw std::runtime_error("Cannot find the ego waypoint on the traffic lattice.");
   }
@@ -151,7 +152,7 @@ void NoTrafficNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25)) {
+  if (!spawnEgoVehicle(ego_waypoint, 25, false, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
