@@ -111,10 +111,11 @@ class NonHolonomicPath {
 
     // Transform to Global Frame
     Eigen::Matrix3d R; // Homogenous Coordinates Transformation
-    R << std::cos(x0.theta) , -std::sin(x0.theta), x0.x, std::sin(x0.theta), std::cos(x0.theta), x0.y, 0, 0, 1;
+    R << std::cos(x0.theta), -std::sin(x0.theta), x0.x,
+         std::sin(x0.theta),  std::cos(x0.theta), x0.y,
+                          0,                   0,    1;
     Eigen::Vector3d x1 {x, y, 1};
     Eigen::Vector3d x2 = R * x1;
-
 
     return {x2[0], x2[1], unrollAngle(theta + x0.theta), kappa}; // Construct a State object to return the resulting waypoint.
   }
@@ -134,12 +135,12 @@ class NonHolonomicPath {
 
     // Compute the weights W.
     Eigen::ArrayXd W = Eigen::ArrayXd::Ones(N);
-//    std::cout <<"Before modifying " << W << std::endl;
+    //std::cout <<"Before modifying " << W << std::endl;
     Eigen::Map<Eigen::ArrayXd, 0, Eigen::InnerStride<2>> even(W.data() + 2, W.size() / 2 - 1);
     Eigen::Map<Eigen::ArrayXd, 0, Eigen::InnerStride<2>> odd(W.data() + 1, W.size() / 2);
     even = even * 2;
     odd = odd * 4;
-//    std::cout <<"After modifying" << W << std::endl;
+    //std::cout <<"After modifying" << W << std::endl;
 
     double result = h / 3 * W.matrix().transpose() * f.matrix(); // Compute the Simpson's Rule result.
 
@@ -160,11 +161,13 @@ class NonHolonomicPath {
 
     // Transform to Local Frame
     Eigen::Matrix3d R; // Homogenous Coordinates Transformation
-    R << std::cos(x0.theta) , -std::sin(x0.theta), x0.x, std::sin(x0.theta), std::cos(x0.theta), x0.y, 0, 0, 1;
-    State x0_L {0.0, 0.0, 0.0, 0.0};
+    R << std::cos(x0.theta), -std::sin(x0.theta), x0.x,
+         std::sin(x0.theta),  std::cos(x0.theta), x0.y,
+                          0,                   0,    1;
+    State x0_L {0.0, 0.0, 0.0, x0.kappa};
     Eigen::Vector3d x1 {xf.x, xf.y, 1};
     Eigen::Vector3d x2 = R.inverse() * x1;
-    State xf_L {x2[0], x2[1], unrollAngle(xf.theta - x0.theta), 0.0};
+    State xf_L {x2[0], x2[1], unrollAngle(xf.theta - x0.theta), xf.kappa};
 
     NonHolonomicPath initial_guess = initialGuess(x0_L, xf_L);
     a = initial_guess.a;
@@ -174,7 +177,8 @@ class NonHolonomicPath {
     sf = initial_guess.sf;
 
     using std::pow;
-    for (int i = 0; i < iterations; ++i) {
+    size_t counter = 0;
+    for (; counter < iterations; ++counter) {
       Eigen::Vector4d old_path{b, c, d, sf};
 
       Eigen::Matrix4d J = boundaryConstraintJacobian(x0_L, xf_L);
@@ -183,15 +187,15 @@ class NonHolonomicPath {
       Eigen::Vector4d dq = J.colPivHouseholderQr().solve(-g);
       b += dq[0];
       sf += dq[3];
-//            c += dq[1];
-//            d += dq[2];
+      //c += dq[1];
+      //d += dq[2];
 
       // Solve Linear Equations A_x = b_ to compute exact solutions for c, and d.
       Eigen::Matrix2d A_;
       A_ << pow(sf, 2), pow(sf, 3), pow(sf, 3) / 3, pow(sf, 4) / 4;
       Eigen::Vector2d b_;
-      b_ << xf_L.kappa - x0_L.kappa - b * sf,
-          xf_L.theta - x0_L.kappa * sf - b * pow(sf, 2) / 2;
+      b_ << xf_L.kappa - x0_L.kappa      - b * sf,
+            xf_L.theta - x0_L.kappa * sf - b * pow(sf, 2) / 2;
       Eigen::Vector2d cd = A_.colPivHouseholderQr().solve(b_);
       c = cd[0];
       d = cd[1];
@@ -209,7 +213,7 @@ class NonHolonomicPath {
                                xf.y - state.y,
                                shortestAngle(xf.theta, state.theta),
                                xf.kappa - state.kappa);
-    if (state_diff.norm() > 1e-2) result = false;
+    if (state_diff.norm() > 1e-2 && counter >= iterations) result = false;
 
     return result;
   }
