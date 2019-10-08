@@ -17,6 +17,10 @@
 #pragma once
 
 #include <boost/functional/hash.hpp>
+#include <boost/smart_ptr.hpp>
+
+#include <carla/client/Map.h>
+#include <carla/client/Waypoint.h>
 #include <carla/geom/Transform.h>
 
 namespace utils {
@@ -72,5 +76,9 @@ void convertTransformInPlace(carla::geom::Transform& in);
 
 carla::geom::Transform convertTransform(const carla::geom::Transform& in);
 /**@}*/
+
+const double curvatureAtWaypoint(
+    const boost::shared_ptr<const carla::client::Waypoint>& waypoint,
+    const boost::shared_ptr<const carla::client::Map>& map);
 
 } // End namespace utils.

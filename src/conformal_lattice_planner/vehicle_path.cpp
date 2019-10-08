@@ -24,15 +24,15 @@
 namespace planner {
 
 NonHolonomicPath::State VehiclePath::carlaTransformToPathState(
-    const CarlaTransform& transform) const {
-  const CarlaTransform transform_rh = utils::convertTransform(transform);
+    const std::pair<CarlaTransform, double>& transform) const {
+  const CarlaTransform transform_rh = utils::convertTransform(transform.first);
   return NonHolonomicPath::State(transform_rh.location.x,
                                  transform_rh.location.y,
                                  transform_rh.rotation.yaw / 180.0 * M_PI,
-                                 0.0);
+                                 -transform.second);
 }
 
-carla::geom::Transform VehiclePath::pathStateToCarlaTransform(
+std::pair<carla::geom::Transform, double> VehiclePath::pathStateToCarlaTransform(
     const NonHolonomicPath::State& state,
     const CarlaTransform& base_transform) const {
 
@@ -45,12 +45,12 @@ carla::geom::Transform VehiclePath::pathStateToCarlaTransform(
 
   // Convert to left handed coordinates.
   utils::convertTransformInPlace(transform);
-  return transform;
+  return std::make_pair(transform, -state.kappa);
 }
 
-VehiclePath::CarlaTransform VehiclePath::interpolateTransform(
-    const CarlaTransform& t1,
-    const CarlaTransform& t2,
+std::pair<carla::geom::Transform, double> VehiclePath::interpolateTransform(
+    const std::pair<CarlaTransform, double>& t1,
+    const std::pair<CarlaTransform, double>& t2,
     const double w) const {
 
   if (w < 0.0 || w > 1.0) {
@@ -62,19 +62,23 @@ VehiclePath::CarlaTransform VehiclePath::interpolateTransform(
     return std::remainder(angle, 360.0);
   };
 
-  CarlaTransform t;
-  t.location = t1.location*w + t2.location*(1.0-w);
-  t.rotation.roll  = unrollAngle(t1.rotation.roll) *w + unrollAngle(t2.rotation.roll) *(1.0-w);
-  t.rotation.pitch = unrollAngle(t1.rotation.pitch)*w + unrollAngle(t2.rotation.pitch)*(1.0-w);
-  t.rotation.yaw   = unrollAngle(t1.rotation.yaw)  *w + unrollAngle(t2.rotation.yaw)  *(1.0-w);
+  const CarlaTransform& ct1 = t1.first;
+  const CarlaTransform& ct2 = t2.first;
+  CarlaTransform ct;
+  ct.location       = ct1.location*w + ct2.location*(1.0-w);
+  ct.rotation.roll  = unrollAngle(ct1.rotation.roll) *w + unrollAngle(ct2.rotation.roll) *(1.0-w);
+  ct.rotation.pitch = unrollAngle(ct1.rotation.pitch)*w + unrollAngle(ct2.rotation.pitch)*(1.0-w);
+  ct.rotation.yaw   = unrollAngle(ct1.rotation.yaw)  *w + unrollAngle(ct2.rotation.yaw)  *(1.0-w);
 
-  return t;
+  const double c = t1.second*w + t2.second*(1.0-w);
+
+  return std::make_pair(ct, c);
 }
-
-const std::vector<VehiclePath::CarlaTransform> VehiclePath::samples() const {
+const std::vector<std::pair<carla::geom::Transform, double>>
+VehiclePath::samples() const {
 
   double s = 0.0;
-  std::vector<CarlaTransform> samples;
+  std::vector<std::pair<CarlaTransform, double>> samples;
   for (; s < range(); s+=0.1)
     samples.push_back(transformAt(s));
 
@@ -85,8 +89,8 @@ const std::vector<VehiclePath::CarlaTransform> VehiclePath::samples() const {
 }
 
 ContinuousPath::ContinuousPath(
-    const CarlaTransform& start,
-    const CarlaTransform& end,
+    const std::pair<CarlaTransform, double>& start,
+    const std::pair<CarlaTransform, double>& end,
     const LaneChangeType& lane_change_type) :
   Base  (lane_change_type),
   start_(start),
@@ -107,7 +111,13 @@ ContinuousPath::ContinuousPath(
   //    end_state.x, end_state.y, end_state.theta, end_state.kappa);
 
   const bool success = path_.optimizePath(start_state, end_state);
-  if (!success) throw std::runtime_error("Path optimization diverges.\n");
+  if (!success) {
+    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
+        start_state.x, start_state.y, start_state.theta, start_state.kappa);
+    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
+        end_state.x, end_state.y, end_state.theta, end_state.kappa);
+    throw std::runtime_error("Path optimization diverges.\n");
+  }
   return;
 }
 
@@ -121,11 +131,18 @@ ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
   const bool success = path_.optimizePath(start_state, end_state);
-  if (!success) throw std::runtime_error("Path optimization diverges.\n");
+  if (!success) {
+    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
+        start_state.x, start_state.y, start_state.theta, start_state.kappa);
+    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
+        end_state.x, end_state.y, end_state.theta, end_state.kappa);
+    throw std::runtime_error("Path optimization diverges.\n");
+  }
   return;
 }
 
-const ContinuousPath::CarlaTransform ContinuousPath::transformAt(const double s) const {
+const std::pair<ContinuousPath::CarlaTransform, double>
+ContinuousPath::transformAt(const double s) const {
 
   if (s < 0.0 || s > path_.sf)
     throw std::out_of_range("The input distance is out of the range of the path.");
@@ -135,22 +152,26 @@ const ContinuousPath::CarlaTransform ContinuousPath::transformAt(const double s)
 
   // Generate a base transform by interpolating start and end.
   const double ratio = s / path_.sf;
-  CarlaTransform base_transform = interpolateTransform(start_, end_, 1.0-ratio);
+  std::pair<CarlaTransform, double> base_transform =
+    interpolateTransform(start_, end_, 1.0-ratio);
 
-  return pathStateToCarlaTransform(state, base_transform);
+  return pathStateToCarlaTransform(state, base_transform.first);
 }
 
 std::string ContinuousPath::string(const std::string& prefix) const {
-  boost::format transform_format("x:%1% y:%2% yaw:%3%\n");
+  boost::format transform_format("x:%1% y:%2% yaw:%3% curvature:%4%\n");
   std::string output = prefix;
   output += "start: ";
-  output += (transform_format % start_.location.x
-                              % start_.location.y
-                              % start_.rotation.yaw).str();
+  output += (transform_format % start_.first.location.x
+                              % start_.first.location.y
+                              % start_.first.rotation.yaw
+                              % start_.second).str();
   output += "end: ";
-  output += (transform_format % end_.location.x
-                              % end_.location.y
-                              % end_.rotation.yaw).str();
+  output += (transform_format % end_.first.location.x
+                              % end_.first.location.y
+                              % end_.first.rotation.yaw
+                              % end_.second).str();
+
   boost::format path_format("a:%1% b:%2% c:%3% d:%4% sf:%5%\n");
   output += "path: ";
   output += (path_format % path_.a % path_.b % path_.c % path_.d % path_.sf).str();
@@ -158,8 +179,8 @@ std::string ContinuousPath::string(const std::string& prefix) const {
 }
 
 DiscretePath::DiscretePath(
-    const CarlaTransform& start,
-    const CarlaTransform& end,
+    const std::pair<CarlaTransform, double>& start,
+    const std::pair<CarlaTransform, double>& end,
     const LaneChangeType& lane_change_type) :
   Base(lane_change_type) {
 
@@ -170,21 +191,29 @@ DiscretePath::DiscretePath(
   // Compute the Kelly-Navy path.
   NonHolonomicPath path;
   const bool success = path.optimizePath(start_state, end_state);
-  if (!success) throw std::runtime_error("Path optimization diverges.\n");
+  if (!success) {
+    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
+        start_state.x, start_state.y, start_state.theta, start_state.kappa);
+    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
+        end_state.x, end_state.y, end_state.theta, end_state.kappa);
+    throw std::runtime_error("Path optimization diverges.\n");
+  }
 
   // Sample the path with 0.1m resolution.
   double s = 0.0;
   for (; s <= path.sf; s += 0.1) {
-    const double ratio = s / range();
-    CarlaTransform base_transform = interpolateTransform(start, end, 1.0-ratio);
+    const double ratio = s / path.sf;
+    std::pair<CarlaTransform, double> base_transform =
+      interpolateTransform(start, end, 1.0-ratio);
 
     NonHolonomicPath::State state = path.evaluate(start_state, s);
-    samples_[s] = pathStateToCarlaTransform(state, base_transform);
+    samples_[s] = pathStateToCarlaTransform(state, base_transform.first);
   }
 
+  std::printf("Check the end of the path.\n");
   if (s < path.sf) {
     NonHolonomicPath::State state = path.evaluate(start_state, path.sf);
-    samples_[path.sf] = pathStateToCarlaTransform(state, end);
+    samples_[path.sf] = pathStateToCarlaTransform(state, end.first);
   }
 
   if (samples_.empty())
@@ -211,7 +240,8 @@ DiscretePath::DiscretePath(const ContinuousPath& continuous_path) :
   return;
 }
 
-const DiscretePath::CarlaTransform DiscretePath::transformAt(const double s) const {
+const std::pair<DiscretePath::CarlaTransform, double>
+DiscretePath::transformAt(const double s) const {
 
   if (s < 0.0 || s > range())
     throw std::out_of_range("The input distance is out of the range of the path.");
@@ -219,23 +249,23 @@ const DiscretePath::CarlaTransform DiscretePath::transformAt(const double s) con
   if (s == 0.0) return samples_.begin()->second;
   if (s == samples_.rbegin()->first) return samples_.rbegin()->second;
 
-  std::map<double, CarlaTransform>::const_iterator iter = std::find_if(
-      samples_.begin(), samples_.end(),
-      [&s](const std::pair<double, CarlaTransform>& sample)->bool{
+  auto iter = std::find_if(samples_.begin(), samples_.end(),
+      [&s](const std::pair<double, std::pair<CarlaTransform, double>>& sample)->bool{
         return sample.first > s;
       });
 
   if (iter==samples_.begin() || iter==samples_.end())
     throw std::runtime_error("The input distance is out of the range of the path.");
 
-  std::map<double, CarlaTransform>::const_iterator iter1 = --iter; ++iter;
-  std::map<double, CarlaTransform>::const_iterator iter2 = iter;
+  auto iter1 = --iter; ++iter;
+  auto iter2 = iter;
   const double ratio = (iter2->first-s) / (iter2->first-iter1->first);
   return interpolateTransform(iter1->second, iter2->second, ratio);
 }
 
-const std::vector<DiscretePath::CarlaTransform> DiscretePath::samples() const {
-  std::vector<CarlaTransform> samples;
+const std::vector<std::pair<DiscretePath::CarlaTransform, double>>
+DiscretePath::samples() const {
+  std::vector<std::pair<CarlaTransform, double>> samples;
   for (const auto& sample : samples_) samples.push_back(sample.second);
   return samples;
 }
@@ -243,14 +273,15 @@ const std::vector<DiscretePath::CarlaTransform> DiscretePath::samples() const {
 void DiscretePath::append(const DiscretePath& path) {
   // Check if the start of the input path matches the end of this path.
   // Only location is compared.
-  const double gap = (endTransform().location - path.startTransform().location).Length();
+  const double gap = (endTransform().first.location -
+                      path.startTransform().first.location).Length();
   std::printf("gap: %f\n", gap);
   if (gap > 0.1) throw std::runtime_error("gap > 0.1m");
 
   // Append the samples in the input path to this path.
   // The first sample in the input path should be ignored.
   const double offset = (--samples_.end())->first;
-  for (std::map<double, CarlaTransform>::const_iterator iter = ++(path.samples_.begin());
+  for (auto iter = ++(path.samples_.begin());
        iter != path.samples_.end(); ++iter) {
     samples_[iter->first+offset] = iter->second;
   }
@@ -259,18 +290,20 @@ void DiscretePath::append(const DiscretePath& path) {
 }
 
 std::string DiscretePath::string(const std::string& prefix) const {
-  boost::format transform_format("x:%1% y:%2% yaw:%3%\n");
+  boost::format transform_format("x:%1% y:%2% yaw:%3% curvature:%4%\n");
   std::string output = prefix;
   output += "start: ";
-  const CarlaTransform start = startTransform();
-  output += (transform_format % start.location.x
-                              % start.location.y
-                              % start.rotation.yaw).str();
+  const std::pair<CarlaTransform, double> start = startTransform();
+  output += (transform_format % start.first.location.x
+                              % start.first.location.y
+                              % start.first.rotation.yaw
+                              % start.second).str();
   output += "end: ";
-  const CarlaTransform end = endTransform();
-  output += (transform_format % end.location.x
-                              % end.location.y
-                              % end.rotation.yaw).str();
+  const std::pair<CarlaTransform, double> end = endTransform();
+  output += (transform_format % end.first.location.x
+                              % end.first.location.y
+                              % end.first.rotation.yaw
+                              % end.second).str();
 
   output += (boost::format("path: range:%1% sample size:%2%\n") % range() % samples_.size()).str();
   return output;

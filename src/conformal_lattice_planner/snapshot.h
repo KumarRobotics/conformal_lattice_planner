@@ -57,11 +57,6 @@ protected:
 
 public:
 
-  //Snapshot(const std::pair<size_t, double> ego,
-  //         const std::unordered_map<size_t, double>& agents,
-  //         const boost::shared_ptr<CarlaWorld>& world,
-  //         const boost::shared_ptr<router::LoopRouter>& router);
-
   Snapshot(const Vehicle& ego,
            const std::unordered_map<size_t, Vehicle>& agents,
            const boost::shared_ptr<router::LoopRouter>& router,
@@ -89,9 +84,9 @@ public:
     trafficLattice() { return traffic_lattice_; }
 
   // The input \c new_transforms should cover every vehicle in the snapshot.
-  // The tuple consists of the vehicle ID, transform, speed, and acceleration.
+  // The tuple consists of the vehicle ID, transform, speed, acceleration, curvature.
   bool updateTraffic(
-      const std::vector<std::tuple<size_t, CarlaTransform, double, double>>& transforms);
+      const std::vector<std::tuple<size_t, CarlaTransform, double, double, double>>& transforms);
 
   std::string string(const std::string& prefix = "") const {
     std::string output = prefix;
@@ -102,15 +97,6 @@ public:
     return output;
   }
 
-protected:
-
-  //std::pair<size_t, boost::shared_ptr<CarlaVehicle>> carlaVehicle(
-  //    const size_t id, const boost::shared_ptr<CarlaWorld>& world) {
-  //  boost::shared_ptr<CarlaVehicle> vehicle =
-  //    boost::static_pointer_cast<CarlaVehicle>(world->GetActor(id));
-  //  if (!vehicle) throw std::runtime_error("Cannot find the required vehicle in the carla server.");
-  //  return std::make_pair(id, vehicle);
-  //}
 };
 } // End namespace planner.
 

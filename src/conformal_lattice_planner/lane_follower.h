@@ -20,6 +20,7 @@
 #include <conformal_lattice_planner/waypoint_lattice.h>
 #include <conformal_lattice_planner/vehicle_path.h>
 #include <conformal_lattice_planner/vehicle_path_planner.h>
+#include <conformal_lattice_planner/utils.h>
 
 namespace planner {
 
@@ -36,7 +37,8 @@ private:
 
 protected:
 
-  using CarlaWaypoint = carla::client::Waypoint;
+  using CarlaWaypoint  = carla::client::Waypoint;
+  using CarlaTransform = carla::geom::Transform;
 
 protected:
 
@@ -76,66 +78,93 @@ public:
    *
    * \param[in] target The ID of the target vehicle.
    * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \return The planned path.
+   * \param[out] path The planned path.
    */
-  template<typename Path>
-  Path plan(const size_t target, const Snapshot& snapshot);
+  void plan(const size_t target, const Snapshot& snapshot, DiscretePath& path) {
+    path = plan(target, snapshot);
+    return;
+  }
 
   /**
    * \brief The main interface of the path planner.
    *
    * \param[in] target The ID of the target vehicle.
    * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \param[out] path The planned path.
+   * \return The planned path.
    */
-  template<typename Path>
-  void plan(const size_t target, const Snapshot& snapshot, Path& path) {
-    path = plan<Path>(target, snapshot);
-    return;
+  DiscretePath plan(const size_t target, const Snapshot& snapshot) {
+
+    //std::printf("Find target vehicle waypoint.\n");
+    // Get the target vehicle and its waypoint.
+    const Vehicle target_vehicle = snapshot.vehicle(target);
+
+    const boost::shared_ptr<CarlaWaypoint> target_waypoint =
+      map_->GetWaypoint(target_vehicle.transform().location);
+
+    //std::printf("Create lattice if necessary.\n");
+    // Waypoint lattice is created if not available.
+    if (!waypoint_lattice_)
+      throw std::runtime_error("The waypoint lattice is not available.\n");
+
+    //std::printf("Find target front waypoint.\n");
+    // Find the waypoint 50m ahead of the current postion of the target vehicle.
+    const boost::shared_ptr<const WaypointNode> front_node =
+      waypoint_lattice_->front(target_waypoint, 50.0);
+    boost::shared_ptr<const CarlaWaypoint> front_waypoint = nullptr;
+
+    if (!front_node) {
+      if (target_vehicle.id() == snapshot.ego().id()) {
+        // If there is no front node for the ego, there must be something else wrong.
+        // The ego should be always follow the route.
+        throw std::runtime_error("Ego vehicle can no longer keep the current lane.");
+      } else {
+        // If there is no front node for an agent vehicle. We may just find its next
+        // accessible waypoint with some distance.
+        std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
+          target_waypoint->GetNext(10.0);
+        if (front_waypoints.size() <= 0)
+          throw std::runtime_error("The agent vehicle cannot proceed further.");
+        front_waypoint = front_waypoints[0];
+      }
+    } else {
+      front_waypoint = front_node->waypoint();
+    }
+
+    // FIXME: Maybe I should use the transform and curvature from the target vehicle.
+    //        However this can cause drifting of the vehile. Planning from the closest
+    //        waypoint seems to be the easiest fix.
+    const CarlaTransform current_transform = target_waypoint->GetTransform();
+    const double current_curvature = utils::curvatureAtWaypoint(target_waypoint, map_);
+
+    //std::printf("current transform: x:%f y:%f z:%f r:%f p:%f y:%f c:%f\n",
+    //    current_transform.location.x,
+    //    current_transform.location.y,
+    //    current_transform.location.z,
+    //    current_transform.rotation.roll,
+    //    current_transform.rotation.pitch,
+    //    current_transform.rotation.yaw,
+    //    current_curvature);
+
+    const CarlaTransform reference_transform = front_waypoint->GetTransform();
+    const double reference_curvature = utils::curvatureAtWaypoint(front_waypoint, map_);
+
+    //std::printf("reference transform: x:%f y:%f z:%f r:%f p:%f y:%f c:%f\n",
+    //    reference_transform.location.x,
+    //    reference_transform.location.y,
+    //    reference_transform.location.z,
+    //    reference_transform.rotation.roll,
+    //    reference_transform.rotation.pitch,
+    //    reference_transform.rotation.yaw,
+    //    reference_curvature);
+
+    //std::printf("Plan discrete path.\n");
+    // Generate the path.
+    return DiscretePath(
+        std::make_pair(current_transform, current_curvature),
+        std::make_pair(reference_transform, reference_curvature),
+        VehiclePath::LaneChangeType::KeepLane);
   }
 };
-
-template<typename Path>
-Path LaneFollower::plan(const size_t target, const Snapshot& snapshot) {
-
-  // Get the target vehicle and its waypoint.
-  const Vehicle target_vehicle = snapshot.vehicle(target);
-
-  const boost::shared_ptr<CarlaWaypoint> target_waypoint =
-    map_->GetWaypoint(target_vehicle.transform().location);
-
-  // Waypoint lattice is created if not available.
-  if (!waypoint_lattice_)
-    throw std::runtime_error("The waypoint lattice is not available.\n");
-
-  // Find the waypoint 50m ahead of the current postion of the target vehicle.
-  const boost::shared_ptr<const WaypointNode> front_node =
-    waypoint_lattice_->front(target_waypoint, 50.0);
-  boost::shared_ptr<const CarlaWaypoint> front_waypoint = nullptr;
-
-  if (!front_node) {
-    if (target_vehicle.id() == snapshot.ego().id()) {
-      // If there is no front node for the ego, there must be something else wrong.
-      // The ego should be always follow the route.
-      throw std::runtime_error("Ego vehicle can no longer keep the current lane.");
-    } else {
-      // If there is no front node for an agent vehicle. We may just find its next
-      // accessible waypoint with some distance.
-      std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
-        target_waypoint->GetNext(10.0);
-      if (front_waypoints.size() <= 0)
-        throw std::runtime_error("The agent vehicle cannot proceed further.");
-      front_waypoint = front_waypoints[0];
-    }
-  } else {
-    front_waypoint = front_node->waypoint();
-  }
-
-  // Generate the path.
-  return Path(target_waypoint->GetTransform(),
-              front_waypoint->GetTransform(),
-              VehiclePath::LaneChangeType::KeepLane);
-}
 
 } // End namespace planner.
 

@@ -54,6 +54,10 @@ protected:
   /// Acceleration of the vehicle, brake should be negative.
   double acceleration_ = 0.0;
 
+  /// Curvature of the path where the vehicle is currently at.
+  /// Compatible with carla.
+  double curvature_ = 0.0;
+
 public:
 
   /**
@@ -61,26 +65,31 @@ public:
    * \c GetAcceleration() API, since the vehicles are assumed to be teleported
    * instead of controlled through physical dynamics.
    */
-  Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor, const double policy_speed) :
+  Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor,
+          const double policy_speed,
+          const double curvature) :
     id_          (actor->GetId()),
     bounding_box_(actor->GetBoundingBox()),
     transform_   (actor->GetTransform()),
     speed_       (actor->GetVelocity().Length()),
     policy_speed_(policy_speed),
-    acceleration_(0.0) {}
+    acceleration_(0.0),
+    curvature_(curvature) {}
 
   Vehicle(const size_t id,
           const CarlaBoundingBox& bounding_box,
           const CarlaTransform& transform,
           const double speed,
           const double policy_speed,
-          const double acceleration) :
+          const double acceleration,
+          const double curvature) :
     id_          (id),
     bounding_box_(bounding_box),
     transform_   (transform),
     speed_       (speed),
     policy_speed_(policy_speed),
-    acceleration_(acceleration) {}
+    acceleration_(acceleration),
+    curvature_(curvature){}
 
   const size_t id() const { return id_; }
   size_t& id() { return id_; }
@@ -99,6 +108,9 @@ public:
 
   const double acceleration() const { return acceleration_; }
   double& acceleration() { return acceleration_; }
+
+  const double curvature() const { return curvature_; }
+  double& curvature() { return curvature_; }
 
   /**
    * \brief Update the vehicle in the simulator server.
@@ -133,7 +145,7 @@ public:
 
     std::string output = prefix;
     boost::format vehicle_format(
-        "id:%1% x:%2% y:%3% z:%4% policy:%5% speed:%6% accel:%7%\n");
+        "id:%1% x:%2% y:%3% z:%4% policy:%5% speed:%6% accel:%7% curvature:%8\n");
 
     vehicle_format % id_;
     vehicle_format % transform_.location.x;
@@ -142,14 +154,12 @@ public:
     vehicle_format % policy_speed_;
     vehicle_format % speed_;
     vehicle_format % acceleration_;
+    vehicle_format % curvature_;
 
     output += vehicle_format.str();
 
     return output;
   }
-
-  // TODO: Add a function to update the vehicle's transform and speed
-  //       using the new acceleration and path.
 
 }; // End class Vehicle.
 } // End namespace planner.

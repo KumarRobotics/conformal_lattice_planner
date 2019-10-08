@@ -56,10 +56,12 @@ public:
   virtual ~VehiclePath() {}
 
   /// Get the carla compatible left-handed transform at the start of the path.
-  virtual const CarlaTransform startTransform() const = 0;
+  virtual const std::pair<CarlaTransform, double>
+    startTransform() const = 0;
 
   /// Get the carla compatible left-handed transform at the end of the path.
-  virtual const CarlaTransform endTransform() const = 0;
+  virtual const std::pair<CarlaTransform, double>
+    endTransform() const = 0;
 
   /// Return the range of the path.
   virtual const double range() const = 0;
@@ -69,25 +71,25 @@ public:
     return lane_change_type_;
   }
 
-  /// Get the carla compatible left-handed transform at s,
+  /// Get the carla compatible left-handed transform and curvature at s,
   /// i.e. distance from the start of the path.
-  virtual const CarlaTransform transformAt(const double s) const = 0;
+  virtual const std::pair<CarlaTransform, double> transformAt(const double s) const = 0;
 
   /// Returns samples on the path from the start to the end with 0.1m resolution.
-  virtual const std::vector<CarlaTransform> samples() const;
+  virtual const std::vector<std::pair<CarlaTransform, double>> samples() const;
 
 protected:
 
   NonHolonomicPath::State carlaTransformToPathState(
-      const CarlaTransform& transform) const;
+      const std::pair<CarlaTransform, double>& transform) const;
 
-  CarlaTransform pathStateToCarlaTransform(
+  std::pair<CarlaTransform, double> pathStateToCarlaTransform(
       const NonHolonomicPath::State& state,
       const CarlaTransform& base_transform) const;
 
-  CarlaTransform interpolateTransform(
-      const CarlaTransform& t1,
-      const CarlaTransform& t2,
+  std::pair<CarlaTransform, double> interpolateTransform(
+      const std::pair<CarlaTransform, double>& t1,
+      const std::pair<CarlaTransform, double>& t2,
       const double w) const;
 
 }; // End class VehiclePath.
@@ -101,28 +103,31 @@ private:
 
 protected:
 
-  CarlaTransform start_;
-  CarlaTransform end_;
+  std::pair<CarlaTransform, double> start_;
+  std::pair<CarlaTransform, double> end_;
 
   NonHolonomicPath path_;
 
 public:
 
-  ContinuousPath(const CarlaTransform& start,
-                 const CarlaTransform& end,
+  ContinuousPath(const std::pair<CarlaTransform, double>& start,
+                 const std::pair<CarlaTransform, double>& end,
                  const LaneChangeType& lane_change_type);
 
   ContinuousPath(const DiscretePath& discrete_path);
 
   virtual ~ContinuousPath() {}
 
-  virtual const CarlaTransform startTransform() const override { return start_; }
+  virtual const std::pair<CarlaTransform, double>
+    startTransform() const override { return start_; }
 
-  virtual const CarlaTransform endTransform() const override { return end_; }
+  virtual const std::pair<CarlaTransform, double>
+    endTransform() const override { return end_; }
 
   virtual const double range() const override { return path_.sf; }
 
-  virtual const CarlaTransform transformAt(const double s) const override;
+  virtual const std::pair<CarlaTransform, double>
+    transformAt(const double s) const override;
 
   std::string string(const std::string& prefix="") const;
 
@@ -141,23 +146,26 @@ private:
 protected:
 
   /// Stores the samples on path..
-  std::map<double, CarlaTransform> samples_;
+  //std::map<double, CarlaTransform> samples_;
+  std::map<double, std::pair<CarlaTransform, double>> samples_;
 
 public:
 
-  DiscretePath(const CarlaTransform& start,
-               const CarlaTransform& end,
+  DiscretePath(const std::pair<CarlaTransform, double>& start,
+               const std::pair<CarlaTransform, double>& end,
                const LaneChangeType& lane_change_type);
 
   DiscretePath(const ContinuousPath& continuous_path);
 
   virtual ~DiscretePath() {}
 
-  virtual const CarlaTransform startTransform() const override {
+  virtual const std::pair<CarlaTransform, double>
+    startTransform() const override {
     return samples_.begin()->second;
   }
 
-  virtual const CarlaTransform endTransform() const override {
+  virtual const std::pair<CarlaTransform, double>
+    endTransform() const override {
     return samples_.rbegin()->second;
   }
 
@@ -165,9 +173,11 @@ public:
     return samples_.rbegin()->first;
   }
 
-  virtual const CarlaTransform transformAt(const double s) const override;
+  virtual const std::pair<CarlaTransform, double>
+    transformAt(const double s) const override;
 
-  virtual const std::vector<CarlaTransform> samples() const override;
+  virtual const std::vector<std::pair<CarlaTransform, double>>
+    samples() const override;
 
   virtual void append(const DiscretePath& path);
 

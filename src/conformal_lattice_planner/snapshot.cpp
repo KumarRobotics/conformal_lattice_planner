@@ -89,7 +89,9 @@ Vehicle& Snapshot::vehicle(const size_t id) {
 }
 
 bool Snapshot::updateTraffic(
-    const std::vector<std::tuple<size_t, CarlaTransform, double, double>>& updates) {
+    const std::vector<std::tuple<size_t, CarlaTransform, double, double, double>>& updates) {
+
+  // The tuple consists of the vehicle ID, transform, speed, acceleration, curvature.
 
   // Check the input vector has the updates for every vehicle in the snapshot.
   std::unordered_set<size_t> updated_vehicles;
@@ -107,14 +109,15 @@ bool Snapshot::updateTraffic(
   // Update the transform, speed, and acceleration for all vehicles.
   for (const auto& update : updates) {
     size_t id; CarlaTransform update_transform;
-    double update_speed; double update_acceleration;
-    std::tie(id, update_transform, update_speed, update_acceleration) = update;
+    double update_speed; double update_acceleration; double update_curvature;
+    std::tie(id, update_transform, update_speed, update_acceleration, update_curvature) = update;
 
     // Update the status for the ego vehicle.
     if (id == ego_.id()) {
       ego_.transform() = update_transform;
       ego_.speed() = update_speed;
       ego_.acceleration() = update_acceleration;
+      ego_.curvature() = update_curvature;
       continue;
     }
 
@@ -126,6 +129,7 @@ bool Snapshot::updateTraffic(
     agent_iter->second.transform() = update_transform;
     agent_iter->second.speed() = update_speed;
     agent_iter->second.acceleration() = update_acceleration;
+    agent_iter->second.curvature() = update_curvature;
   }
 
   // Update the traffic lattice.

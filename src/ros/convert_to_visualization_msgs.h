@@ -75,14 +75,15 @@ visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
 template<typename Path>
 void populatePathMsg(const Path& path, const visualization_msgs::MarkerPtr& path_msg) {
 
-  std::vector<carla::geom::Transform> transforms = path.samples();
+  std::vector<std::pair<carla::geom::Transform, double>>
+    transforms = path.samples();
 
   for (auto& transform : transforms) {
-    utils::convertTransformInPlace(transform);
+    utils::convertTransformInPlace(transform.first);
     geometry_msgs::Point pt;
-    pt.x = transform.location.x;
-    pt.y = transform.location.y;
-    pt.z = transform.location.z;
+    pt.x = transform.first.location.x;
+    pt.y = transform.first.location.y;
+    pt.z = transform.first.location.z;
 
     path_msg->points.push_back(pt);
     path_msg->colors.push_back(path_msg->color);
@@ -120,7 +121,7 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
   return path_msg;
 }
 
-visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
+//visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+//    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
 
 } // End namespace carla.

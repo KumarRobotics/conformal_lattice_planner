@@ -21,6 +21,7 @@
 #include <conformal_lattice_planner/vehicle_path.h>
 #include <conformal_lattice_planner/vehicle_speed_planner.h>
 #include <conformal_lattice_planner/lane_follower.h>
+#include <conformal_lattice_planner/utils.h>
 #include <ros/ego_lane_following_node.h>
 #include <ros/convert_to_visualization_msgs.h>
 
@@ -70,15 +71,22 @@ void EgoLaneFollowingNode::executeCallback(
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
   // Create the current snapshot.
-  boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
+  boost::shared_ptr<Snapshot> snapshot =
+    createSnapshot(ego_policy, agent_policies);
+
+  boost::shared_ptr<CarlaWaypoint> ego_waypoint =
+    carlaVehicleWaypoint(ego_policy.first);
+  //std::printf("Road curvature at ego location: %f\n",
+  //    utils::curvatureAtWaypoint(ego_waypoint, map_));
 
   // Plan path.
   // The range of the lattice is just enough for the ego vehicle.
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(
       map_, carlaVehicleWaypoint(ego_policy.first), 55.0, router_);
-  const ContinuousPath ego_path =
-    path_planner->plan<ContinuousPath>(ego_policy.first, *snapshot);
+
+  const DiscretePath ego_path =
+    path_planner->plan(ego_policy.first, *snapshot);
 
   // Plan speed.
   boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
@@ -90,7 +98,7 @@ void EgoLaneFollowingNode::executeCallback(
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
   const double movement = snapshot->ego().speed()*dt + 0.5*ego_accel*dt*dt;
-  const CarlaTransform updated_transform = ego_path.transformAt(movement);
+  const CarlaTransform updated_transform = ego_path.transformAt(movement).first;
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
 
   boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);

@@ -34,6 +34,7 @@
 #include <ros/ros.h>
 #include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/snapshot.h>
+#include <conformal_lattice_planner/utils.h>
 
 namespace carla {
 
@@ -50,11 +51,11 @@ protected:
 
 protected:
 
+  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+
   boost::shared_ptr<CarlaClient> client_ = nullptr;
   boost::shared_ptr<CarlaWorld> world_ = nullptr;
   boost::shared_ptr<CarlaMap> map_ = nullptr;
-
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
 
   mutable ros::NodeHandle nh_;
 
@@ -69,15 +70,28 @@ public:
 
 protected:
 
-  boost::shared_ptr<planner::Snapshot> createSnapshot(
+  virtual boost::shared_ptr<planner::Snapshot> createSnapshot(
       const std::pair<size_t, double>& ego,
       std::unordered_map<size_t, double>& agents) const {
 
-    const planner::Vehicle ego_vehicle = planner::Vehicle(carlaVehicle(ego.first), ego.second);
+    // FIXME: In this function, we assume all vehicles are lane followers.
+    //        Therefore, the curvature of the vehicle path is the curvature
+    //        of the road. In case this is not true, one should override
+    //        this function.
+
+    // Create the ego vehicle.
+    const boost::shared_ptr<CarlaWaypoint> ego_waypoint = carlaVehicleWaypoint(ego.first);
+    const double ego_curvature = utils::curvatureAtWaypoint(ego_waypoint, map_);
+    const planner::Vehicle ego_vehicle =
+      planner::Vehicle(carlaVehicle(ego.first), ego.second, ego_curvature);
+
+    // Create the agent vehicles.
     std::unordered_map<size_t, planner::Vehicle> agent_vehicles;
     for (const auto& agent : agents) {
+      const boost::shared_ptr<CarlaWaypoint> waypoint = carlaVehicleWaypoint(ego.first);
+      const double curvature = utils::curvatureAtWaypoint(waypoint, map_);
       agent_vehicles.insert(std::make_pair(
-            agent.first, planner::Vehicle(carlaVehicle(agent.first), agent.second)));
+            agent.first, planner::Vehicle(carlaVehicle(agent.first), agent.second, curvature)));
     }
 
     // Create the snapshot.
@@ -116,43 +130,6 @@ protected:
       agents[agent_policy.id] = agent_policy.desired_speed;
     return agents;
   }
-
-  const double waypointCurvature(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const {
-
-    // Get the road.
-    const carla::road::Road& road =
-      map_->GetMap().GetMap().GetRoad(waypoint->GetRoadId());
-
-    // Get the road geometry info.
-    const carla::road::element::RoadInfoGeometry* road_info =
-      road.GetInfo<carla::road::element::RoadInfoGeometry>(waypoint->GetDistance());
-
-    // Get the actual geometry of the road.
-    const carla::road::element::Geometry& geometry = road_info->GetGeometry();
-
-    if (geometry.GetType() == carla::road::element::GeometryType::LINE)
-      return 0.0;
-
-    if (geometry.GetType() == carla::road::element::GeometryType::ARC) {
-      const carla::road::element::GeometryArc& geometry_arc =
-        dynamic_cast<const carla::road::element::GeometryArc&>(geometry);
-      return geometry_arc.GetCurvature();
-    }
-
-    if (geometry.GetType() == carla::road::element::GeometryType::SPIRAL) {
-      //FIXME: Not sure how to deal with this. But there is no example for this road type
-      //       from Town01 to Town07.
-      throw std::runtime_error("Curvature for spiral road is not defined.\n");
-      //const carla::road::element::GeometrySpiral& geometry_spiral =
-      //  dynamic_cast<const carla::road::element::GeometrySpiral&>(geometry);
-      //return geometry_spiral.GetCurvatureEnd();
-    }
-
-    throw std::runtime_error("Unknown road geometry type.");
-    return 0.0;
-  }
-
 }; // End class PlanningNode.
 
 } // End namespace carla.
