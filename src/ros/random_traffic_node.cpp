@@ -311,7 +311,7 @@ void RandomTrafficNode::manageTraffic() {
       const double distance = 3.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = back->second;
       spawn_waypoint = traffic_manager_->front(waypoint, distance)->waypoint();
-      policy_speed = 21.0;
+      policy_speed = 22.0;
     }
 
     if (!spawn_waypoint) {
@@ -320,7 +320,7 @@ void RandomTrafficNode::manageTraffic() {
       return;
     }
 
-    if (!spawnAgentVehicle(spawn_waypoint, policy_speed, false)) {
+    if (!spawnAgentVehicle(spawn_waypoint, policy_speed)) {
       ROS_WARN_NAMED("carla simulator",
           "Cannot spawn a new agent vehicle at the given waypoint.");
       return;

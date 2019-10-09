@@ -316,13 +316,51 @@ std::queue<boost::shared_ptr<Station>>
   // We are good with the above nodes already. All stations will be newly created.
   node_to_station_table_.clear();
 
+  // Now we have to spend some time figuring out which node is the front, left front,
+  // and right front now.
+  //  0 : old front is still front
+  // -1 : old left is now front.
+  //  1 : old right is now front.
+  int flag = 0;
+  boost::shared_ptr<const WaypointNode> vehicle_node = new_root->node().lock();
+
+  while (true) {
+    if (front_node && vehicle_node->id()==front_node->id()) {
+      flag = 0; break;
+    }
+    if (left_front_node && vehicle_node->id()==left_front_node->id()) {
+      flag = -1; break;
+    }
+    if (right_front_node && vehicle_node->id()==right_front_node->id()) {
+      flag = 1; break;
+    }
+
+    vehicle_node = vehicle_node->front();
+
+    if (!vehicle_node)
+      throw std::runtime_error("Searching reaches the end of lattice. Immediate next node is missing.");
+  }
+
   // Try to connect the new root with above nodes.
-  boost::shared_ptr<Station> front_station =
-    connectStationToFrontNode(new_root, front_node);
-  boost::shared_ptr<Station> left_front_station =
-    connectStationToLeftFrontNode(new_root, left_front_node);
-  boost::shared_ptr<Station> right_front_station =
-    connectStationToRightFrontNode(new_root, right_front_node);
+  boost::shared_ptr<Station> front_station = nullptr;
+  boost::shared_ptr<Station> left_front_station = nullptr;
+  boost::shared_ptr<Station> right_front_station = nullptr;
+
+  if (flag == 0) {
+    front_station = connectStationToFrontNode(new_root, front_node);
+    left_front_station = connectStationToLeftFrontNode(new_root, left_front_node);
+    right_front_station = connectStationToRightFrontNode(new_root, right_front_node);
+  } else if (flag == -1) {
+    right_front_node = front_node;
+    front_node = left_front_node;
+    front_station = connectStationToFrontNode(new_root, front_node);
+    right_front_station = connectStationToRightFrontNode(new_root, right_front_node);
+  } else {
+    left_front_node = front_node;
+    front_node = right_front_node;
+    front_station = connectStationToFrontNode(new_root, front_node);
+    left_front_station = connectStationToLeftFrontNode(new_root, left_front_node);
+  }
 
   // Save the new root to the table.
   root_ = new_root;
