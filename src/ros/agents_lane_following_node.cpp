@@ -66,11 +66,11 @@ void AgentsLaneFollowingNode::executeCallback(
   std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
 
   // Create the current snapshot.
-  //std::printf("Create snapshot.\n");
+  //std::printf("-->Create snapshot.\n");
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
 
   // Create Path planner.
-  //std::printf("Find start waypoint for lattice.\n");
+  //std::printf("-->Find start waypoint for lattice.\n");
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
     traffic_lattice_entries = snapshot->trafficLattice()->latticeEntries();
 
@@ -98,7 +98,7 @@ void AgentsLaneFollowingNode::executeCallback(
 
   for (const auto& item : snapshot->agents()) {
     const Vehicle& agent = item.second;
-    //std::printf("Plan for agent %lu\n", agent.id());
+    //std::printf("-->Plan for agent %lu\n", agent.id());
 
     const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
     const double accel = speed_planner->plan(agent.id(), *snapshot);
@@ -106,9 +106,9 @@ void AgentsLaneFollowingNode::executeCallback(
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
     const CarlaTransform updated_transform = path.transformAt(movement).first;
     const double updated_speed = agent.speed() + accel*dt;
-    //std::printf("movement: %f\n", movement);
-    //std::printf("updated speed: %f\n", updated_speed);
-    //std::printf("updated transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+    //std::printf("-->movement: %f\n", movement);
+    //std::printf("-->updated speed: %f\n", updated_speed);
+    //std::printf("-->updated transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
     //    updated_transform.location.x,
     //    updated_transform.location.y,
     //    updated_transform.location.z,
