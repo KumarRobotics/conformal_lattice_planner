@@ -334,21 +334,21 @@ std::queue<boost::shared_ptr<Station>>
     node_to_station_table_[front_station->id()] = front_station;
     if (front_station->id() == front_node->id())
       station_queue.push(front_station);
-    std::printf("Add immediate front station to table.\n");
+    //std::printf("Add immediate front station to table.\n");
   }
 
   if (left_front_station) {
     node_to_station_table_[left_front_station->id()] = left_front_station;
     if (left_front_station->id() == left_front_node->id())
       station_queue.push(left_front_station);
-    std::printf("Add immediate left front station to table.\n");
+    //std::printf("Add immediate left front station to table.\n");
   }
 
   if (right_front_station) {
     node_to_station_table_[right_front_station->id()] = right_front_station;
     if (right_front_station->id() == right_front_node->id())
       station_queue.push(right_front_station);
-    std::printf("Add immediate right front station to table.\n");
+    //std::printf("Add immediate right front station to table.\n");
   }
 
   return station_queue;
@@ -412,7 +412,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToFrontNode(): \n");
+  //std::printf("connectStationToFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -486,7 +486,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToLeftFrontNode(): \n");
+  //std::printf("connectStationToLeftFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -581,7 +581,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToRightFrontNode(): \n");
+  //std::printf("connectStationToRightFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;

@@ -271,7 +271,7 @@ void DiscretePath::append(const DiscretePath& path) {
   // Only location is compared.
   const double gap = (endTransform().first.location -
                       path.startTransform().first.location).Length();
-  std::printf("gap: %f\n", gap);
+  //std::printf("gap: %f\n", gap);
   if (gap > 0.1) throw std::runtime_error("gap > 0.1m");
 
   // Append the samples in the input path to this path.

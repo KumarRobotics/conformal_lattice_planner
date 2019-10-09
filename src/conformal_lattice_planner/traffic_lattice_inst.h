@@ -359,9 +359,9 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
 
   // If we can not add the whole vehicle onto the lattice, we won't add it.
   if (!head_node || !rear_node || !mid_node) {
-    if (!head_node) std::printf("Cannot find vehicle head.\n");
-    if (!rear_node) std::printf("Cannot find vehicle rear.\n");
-    if (!mid_node)  std::printf("Cannot find vehicle mid.\n");
+    //if (!head_node) std::printf("Cannot find vehicle head.\n");
+    //if (!rear_node) std::printf("Cannot find vehicle rear.\n");
+    //if (!mid_node)  std::printf("Cannot find vehicle mid.\n");
     return 0;
   }
 
@@ -487,6 +487,18 @@ bool TrafficLattice<Router>::moveTrafficForward(
     std::printf("new start waypoint on road %u\n", update_start->GetRoadId());
     std::printf("updated range: %f\n", update_range);
     std::printf("current range: %f\n", this->range());
+    for (const auto& vehicle : vehicles) {
+      size_t id; CarlaTransform transform;
+      std::tie(id, transform, std::ignore) = vehicle;
+      std::printf("vehicle id %lu: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+          id,
+          transform.location.x,
+          transform.location.y,
+          transform.location.z,
+          transform.rotation.roll,
+          transform.rotation.pitch,
+          transform.rotation.yaw);
+    }
     throw std::runtime_error("All vehicles moves outside the old lattice.");
   }
   this->shorten(this->range()-update_start_node->distance());
