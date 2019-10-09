@@ -175,13 +175,15 @@ const bool TrafficSimulator::simulate(
 
     //std::printf("============================================\n");
     //std::cout << snapshot_.string("start snapshot:\n");
-    //std::printf("ego accel: %f\n", ego_accel);
-    //std::printf("time: %f dt: %f\n", time, dt);
+    //std::printf("ego accel:%f\n", ego_accel);
+    //std::printf("default dt:%f max time:%f remaining time:%f\n",
+    //    default_dt, max_time, remaining_time);
+    //std::printf("time:%f dt:%f\n", time, dt);
 
     // Update the distance of the ego on the path.
     ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
     if (ego_distance > path.range()) ego_distance = path.range();
-    //std::printf("ego distance: %f path range: %f\n", ego_distance, path.range());
+    //std::printf("ego distance:%f path range:%f\n", ego_distance, path.range());
 
     // Store the updated status of the ego.
     std::pair<CarlaTransform, double> ego_transform = path.transformAt(ego_distance);
@@ -212,8 +214,8 @@ const bool TrafficSimulator::simulate(
     ttc_cost.push_back(ttcCost());
     brake_cost.push_back(accelCost());
 
-    std::printf("ttc cost: %f\n", ttcCost());
-    std::printf("brake cost: %f\n", accelCost());
+    //std::printf("ttc cost: %f\n", ttcCost());
+    //std::printf("brake cost: %f\n", accelCost());
 
     // Tick the time.
     time += dt;

@@ -37,15 +37,15 @@ const double TrafficSimulator::egoAcceleration() const {
     snapshot_.trafficLattice()->front(snapshot_.ego().id());
 
   if (lead) {
-    const double lead_speed = snapshot_.agent(lead->first).speed();
+    const double lead_speed = snapshot_.vehicle(lead->first).speed();
     const double following_distance = lead->second;
     accel = idm_->idm(snapshot_.ego().speed(),
-                     snapshot_.ego().policySpeed(),
-                     lead_speed,
-                     following_distance);
+                      snapshot_.ego().policySpeed(),
+                      lead_speed,
+                      following_distance);
   } else {
     accel = idm_->idm(snapshot_.ego().speed(),
-                     snapshot_.ego().policySpeed());
+                      snapshot_.ego().policySpeed());
   }
 
   return accel;
@@ -59,15 +59,15 @@ const double TrafficSimulator::agentAcceleration(const size_t agent) const {
     snapshot_.trafficLattice()->front(agent);
 
   if (lead) {
-    const double lead_speed = snapshot_.agent(lead->first).speed();
+    const double lead_speed = snapshot_.vehicle(lead->first).speed();
     const double following_distance = lead->second;
-    accel = idm_->idm(snapshot_.agent(agent).speed(),
-                     snapshot_.agent(agent).policySpeed(),
-                     lead_speed,
-                     following_distance);
+    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
+                      snapshot_.vehicle(agent).policySpeed(),
+                      lead_speed,
+                      following_distance);
   } else {
-    accel = idm_->idm(snapshot_.agent(agent).speed(),
-                     snapshot_.agent(agent).policySpeed());
+    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
+                      snapshot_.vehicle(agent).policySpeed());
   }
 
   return accel;
@@ -77,7 +77,7 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
   TrafficSimulator::updatedAgentTuple(
       const size_t id, const double accel, const double dt) const {
 
-    const Vehicle& agent = snapshot_.agent(id);
+    const Vehicle& agent = snapshot_.vehicle(id);
 
     // The updated speed.
     const double updated_speed = agent.speed() + accel*dt;
@@ -186,9 +186,9 @@ const double TrafficSimulator::accelCost() const {
 
   double ego_brake_cost = accelCost(snapshot_.ego().acceleration());
   double agent_brake_cost = 0.0;
-  if (back)       agent_brake_cost += accelCost(snapshot_.agent(back->first).acceleration());
-  if (left_back)  agent_brake_cost += accelCost(snapshot_.agent(left_back->first).acceleration());
-  if (right_back) agent_brake_cost += accelCost(snapshot_.agent(right_back->first).acceleration());
+  if (back)       agent_brake_cost += accelCost(snapshot_.vehicle(back->first).acceleration());
+  if (left_back)  agent_brake_cost += accelCost(snapshot_.vehicle(left_back->first).acceleration());
+  if (right_back) agent_brake_cost += accelCost(snapshot_.vehicle(right_back->first).acceleration());
 
   return ego_brake_cost + 0.5*agent_brake_cost;
 }
