@@ -82,29 +82,34 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
     // The updated speed.
     const double updated_speed = agent.speed() + accel*dt;
 
-    // The updated transform.
-    // In case the router cannot find the next waypoint for the agent,
-    // we will used the orgin as the updated transform to indicate
-    // that the vehicle does not exist anymore.
-    // FIXME: Is there a better way to handle this?
-
+    // Computed updated transform of the vehicle.
+    // All agents are assumed to be lane followers.
+    // 1) If we can find the next waypoint for the agent on the route,
+    //    this is what we preferred.
+    // 2) If we cannot, this implies the agent is leaving the route.
+    //    we will use the carla map API to find an accessible next waypoint.
     boost::shared_ptr<CarlaWaypoint> waypoint =
       map_->GetWaypoint(agent.transform().location);
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
+
     boost::shared_ptr<CarlaWaypoint> next_waypoint =
       router_->frontWaypoint(waypoint, movement);
 
-    double curvature = 0.0;
-    CarlaTransform updated_transform;
-    updated_transform.location = carla::geom::Vector3D(0.0, 0.0, 0.0);
-    updated_transform.rotation = carla::geom::Rotation(0.0, 0.0, 0.0);
-
-    if (next_waypoint) {
-      updated_transform = next_waypoint->GetTransform();
-      curvature = utils::curvatureAtWaypoint(next_waypoint, map_);
+    if (!next_waypoint) {
+      std::vector<boost::shared_ptr<CarlaWaypoint>> next_waypoints =
+        waypoint->GetNext(movement);
+      if (next_waypoints.size() == 0)
+        throw std::runtime_error("Cannot find next waypoints for a agent.");
+      next_waypoint = next_waypoints.front();
     }
 
-    return std::make_tuple(id, updated_transform, updated_speed, accel, curvature);
+    double update_curvature = 0.0;
+    CarlaTransform update_transform;
+
+    update_transform = next_waypoint->GetTransform();
+    update_curvature = utils::curvatureAtWaypoint(next_waypoint, map_);
+
+    return std::make_tuple(id, update_transform, updated_speed, accel, update_curvature);
 }
 
 const double TrafficSimulator::remainingTime(
