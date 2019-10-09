@@ -74,7 +74,7 @@ void RandomTrafficNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25)) {
+  if (!spawnEgoVehicle(ego_waypoint, 25, false, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
@@ -88,13 +88,13 @@ void RandomTrafficNode::spawnVehicles() {
 
     // First lane, 80m, 20m/s.
     agent_waypoint = traffic_manager_->front(waypoint0, 40.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
+    if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
 
     // Second lane, 60m, 20m/s
-    agent_waypoint = traffic_manager_->front(waypoint1, 10.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0)) {
+    agent_waypoint = traffic_manager_->back(waypoint1, 30.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
   }
@@ -121,7 +121,7 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
-  transform.location.z += 1.5;
+  transform.location.z += 0.05;
 
   boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
   boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
@@ -232,7 +232,7 @@ void RandomTrafficNode::manageTraffic() {
   boost::shared_ptr<const TrafficManager<LoopRouter>> const_traffic_manager =
     boost::const_pointer_cast<const TrafficManager<LoopRouter>>(traffic_manager_);
   const double ego_distance = const_traffic_manager->closestNode(ego_waypoint, 1.0)->distance();
-  const double shift_distance = ego_distance<50.0 ? 0.0 : 1.0;
+  const double shift_distance = ego_distance<50.0 ? 0.0 : 2.0;
 
   // Get all vehicles for the server.
   std::vector<boost::shared_ptr<const CarlaVehicle>> vehicles =
@@ -275,7 +275,7 @@ void RandomTrafficNode::manageTraffic() {
   // Spawn more vehicles if the number of agents around the ego vehicle
   // does not meet the requirement.
   // At most one vehicle is spawned every time this function is called.
-  if (agent_policies_.size() < 7) {
+  if (agent_policies_.size() < 5) {
 
     const double min_distance = 20.0;
     boost::optional<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> front =
@@ -320,7 +320,7 @@ void RandomTrafficNode::manageTraffic() {
       return;
     }
 
-    if (!spawnAgentVehicle(spawn_waypoint, policy_speed)) {
+    if (!spawnAgentVehicle(spawn_waypoint, policy_speed, false)) {
       ROS_WARN_NAMED("carla simulator",
           "Cannot spawn a new agent vehicle at the given waypoint.");
       return;
