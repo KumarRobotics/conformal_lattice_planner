@@ -16,6 +16,8 @@
 
 #include <cmath>
 #include <limits>
+
+#include <conformal_lattice_planner/utils.h>
 #include <conformal_lattice_planner/traffic_simulator.h>
 
 namespace planner {
@@ -71,7 +73,7 @@ const double TrafficSimulator::agentAcceleration(const size_t agent) const {
   return accel;
 }
 
-const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, double>
+const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, double, double>
   TrafficSimulator::updatedAgentTuple(
       const size_t id, const double accel, const double dt) const {
 
@@ -92,12 +94,17 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
     boost::shared_ptr<CarlaWaypoint> next_waypoint =
       router_->frontWaypoint(waypoint, movement);
 
+    double curvature = 0.0;
     CarlaTransform updated_transform;
+    updated_transform.location = carla::geom::Vector3D(0.0, 0.0, 0.0);
+    updated_transform.rotation = carla::geom::Rotation(0.0, 0.0, 0.0);
+
     if (next_waypoint) {
       updated_transform = next_waypoint->GetTransform();
+      curvature = utils::curvatureAtWaypoint(next_waypoint, map_);
     }
 
-    return std::make_tuple(id, updated_transform, updated_speed, accel);
+    return std::make_tuple(id, updated_transform, updated_speed, accel, curvature);
 }
 
 const double TrafficSimulator::remainingTime(
@@ -179,18 +186,9 @@ const double TrafficSimulator::accelCost() const {
 
   double ego_brake_cost = accelCost(snapshot_.ego().acceleration());
   double agent_brake_cost = 0.0;
-  if (back)       {
-    std::printf("cost from back agent %lu\n", back->first);
-    agent_brake_cost += accelCost(snapshot_.agent(back->first).acceleration());
-  }
-  if (left_back)  {
-    std::printf("cost from left back agent %lu\n", left_back->first);
-    agent_brake_cost += accelCost(snapshot_.agent(left_back->first).acceleration());
-  }
-  if (right_back) {
-    std::printf("cost from right back agent %lu\n", right_back->first);
-    agent_brake_cost += accelCost(snapshot_.agent(right_back->first).acceleration());
-  }
+  if (back)       agent_brake_cost += accelCost(snapshot_.agent(back->first).acceleration());
+  if (left_back)  agent_brake_cost += accelCost(snapshot_.agent(left_back->first).acceleration());
+  if (right_back) agent_brake_cost += accelCost(snapshot_.agent(right_back->first).acceleration());
 
   return ego_brake_cost + 0.5*agent_brake_cost;
 }

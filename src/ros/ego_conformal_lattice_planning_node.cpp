@@ -67,6 +67,29 @@ bool EgoConformalLatticePlanningNode::initialize() {
   return all_param_exist;
 }
 
+boost::shared_ptr<planner::Snapshot> EgoConformalLatticePlanningNode::createSnapshot(
+    const std::pair<size_t, double>& ego,
+    std::unordered_map<size_t, double>& agents) {
+
+  // Create the ego vehicle.
+  const boost::shared_ptr<CarlaWaypoint> ego_waypoint = carlaVehicleWaypoint(ego.first);
+  if (!ego_curvature) ego_curvature = utils::curvatureAtWaypoint(ego_waypoint, map_);
+  const planner::Vehicle ego_vehicle =
+    planner::Vehicle(carlaVehicle(ego.first), ego.second, *ego_curvature);
+
+  // Create the agent vehicles.
+  std::unordered_map<size_t, planner::Vehicle> agent_vehicles;
+  for (const auto& agent : agents) {
+    const boost::shared_ptr<CarlaWaypoint> waypoint = carlaVehicleWaypoint(ego.first);
+    const double curvature = utils::curvatureAtWaypoint(waypoint, map_);
+    agent_vehicles.insert(std::make_pair(
+          agent.first, planner::Vehicle(carlaVehicle(agent.first), agent.second, curvature)));
+  }
+
+  // Create the snapshot.
+  return boost::make_shared<planner::Snapshot>(ego_vehicle, agent_vehicles, router_, map_);
+}
+
 void EgoConformalLatticePlanningNode::executeCallback(
     const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) {
 
@@ -105,8 +128,11 @@ void EgoConformalLatticePlanningNode::executeCallback(
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
   const double movement = snapshot->ego().speed()*dt + 0.5*ego_accel*dt*dt;
-  const CarlaTransform updated_transform = ego_path.transformAt(movement);
+  const std::pair<CarlaTransform, double> updated_transform_curvature = ego_path.transformAt(movement);
+  const CarlaTransform updated_transform = updated_transform_curvature.first;
+  ego_curvature = updated_transform_curvature.second;
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
+
   std::printf("movement: %f\n", movement);
   std::printf("current transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
       snapshot->ego().transform().location.x,

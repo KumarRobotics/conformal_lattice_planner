@@ -17,6 +17,7 @@
 #pragma once
 
 #include <boost/smart_ptr.hpp>
+#include <boost/optional.hpp>
 #include <actionlib/server/simple_action_server.h>
 
 #include <conformal_lattice_planner/conformal_lattice_planner.h>
@@ -39,6 +40,11 @@ public:
 
 protected:
 
+  /// Stores the curvature of the ego vehicle at end of last step.
+  /// If it is not set, it is initialized with the curvature of the road.
+  // FIXME: The variable feels sketchy.
+  boost::optional<double> ego_curvature = boost::none;
+
   boost::shared_ptr<planner::ConformalLatticePlanner> path_planner_ = nullptr;
   boost::shared_ptr<planner::VehicleSpeedPlanner> speed_planner_ = nullptr;
 
@@ -60,6 +66,10 @@ public:
   virtual bool initialize() override;
 
 protected:
+
+  virtual boost::shared_ptr<planner::Snapshot> createSnapshot(
+      const std::pair<size_t, double>& ego,
+      std::unordered_map<size_t, double>& agents) override;
 
   virtual void executeCallback(
       const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);

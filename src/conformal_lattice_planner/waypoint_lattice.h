@@ -98,6 +98,7 @@ public:
     return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
   }
 
+  /// Get the curvature at the node.
   const double curvature(const boost::shared_ptr<CarlaMap>& map) const {
     return utils::curvatureAtWaypoint(waypoint_, map);
   }

@@ -21,6 +21,8 @@
 #include <boost/optional.hpp>
 #include <carla/client/Vehicle.h>
 #include <carla/client/Map.h>
+
+#include <conformal_lattice_planner/utils.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
 
 namespace planner {
@@ -36,7 +38,8 @@ class WaypointNodeWithVehicle : public LatticeNode<WaypointNodeWithVehicle> {
 protected:
 
   using CarlaWaypoint = carla::client::Waypoint;
-  using CarlaVehicle = carla::client::Vehicle;
+  using CarlaVehicle  = carla::client::Vehicle;
+  using CarlaMap      = carla::client::Map;
 
 protected:
 
@@ -80,6 +83,11 @@ public:
   /// Get the const pointer to the carla waypoint of the node.
   boost::shared_ptr<const CarlaWaypoint> waypoint() const {
     return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
+  }
+
+  /// Get the curvature at the node.
+  const double curvature(const boost::shared_ptr<CarlaMap>& map) const {
+    return utils::curvatureAtWaypoint(waypoint_, map);
   }
 
   /// Get or set the distance of the node.

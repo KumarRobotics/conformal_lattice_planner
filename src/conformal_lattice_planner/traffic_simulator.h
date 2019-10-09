@@ -101,7 +101,7 @@ protected:
   /// Compute the acceleration of the agent vehicle given the current traffic scenario.
   const double agentAcceleration(const size_t agent) const;
 
-  const std::tuple<size_t, CarlaTransform, double, double>
+  const std::tuple<size_t, CarlaTransform, double, double, double>
     updatedAgentTuple(const size_t id, const double accel, const double dt) const;
 
   /// Compute the ttc cost based on the input ttc.
@@ -147,7 +147,6 @@ const bool TrafficSimulator::simulate(
 
   // Reset the output to 0.
   time = 0.0;
-  // TODO: Add the cost function later.
   cost = 0.0;
 
   // The actual simulation time step, which may vary for different iterations.
@@ -162,7 +161,7 @@ const bool TrafficSimulator::simulate(
   while (time < max_time && dt >= default_dt) {
 
     // Used to store the updated status of all vehicles.
-    std::vector<std::tuple<size_t, CarlaTransform, double, double>> updated_tuples;
+    std::vector<std::tuple<size_t, CarlaTransform, double, double, double>> updated_tuples;
 
     // The acceleration to be applied by the ego vehicle.
     const double ego_accel = egoAcceleration();
@@ -174,29 +173,31 @@ const bool TrafficSimulator::simulate(
     dt = dt <= remaining_time ? dt : remaining_time;
     dt = dt <= max_time-time  ? dt : max_time-time;
 
-    std::printf("============================================\n");
-    std::cout << snapshot_.string("start snapshot:\n");
-    std::printf("ego accel: %f\n", ego_accel);
-    std::printf("time: %f dt: %f\n", time, dt);
+    //std::printf("============================================\n");
+    //std::cout << snapshot_.string("start snapshot:\n");
+    //std::printf("ego accel: %f\n", ego_accel);
+    //std::printf("time: %f dt: %f\n", time, dt);
 
     // Update the distance of the ego on the path.
     ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
     if (ego_distance > path.range()) ego_distance = path.range();
-    std::printf("ego distance: %f path range: %f\n", ego_distance, path.range());
+    //std::printf("ego distance: %f path range: %f\n", ego_distance, path.range());
 
     // Store the updated status of the ego.
+    std::pair<CarlaTransform, double> ego_transform = path.transformAt(ego_distance);
     updated_tuples.push_back(std::make_tuple(
           snapshot_.ego().id(),
-          path.transformAt(ego_distance),
+          ego_transform.first,
           snapshot_.ego().speed()+ego_accel*dt,
-          ego_accel));
+          ego_accel,
+          ego_transform.second));
 
     // Take care of the agents.
     for (const auto& item : snapshot_.agents()) {
       const Vehicle& agent = item.second;
       const double agent_accel = agentAcceleration(agent.id());
       updated_tuples.push_back(updatedAgentTuple(agent.id(), agent_accel, dt));
-      std::printf("agent %lu accel: %f\n", agent.id(), agent_accel);
+      //std::printf("agent %lu accel: %f\n", agent.id(), agent_accel);
     }
 
     // Update the snapshot.

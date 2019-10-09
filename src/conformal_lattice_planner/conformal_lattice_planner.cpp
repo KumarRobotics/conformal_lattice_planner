@@ -422,8 +422,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
   boost::shared_ptr<ContinuousPath> path = nullptr;
   try {
     path = boost::make_shared<ContinuousPath>(
-        station->transform(),
-        target_node->waypoint()->GetTransform(),
+        std::make_pair(station->snapshot().ego().transform(),
+                       station->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::KeepLane);
   } catch (...) {
     // If for whatever reason, the path cannot be created, the station
@@ -515,8 +517,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
   boost::shared_ptr<ContinuousPath> path = nullptr;
   try {
     path = boost::make_shared<ContinuousPath>(
-        station->transform(),
-        target_node->waypoint()->GetTransform(),
+        std::make_pair(station->snapshot().ego().transform(),
+                       station->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::LeftLaneChange);
   } catch (...) {
     // If for whatever reason, the path cannot be created,
@@ -608,8 +612,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
   boost::shared_ptr<ContinuousPath> path = nullptr;
   try {
     path = boost::make_shared<ContinuousPath>(
-        station->transform(),
-        target_node->waypoint()->GetTransform(),
+        std::make_pair(station->snapshot().ego().transform(),
+                       station->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::RightLaneChange);
   } catch (...) {
     // If for whatever reason, the path cannot be created,

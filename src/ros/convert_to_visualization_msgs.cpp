@@ -591,7 +591,6 @@ visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
   return createTrafficLatticeMsg(traffic_lattice);
 }
 
-/*
 visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
     const boost::shared_ptr<const planner::ConformalLatticePlanner>& planner) {
 
@@ -695,6 +694,5 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
 
   return planner_msg;
 }
-*/
 
 } // End namespace carla.

@@ -72,7 +72,7 @@ protected:
 
   virtual boost::shared_ptr<planner::Snapshot> createSnapshot(
       const std::pair<size_t, double>& ego,
-      std::unordered_map<size_t, double>& agents) const {
+      std::unordered_map<size_t, double>& agents) {
 
     // FIXME: In this function, we assume all vehicles are lane followers.
     //        Therefore, the curvature of the vehicle path is the curvature

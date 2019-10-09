@@ -121,7 +121,7 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
   return path_msg;
 }
 
-//visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-//    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
+visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
 
 } // End namespace carla.
