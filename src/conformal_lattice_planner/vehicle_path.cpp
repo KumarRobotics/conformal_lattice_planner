@@ -100,17 +100,9 @@ ContinuousPath::ContinuousPath(
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
 
-  //std::printf("start tranform: x:%f y:%f yaw:%f\n",
-  //    start_.location.x, start_.location.y, start_.rotation.yaw);
-  //std::printf("end tranform: x:%f y:%f yaw:%f\n\n",
-  //    end_.location.x, end_.location.y, end_.rotation.yaw);
-
-  //std::printf("start x:%f y:%f theta:%f kappa:%f\n",
-  //    start_state.x, start_state.y, start_state.theta, start_state.kappa);
-  //std::printf("end x:%f y:%f theta:%f kappa:%f\n",
-  //    end_state.x, end_state.y, end_state.theta, end_state.kappa);
-
   const bool success = path_.optimizePath(start_state, end_state);
+  //std::printf("path a:%f b:%f c:%f d:%f sf:%f\n", path_.a, path_.b, path_.c, path_.d, path_.sf);
+
   if (!success) {
     std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
         start_state.x, start_state.y, start_state.theta, start_state.kappa);
@@ -144,8 +136,10 @@ ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
 const std::pair<ContinuousPath::CarlaTransform, double>
 ContinuousPath::transformAt(const double s) const {
 
-  if (s < 0.0 || s > path_.sf)
+  if (s < 0.0 || s > path_.sf) {
+    std::printf("s:%f sf:%f\n", s, path_.sf);
     throw std::out_of_range("The input distance is out of the range of the path.");
+  }
 
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State state = path_.evaluate(start_state, s);
@@ -243,8 +237,10 @@ DiscretePath::DiscretePath(const ContinuousPath& continuous_path) :
 const std::pair<DiscretePath::CarlaTransform, double>
 DiscretePath::transformAt(const double s) const {
 
-  if (s < 0.0 || s > range())
+  if (s < 0.0 || s > range()) {
+    std::printf("s:%f sf:%f\n", s, range());
     throw std::out_of_range("The input distance is out of the range of the path.");
+  }
 
   if (s == 0.0) return samples_.begin()->second;
   if (s == samples_.rbegin()->first) return samples_.rbegin()->second;
