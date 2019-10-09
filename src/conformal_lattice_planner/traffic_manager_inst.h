@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <algorithm>
+#include <random>
+#include <chrono>
 #include <conformal_lattice_planner/traffic_manager.h>
 
 namespace planner {
@@ -110,30 +113,27 @@ boost::optional<std::pair<
   for (auto& exit : this->lattice_exits_)
     candidates.push_back(exit.lock());
 
-  // Find the best candidate based on the distance to the vehicle on its back.
-  boost::shared_ptr<const Node> best_candidate = nullptr;
-  double best_distance = 0.0;
-
+  // Collect candidates that meet the requirement.
+  std::vector<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> valid_candidates;
   for (const auto& candidate : candidates) {
     boost::optional<std::pair<size_t, double>> back = this->backVehicle(candidate);
-    if (back) {
-      if (back->second > best_distance) {
-        best_distance = back->second;
-        best_candidate = candidate;
-      }
-    } else {
-      // FIXME : lattice range may be longer than the range of this lane.
-      if (this->range() > best_distance) {
-        best_distance = this->range();
-        best_candidate = candidate;
-      }
-    }
+    if (back && back->second < min_range) continue;
+
+    if (!back) valid_candidates.push_back(
+        std::make_pair(this->range(), candidate->waypoint()));
+    else       valid_candidates.push_back(
+        std::make_pair(back->second, candidate->waypoint()));
   }
 
-  // Check if the \c best_distance meets the \c min_range requirement.
-  if (best_distance >= min_range) {
-    return std::make_pair(best_distance, best_candidate->waypoint());
-  } else return boost::none;
+  // Return \c boost::none if there is no valid candidate.
+  if (valid_candidates.size() == 0) return boost::none;
+
+  // Otherwise, return a random candidate.
+  size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::shuffle(valid_candidates.begin(),
+               valid_candidates.end(),
+               std::default_random_engine(seed));
+  return valid_candidates.front();
 }
 
 template<typename Router>
@@ -148,30 +148,27 @@ boost::optional<std::pair<
   for (auto& entry : this->lattice_entries_)
     candidates.push_back(entry.lock());
 
-  // Find the best candidate based on the distance to the vehicle on its front.
-  boost::shared_ptr<const Node> best_candidate = nullptr;
-  double best_distance = 0.0;
-
+  // Collect candidates that meet the requirement.
+  std::vector<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> valid_candidates;
   for (const auto& candidate : candidates) {
     boost::optional<std::pair<size_t, double>> front = this->frontVehicle(candidate);
-    if (front) {
-      if (front->second > best_distance) {
-        best_distance = front->second;
-        best_candidate = candidate;
-      }
-    } else {
-      // FIXME : lattice range may be longer than the range of this lane.
-      if (this->range() > best_distance) {
-        best_distance = this->range();
-        best_candidate = candidate;
-      }
-    }
+    if (front && front->second < min_range) continue;
+
+    if (!front) valid_candidates.push_back(
+        std::make_pair(this->range(), candidate->waypoint()));
+    else       valid_candidates.push_back(
+        std::make_pair(front->second, candidate->waypoint()));
   }
 
-  // Check if the \c best_distance meets the \c min_range requirement.
-  if (best_distance >= min_range) {
-    return std::make_pair(best_distance, best_candidate->waypoint());
-  } else return boost::none;
+  // Return \c boost::none if there is no valid candidate.
+  if (valid_candidates.size() == 0) return boost::none;
+
+  // Otherwise, return a random candidate.
+  size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::shuffle(valid_candidates.begin(),
+               valid_candidates.end(),
+               std::default_random_engine(seed));
+  return valid_candidates.front();
 }
 
 } // End namespace planner.
