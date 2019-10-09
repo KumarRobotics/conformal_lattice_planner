@@ -145,7 +145,7 @@ public:
 
     std::string output = prefix;
     boost::format vehicle_format(
-        "id:%1% x:%2% y:%3% z:%4% policy:%5% speed:%6% accel:%7% curvature:%8\n");
+        "id:%1% x:%2% y:%3% z:%4% policy:%5% speed:%6% accel:%7% curvature:%8%\n");
 
     vehicle_format % id_;
     vehicle_format % transform_.location.x;
