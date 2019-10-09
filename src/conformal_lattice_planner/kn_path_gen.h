@@ -206,16 +206,18 @@ class NonHolonomicPath {
         break; // Tolerance
       }
     }
-    // If all iterations are complete and the endpoint is not close to the desired endpoint,
-    // the problem has diverged.
-    auto state = evaluate(x0, sf);
-    Eigen::Vector4d state_diff(xf.x - state.x,
-                               xf.y - state.y,
-                               shortestAngle(xf.theta, state.theta),
-                               xf.kappa - state.kappa);
-    if (state_diff.norm() > 1e-2 && counter >= iterations) result = false;
 
-    return result;
+    // If max iteration reached, the optimization has probably diverged.
+    if (counter >= iterations) return false;
+
+    // If the computed final state is far from the required final state,
+    // the optimization has diverged. Here we only use the difference ratio
+    // in x and y directions.
+    auto xf_L_test = evaluate(x0_L, sf);
+    if (std::fabs(xf_L_test.x-xf_L.x) / std::fabs(xf_L.x) > 0.1 ||
+        std::fabs(xf_L_test.y-xf_L.y) / std::fabs(xf_L.y) > 0.1) return false;
+
+    return true;
   }
  private:
 
