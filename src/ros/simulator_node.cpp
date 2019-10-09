@@ -113,11 +113,11 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
   // Get the blueprint of the ego vehicle.
   boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
     world_->GetBlueprintLibrary()->Filter("vehicle");
-  auto blueprint = blueprint_library->at("vehicle.audi.tt");
+  auto blueprint = blueprint_library->at("vehicle.audi.etron");
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
-  transform.location.z += 0.5;
+  transform.location.z += 0.05;
 
   boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
   boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
@@ -215,8 +215,11 @@ void SimulatorNode::spawnCamera() {
     camera_blueprint.SetAttribute("fov", "120");
 
     CarlaTransform camera_transform = CarlaTransform{
-      carla::geom::Location{-5.5f, 0.0f, 2.8f},   // x, y, z.
-      carla::geom::Rotation{-15.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
+      carla::geom::Location{-4.5f, 0.0f, 2.5f},   // x, y, z.
+      carla::geom::Rotation{-12.0f, 0.0f, 0.0f}}; // pitch, yaw, roll.
+    //CarlaTransform camera_transform = CarlaTransform{
+    //  carla::geom::Location{0.0f, 3.0f, 0.0f},   // x, y, z.
+    //  carla::geom::Rotation{0.0f, -90.0f, 0.0f}}; // pitch, yaw, roll.
 
     boost::shared_ptr<CarlaActor> cam_actor = world_->SpawnActor(
         camera_blueprint, camera_transform, world_->GetActor(ego_policy_.first).get());
