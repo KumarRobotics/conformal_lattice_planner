@@ -8,6 +8,10 @@
       type="ego_conformal_lattice_planning_node"
       name="ego_conformal_lattice_planner"
       output="screen">
+
+      <env name="CPUPROFILE" value="conformal_lattice_planner.stat"/>
+      <env name="CPUPROFILE_FREQUENCY" value="100"/>
+
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
       <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>

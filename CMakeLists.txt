@@ -4,6 +4,7 @@ project(conformal_lattice_planner)
 ## Compile as C++11, supported in ROS Kinetic and newer
 #add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-cpp)
 add_compile_options(-std=c++14 -Wall -fmax-errors=3 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-cpp)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -29,6 +30,9 @@ find_package(catkin REQUIRED COMPONENTS
 
 # System dependencies are found with CMake's conventions
 find_package(Boost 1.69 REQUIRED COMPONENTS timer)
+find_package(GooglePerfTools REQUIRED)
+#message("GooglePerfTools Include Dir: " ${GOOGLE_PERFTOOLS_INCLUDE_DIR})
+#message("GooglePerfTools Libs: " ${PROFILER_LIBRARIES})
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -291,6 +295,7 @@ target_link_libraries(ego_conformal_lattice_planning_node
   ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${PROFILER_LIBRARIES}
 )
 add_dependencies(ego_conformal_lattice_planning_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}

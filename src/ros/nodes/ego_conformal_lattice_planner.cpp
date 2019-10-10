@@ -17,6 +17,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <ros/ego_conformal_lattice_planning_node.h>
+#include <gperftools/profiler.h>
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "~");
@@ -34,6 +35,8 @@ int main(int argc, char** argv) {
     ROS_ERROR("Cannot initialize the ego conformal lattice planner.");
   }
 
+  ProfilerStart("conformal_lattice_planner.stat");
   ros::spin();
+  ProfilerStop();
   return 0;
 }
