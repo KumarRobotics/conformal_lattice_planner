@@ -1,10 +1,14 @@
 # Goal
 # Policys of the ego and agent vehicles
-Policy ego_policy
-Policy[] agent_policies
+VehicleSpeed ego_policy
+VehicleSpeed ego_speed
+
+VehicleSpeed[] agent_policies
+VehicleSpeed[] agent_speed
 ---
 # Result
 bool success
+VehicleSpeed ego_target_speed
 ---
 # Feedback
 # TODO: what could a meaningful feedback?

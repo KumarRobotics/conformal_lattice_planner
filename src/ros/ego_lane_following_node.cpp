@@ -66,18 +66,18 @@ void EgoLaneFollowingNode::executeCallback(
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   map_ = world_->GetMap();
 
-  // Get the ego and agent policies.
+  // Get the ego and agent policies and speed.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
-  std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
+  const std::pair<size_t, double> ego_speed  = egoSpeed(goal);
+  const std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
+  const std::unordered_map<size_t, double> agent_speed    = agentSpeed(goal);
 
   // Create the current snapshot.
   boost::shared_ptr<Snapshot> snapshot =
-    createSnapshot(ego_policy, agent_policies);
+    createSnapshot(ego_policy, ego_speed, agent_policies, agent_speed);
 
   boost::shared_ptr<CarlaWaypoint> ego_waypoint =
     carlaVehicleWaypoint(ego_policy.first);
-  //std::printf("Road curvature at ego location: %f\n",
-  //    utils::curvatureAtWaypoint(ego_waypoint, map_));
 
   // Plan path.
   // The range of the lattice is just enough for the ego vehicle.
@@ -93,7 +93,7 @@ void EgoLaneFollowingNode::executeCallback(
     boost::make_shared<VehicleSpeedPlanner>();
   const double ego_accel = speed_planner->plan(ego_policy.first, *snapshot);
 
-  // Update the ego vehicle in the simulator.
+  // Compute the target speed and transform of the ego.
   double dt = 0.05;
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
@@ -101,9 +101,21 @@ void EgoLaneFollowingNode::executeCallback(
   const CarlaTransform updated_transform = ego_path.transformAt(movement).first;
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
 
+  std::printf("movement:%f\n", movement);
+  std::printf("acceleration:%f\n", ego_accel);
+  std::printf("speed:%f\n", updated_speed);
+  std::printf("transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+      updated_transform.location.x,
+      updated_transform.location.y,
+      updated_transform.location.z,
+      updated_transform.rotation.roll,
+      updated_transform.rotation.pitch,
+      updated_transform.rotation.yaw);
+
+  // Update the transform of the ego in the simulator.
   boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);
   ego_vehicle->SetTransform(updated_transform);
-  ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
+  //ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
 
   // Publish the path planned for the ego.
   path_pub_.publish(createEgoPathMsg(ego_path));
@@ -111,6 +123,8 @@ void EgoLaneFollowingNode::executeCallback(
   // Inform the client the result of plan.
   conformal_lattice_planner::EgoPlanResult result;
   result.success = true;
+  result.ego_target_speed.id = ego_policy.first;
+  result.ego_target_speed.speed = updated_speed;
   server_.setSucceeded(result);
 
   return;

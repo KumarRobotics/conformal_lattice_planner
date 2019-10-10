@@ -71,8 +71,10 @@ public:
 protected:
 
   virtual boost::shared_ptr<planner::Snapshot> createSnapshot(
-      const std::pair<size_t, double>& ego,
-      std::unordered_map<size_t, double>& agents) {
+      const std::pair<size_t, double>& ego_policy,
+      const std::pair<size_t, double>& ego_speed,
+      const std::unordered_map<size_t, double>& agent_policies,
+      const std::unordered_map<size_t, double>& agent_speed) {
 
     // FIXME: In this function, we assume all vehicles are lane followers.
     //        Therefore, the curvature of the vehicle path is the curvature
@@ -80,29 +82,45 @@ protected:
     //        this function.
 
     // Create the ego vehicle.
-    const boost::shared_ptr<CarlaWaypoint> ego_waypoint = carlaVehicleWaypoint(ego.first);
-    const double ego_curvature = utils::curvatureAtWaypoint(ego_waypoint, map_);
+    const boost::shared_ptr<CarlaWaypoint> ego_waypoint =
+      carlaVehicleWaypoint(ego_policy.first);
+    const double ego_curvature =
+      utils::curvatureAtWaypoint(ego_waypoint, map_);
     const planner::Vehicle ego_vehicle =
-      planner::Vehicle(carlaVehicle(ego.first), ego.second, ego_curvature);
+      planner::Vehicle(carlaVehicle(ego_policy.first),
+                       ego_speed.second,
+                       ego_policy.second,
+                       ego_curvature);
 
     // Create the agent vehicles.
     std::unordered_map<size_t, planner::Vehicle> agent_vehicles;
-    for (const auto& agent : agents) {
-      const boost::shared_ptr<CarlaWaypoint> waypoint = carlaVehicleWaypoint(ego.first);
-      const double curvature = utils::curvatureAtWaypoint(waypoint, map_);
-      agent_vehicles.insert(std::make_pair(
-            agent.first, planner::Vehicle(carlaVehicle(agent.first), agent.second, curvature)));
+    for (const auto& agent : agent_policies) {
+      const boost::shared_ptr<CarlaWaypoint> waypoint =
+        carlaVehicleWaypoint(agent.first);
+      const double curvature =
+        utils::curvatureAtWaypoint(waypoint, map_);
+
+      const double policy_speed = agent.second;
+      const double current_speed = agent_speed.find(agent.first)->second;
+
+      agent_vehicles.insert(std::make_pair(agent.first, planner::Vehicle(
+              carlaVehicle(agent.first),
+              current_speed,
+              policy_speed,
+              curvature)));
     }
 
     // Create the snapshot.
-    return boost::make_shared<planner::Snapshot>(ego_vehicle, agent_vehicles, router_, map_);
+    return boost::make_shared<planner::Snapshot>(
+        ego_vehicle, agent_vehicles, router_, map_);
   }
 
   /// Get the carla vehicle by ID.
   boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
     boost::shared_ptr<CarlaVehicle> vehicle =
       boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
-    if (!vehicle) throw std::runtime_error("Cannot get the required vehicle in the carla server.");
+    if (!vehicle)
+      throw std::runtime_error("Cannot get the required vehicle in the carla server.");
     return vehicle;
   }
 
@@ -119,7 +137,13 @@ protected:
   /// Get the policy for the ego vehicle.
   template<typename GoalConstPtr>
   std::pair<size_t, double> egoPolicy(const GoalConstPtr& goal) const {
-    return std::make_pair(goal->ego_policy.id, goal->ego_policy.desired_speed);
+    return std::make_pair(goal->ego_policy.id, goal->ego_policy.speed);
+  }
+
+  /// Get the speed for the ego vehicle.
+  template<typename GoalConstPtr>
+  std::pair<size_t, double> egoSpeed(const GoalConstPtr& goal) const {
+    return std::make_pair(goal->ego_speed.id, goal->ego_speed.speed);
   }
 
   /// Get the policy for all agent vehicles.
@@ -127,7 +151,16 @@ protected:
   std::unordered_map<size_t, double> agentPolicies(const GoalConstPtr& goal) const {
     std::unordered_map<size_t, double> agents;
     for (const auto& agent_policy : goal->agent_policies)
-      agents[agent_policy.id] = agent_policy.desired_speed;
+      agents[agent_policy.id] = agent_policy.speed;
+    return agents;
+  }
+
+  /// Get the speed for all agent vehicles.
+  template<typename GoalConstPtr>
+  std::unordered_map<size_t, double> agentSpeed(const GoalConstPtr& goal) const {
+    std::unordered_map<size_t, double> agents;
+    for (const auto& agent_speed : goal->agent_speed)
+      agents[agent_speed.id] = agent_speed.speed;
     return agents;
   }
 }; // End class PlanningNode.

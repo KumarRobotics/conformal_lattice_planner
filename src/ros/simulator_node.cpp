@@ -92,8 +92,8 @@ bool SimulatorNode::initialize() {
 
   // Wait for the planner servers.
   ROS_INFO_NAMED("carla_simulator", "waiting for action servers.");
-  ego_client_.waitForServer(ros::Duration(5.0));
-  agents_client_.waitForServer(ros::Duration(5.0));
+  ego_client_.waitForServer(ros::Duration(2.5));
+  agents_client_.waitForServer(ros::Duration(2.5));
 
   // Send out the first goal of ego.
   ROS_INFO_NAMED("carla_simulator", "send the first goals to action servers");
@@ -107,8 +107,7 @@ bool SimulatorNode::initialize() {
 boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double policy_speed,
-    const bool noisy_policy_speed,
-    const bool noisy_start_speed) {
+    const bool noisy_speed) {
 
   // Get the blueprint of the ego vehicle.
   boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
@@ -129,26 +128,23 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
     return boost::none;
   }
 
+  // Disable the vehicle physics.
+  actor->SetSimulatePhysics(false);
+
   // Set the ego vehicle policy.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
-  if (noisy_policy_speed) {
-    ego_policy_.first = vehicle->GetId();
-    ego_policy_.second = policy_speed + uni_real_dist(rand_gen);
+  if (noisy_speed) {
+    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
+    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
   } else {
-    ego_policy_.first = vehicle->GetId();
-    ego_policy_.second = policy_speed;
+    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed);
+    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed);
   }
-
-  if (noisy_start_speed) {
-    vehicle->SetVelocity(transform.GetForwardVector() *
-                         (ego_policy_.second + uni_real_dist(rand_gen)));
-  } else {
-    vehicle->SetVelocity(transform.GetForwardVector() *
-                         ego_policy_.second);
-  }
+  ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed);
+  ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed-10.0);
 
   return vehicle->GetId();
 }
@@ -156,8 +152,7 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
 boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double policy_speed,
-    const bool noisy_policy_speed,
-    const bool noisy_start_speed) {
+    const bool noisy_speed) {
 
   // Get the blueprint of the vehicle, which is randomly chosen from the
   // vehicle blueprint library.
@@ -179,23 +174,20 @@ boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
     return boost::none;
   }
 
+  // Disable the vehicle physics.
+  actor->SetSimulatePhysics(false);
+
   // Set the agent vehicle policy
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
-  if (noisy_policy_speed) {
+  if (noisy_speed) {
     agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
+    agent_speed_[vehicle->GetId()]    = policy_speed + uni_real_dist(rand_gen);
   } else {
     agent_policies_[vehicle->GetId()] = policy_speed;
-  }
-
-  if (noisy_start_speed) {
-    vehicle->SetVelocity(transform.GetForwardVector() *
-                         (agent_policies_[vehicle->GetId()]+uni_real_dist(rand_gen)));
-  } else {
-    vehicle->SetVelocity(transform.GetForwardVector() *
-                         agent_policies_[vehicle->GetId()]);
+    agent_speed_[vehicle->GetId()]    = policy_speed;
   }
 
   return vehicle->GetId();
@@ -354,13 +346,21 @@ void SimulatorNode::publishTraffic() const {
 void SimulatorNode::sendEgoGoal() {
 
   conformal_lattice_planner::EgoPlanGoal goal;
-  goal.ego_policy.id = ego_policy_.first;
-  goal.ego_policy.desired_speed = ego_policy_.second;
+  goal.ego_policy.id    = ego_policy_.first;
+  goal.ego_policy.speed = ego_policy_.second;
+  goal.ego_speed.id     = ego_speed_.first;
+  goal.ego_speed.speed  = ego_speed_.second;
 
   for (const auto agent_policy : agent_policies_) {
-    goal.agent_policies.push_back(conformal_lattice_planner::Policy());
-    goal.agent_policies.back().id = agent_policy.first;
-    goal.agent_policies.back().desired_speed = agent_policy.second;
+    goal.agent_policies.push_back(conformal_lattice_planner::VehicleSpeed());
+    goal.agent_policies.back().id    = agent_policy.first;
+    goal.agent_policies.back().speed = agent_policy.second;
+  }
+
+  for (const auto& agent_speed : agent_speed_) {
+    goal.agent_speed.push_back(conformal_lattice_planner::VehicleSpeed());
+    goal.agent_speed.back().id    = agent_speed.first;
+    goal.agent_speed.back().speed = agent_speed.second;
   }
 
   ego_client_.sendGoal(
@@ -379,6 +379,11 @@ void SimulatorNode::egoPlanDoneCallback(
     const conformal_lattice_planner::EgoPlanResultConstPtr& result) {
 
   ROS_INFO_NAMED("carla_simulator", "egoPlanDoneCallback().");
+
+  if (result->ego_target_speed.id != ego_speed_.first)
+    throw std::runtime_error("The ego ID in the action result does not exist.");
+  ego_speed_.second = result->ego_target_speed.speed;
+
   ego_ready_ = true;
 
   if (ego_ready_ && agents_ready_) {
@@ -392,13 +397,21 @@ void SimulatorNode::egoPlanDoneCallback(
 void SimulatorNode::sendAgentsGoal() {
 
   conformal_lattice_planner::AgentPlanGoal goal;
-  goal.ego_policy.id = ego_policy_.first;
-  goal.ego_policy.desired_speed = ego_policy_.second;
+  goal.ego_policy.id    = ego_policy_.first;
+  goal.ego_policy.speed = ego_policy_.second;
+  goal.ego_speed.id     = ego_speed_.first;
+  goal.ego_speed.speed  = ego_speed_.second;
 
   for (const auto agent_policy : agent_policies_) {
-    goal.agent_policies.push_back(conformal_lattice_planner::Policy());
-    goal.agent_policies.back().id = agent_policy.first;
-    goal.agent_policies.back().desired_speed = agent_policy.second;
+    goal.agent_policies.push_back(conformal_lattice_planner::VehicleSpeed());
+    goal.agent_policies.back().id    = agent_policy.first;
+    goal.agent_policies.back().speed = agent_policy.second;
+  }
+
+  for (const auto& agent_speed : agent_speed_) {
+    goal.agent_speed.push_back(conformal_lattice_planner::VehicleSpeed());
+    goal.agent_speed.back().id    = agent_speed.first;
+    goal.agent_speed.back().speed = agent_speed.second;
   }
 
   agents_client_.sendGoal(
@@ -416,6 +429,13 @@ void SimulatorNode::agentsPlanDoneCallback(
     const conformal_lattice_planner::AgentPlanResultConstPtr& result) {
 
   ROS_INFO_NAMED("carla_simulator", "agentsPlanDoneCallback().");
+
+  for (const auto& target_speed : result->agent_target_speed) {
+    if (agent_speed_.count(target_speed.id) == 0)
+      throw std::runtime_error("An agent ID from acton result does not exist.");
+    agent_speed_[target_speed.id] = target_speed.speed;
+  }
+
   agents_ready_ = true;
 
   if (ego_ready_ && agents_ready_) {

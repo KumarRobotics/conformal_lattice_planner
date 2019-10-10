@@ -152,7 +152,7 @@ void NoTrafficNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25, false, false)) {
+  if (!spawnEgoVehicle(ego_waypoint, 25, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 

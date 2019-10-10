@@ -63,11 +63,23 @@ protected:
 
 protected:
 
-  /// Stores the ego vehicle ID and its policy speed.
+  /// FIXME: It seems redundant to store the policy speed and actual
+  //         speed of a vehicle separately. It can easily lead to bugs
+  //         as well since the IDs between corresponding maps may not
+  //         match.
+
+  /// Ego ID and ego policy speed pair.
   std::pair<size_t, double> ego_policy_;
 
-  /// Stores the agents IDs and their policy speed.
+  /// Ego ID and ego speed pair.
+  std::pair<size_t, double> ego_speed_;
+
+  /// Agent ID and policy speed pair.
   std::unordered_map<size_t, double> agent_policies_;
+
+  /// Agent ID and speed pair.
+  std::unordered_map<size_t, double> agent_speed_;
+
 
   /// Indicates if the ego planner action server has returned success.
   bool ego_ready_ = true;
@@ -139,14 +151,12 @@ protected:
   virtual boost::optional<size_t> spawnEgoVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
+      const bool noisy_speed = true);
 
   virtual boost::optional<size_t> spawnAgentVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true);
+      const bool noisy_speed = true);
 
   virtual void spawnCamera();
 

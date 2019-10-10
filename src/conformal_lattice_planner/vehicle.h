@@ -65,13 +65,25 @@ public:
    * \c GetAcceleration() API, since the vehicles are assumed to be teleported
    * instead of controlled through physical dynamics.
    */
+  //Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor,
+  //        const double policy_speed,
+  //        const double curvature) :
+  //  id_          (actor->GetId()),
+  //  bounding_box_(actor->GetBoundingBox()),
+  //  transform_   (actor->GetTransform()),
+  //  speed_       (actor->GetVelocity().Length()),
+  //  policy_speed_(policy_speed),
+  //  acceleration_(0.0),
+  //  curvature_(curvature) {}
+
   Vehicle(const boost::shared_ptr<const CarlaVehicle>& actor,
+          const double speed,
           const double policy_speed,
           const double curvature) :
     id_          (actor->GetId()),
     bounding_box_(actor->GetBoundingBox()),
     transform_   (actor->GetTransform()),
-    speed_       (actor->GetVelocity().Length()),
+    speed_       (speed),
     policy_speed_(policy_speed),
     acceleration_(0.0),
     curvature_(curvature) {}
