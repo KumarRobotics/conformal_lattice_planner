@@ -61,14 +61,12 @@ protected:
   virtual boost::optional<size_t> spawnEgoVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true) override;
+      const bool noisy_speed = true) override;
 
   virtual boost::optional<size_t> spawnAgentVehicle(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint,
       const double policy_speed,
-      const bool noisy_policy_speed = true,
-      const bool noisy_start_speed = true) override;
+      const bool noisy_speed = true) override;
 
   /// Manager (add/delete) the vehicles in the simulation.
   void manageTraffic();

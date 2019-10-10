@@ -180,7 +180,7 @@ add_dependencies(all_planning
 
 add_library(all_ros_nodes
   src/ros/simulator_node.cpp
-  #src/ros/random_traffic_node.cpp
+  src/ros/random_traffic_node.cpp
   src/ros/no_traffic_node.cpp
   src/ros/fixed_scenario_node.cpp
 
@@ -222,20 +222,20 @@ add_dependencies(all_ros_nodes
 #   ${catkin_LIBRARIES}
 # )
 
-#add_executable(random_traffic_node
-#  src/ros/nodes/random_traffic_simulator.cpp
-#)
-#target_link_libraries(random_traffic_node
-#  all_planning
-#  all_ros_nodes
-#  ${Carla_LIBRARIES}
-#  ${Boost_LIBRARIES}
-#  ${catkin_LIBRARIES}
-#)
-#add_dependencies(random_traffic_node
-#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-#  ${catkin_EXPORTED_TARGETS}
-#)
+add_executable(random_traffic_node
+  src/ros/nodes/random_traffic_simulator.cpp
+)
+target_link_libraries(random_traffic_node
+  all_planning
+  all_ros_nodes
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(random_traffic_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 add_executable(no_traffic_node
   src/ros/nodes/no_traffic_simulator.cpp
