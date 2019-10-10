@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <tuple>
+#include <array>
 #include <boost/optional.hpp>
 #include <carla/client/Vehicle.h>
 #include <carla/client/Map.h>
@@ -133,6 +134,12 @@ protected:
   /// FIXME: Don't really want to define a new struct for this.
   ///        Is there a better solution than \c tuple?
   using VehicleTuple = std::tuple<size_t, CarlaTransform, CarlaBoundingBox>;
+
+  /// Stores the three waypoints for a vehicle. From index 0-2 are the
+  /// waypoints corresponding to the vehicle rear, middle, and head.
+  /// In the case a waypoint is missing, leave \c nullptr at the correspoinding
+  /// entry.
+  using VehicleWaypoints = std::array<boost::shared_ptr<CarlaWaypoint>, 3>;
 
 private:
 
@@ -260,6 +267,21 @@ public:
   int32_t addVehicle(const VehicleTuple& vehicle);
 
   /**
+   * \brief Add a vehicle on the current lattice.
+   * \param[in] vehicle The vehicle to be added.
+   * \param[in] waypoints Waypoints of this vehicle from rear to head.
+   * \return
+   *  - 1 If the given vehicle is added successfully.
+   *  - 0 If the vehicle already exists, the vehicle will be left untouched.
+   *      It won't be updated with the input vehicle data.
+   *      In the case that the head, middle, or rear waypoint of the vehicle
+   *      is not on the lattice, the vehicle cannot be registered on
+   *  - -1 If after adding this vehicle, a collision is detected. In this case,
+   *       the vehicle won't be added, and the object will be left unchanged.
+   */
+  int32_t addVehicle(const VehicleTuple& vehicle, const VehicleWaypoints& waypoints);
+
+  /**
    * \brief Update all vehicles on the lattice with the new states.
    *
    * The lattice may be modified to accomodate the updated locations of all vehicles.
@@ -327,11 +349,13 @@ protected:
    *        the given vehicles.
    *
    * \param[in] vehicles The vehicles to be registered onto the lattice.
+   * \param[in] vehicle_waypoints The waypoints on each vehicle.
    * \param[out] start The start waypoint of the lattice.
    * \param[out] range The range of the lattice.
    */
   void latticeStartAndRange(
       const std::vector<VehicleTuple>& vehicles,
+      const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
       boost::shared_ptr<CarlaWaypoint>& start,
       double& range) const;
 
@@ -389,6 +413,15 @@ protected:
       const CarlaBoundingBox& bounding_box) const;
 
   /**
+   * \brief Find the three waypoints for each of the input vehicle.
+   * \param[in] vechiles The vehicles to find waypoints for.
+   * \return An unordered map with keys as vehicle IDs, and values as the
+   *         waypoints for the correspoinding vehicle from rear to head.
+   */
+  std::unordered_map<size_t, VehicleWaypoints> vehicleWaypoints(
+      const std::vector<VehicleTuple>& vehicles) const;
+
+  /**
    * \brief Register vehicles onto nodes of the lattice.
    *
    * Each vehicle may occupy several nodes in the lattice.
@@ -397,6 +430,7 @@ protected:
    *       at an invalid state. One should not use the object anymore.
    *
    * \param[in] vehicles The vehicles to be registered.
+   * \param[in] vehicle_waypoints Waypoints for the vehicles.
    * \param[out] disappear_vehicles The vehicles which cannot be registered.
    *                                \see addVehicle() for when a vehicle cannot
    *                                be added.
@@ -404,6 +438,7 @@ protected:
    */
   bool registerVehicles(
       const std::vector<VehicleTuple>& vehicles,
+      const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles);
 
   /**

@@ -71,9 +71,13 @@ bool TrafficManager<Router>::moveTrafficForward(
   // Shift the whole lattice forward by the given distance.
   this->shift(shift_distance);
 
+  // Find waypoints for each of the input vehicle.
+  std::unordered_map<size_t, VehicleWaypoints>
+    vehicle_waypoints = this->vehicleWaypoints(vehicles);
+
   // Register the vehicles onto the lattice.
   std::unordered_set<size_t> remove_vehicles;
-  const bool valid = this->registerVehicles(vehicles, remove_vehicles);
+  const bool valid = this->registerVehicles(vehicles, vehicle_waypoints, remove_vehicles);
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
   return valid;

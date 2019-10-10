@@ -34,11 +34,15 @@ TrafficLattice<Router>::TrafficLattice(
 
   this->router_ = router;
 
+  // Find the waypoints each of the input vehicle.
+  std::unordered_map<size_t, VehicleWaypoints>
+    vehicle_waypoints = vehicleWaypoints(vehicles);
+
   // Find the start waypoint and range of the lattice based
   // on the given vehicles.
   boost::shared_ptr<CarlaWaypoint> start_waypoint = nullptr;
   double range = 0.0;
-  latticeStartAndRange(vehicles, start_waypoint, range);
+  latticeStartAndRange(vehicles, vehicle_waypoints, start_waypoint, range);
 
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
@@ -47,7 +51,7 @@ TrafficLattice<Router>::TrafficLattice(
 
   // Register the vehicles onto the lattice nodes.
   std::unordered_set<size_t> remove_vehicles;
-  if(!registerVehicles(vehicles, remove_vehicles)) {
+  if(!registerVehicles(vehicles, vehicle_waypoints, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
@@ -72,11 +76,15 @@ TrafficLattice<Router>::TrafficLattice(
           vehicle->GetBoundingBox()));
   }
 
+  // Find waypoints for each of the input vehicle.
+  std::unordered_map<size_t, VehicleWaypoints>
+    vehicle_waypoints = vehicleWaypoints(vehicle_tuples);
+
   // Find the start waypoint and range of the lattice based
   // on the given vehicles.
   boost::shared_ptr<CarlaWaypoint> start_waypoint = nullptr;
   double range = 0.0;
-  latticeStartAndRange(vehicle_tuples, start_waypoint, range);
+  latticeStartAndRange(vehicle_tuples, vehicle_waypoints, start_waypoint, range);
 
   // Now we can construct the lattice.
   // FIXME: The following is just a copy of the Lattice custom constructor.
@@ -85,7 +93,7 @@ TrafficLattice<Router>::TrafficLattice(
 
   // Register the vehicles onto the lattice nodes.
   std::unordered_set<size_t> remove_vehicles;
-  if(!registerVehicles(vehicle_tuples, remove_vehicles)) {
+  if(!registerVehicles(vehicle_tuples, vehicle_waypoints, remove_vehicles)) {
     throw std::runtime_error("Collisions detected within the input vehicles.");
   }
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
@@ -328,6 +336,21 @@ int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
 
 template<typename Router>
 int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
+  size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
+  std::tie(id, transform, bounding_box) = vehicle;
+
+  VehicleWaypoints waypoints;
+  waypoints[0] = vehicleRearWaypoint(transform, bounding_box);
+  waypoints[1] = vehicleWaypoint(transform);
+  waypoints[2] = vehicleHeadWaypoint(transform, bounding_box);
+
+  return addVehicle(vehicle, waypoints);
+}
+
+template<typename Router>
+int32_t TrafficLattice<Router>::addVehicle(
+    const VehicleTuple& vehicle,
+    const VehicleWaypoints& waypoints) {
 
   // Get the ID, transform, and bounding box of the vehicle to be added.
   size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
@@ -342,12 +365,15 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
   }
 
   // Find the waypoints (head and rear) of this vehicle.
-  boost::shared_ptr<const CarlaWaypoint> head_waypoint =
-    vehicleHeadWaypoint(transform, bounding_box);
-  boost::shared_ptr<const CarlaWaypoint> rear_waypoint =
-    vehicleRearWaypoint(transform, bounding_box);
-  boost::shared_ptr<const CarlaWaypoint> mid_waypoint =
-    vehicleWaypoint(transform);
+  //boost::shared_ptr<const CarlaWaypoint> head_waypoint =
+  //  vehicleHeadWaypoint(transform, bounding_box);
+  //boost::shared_ptr<const CarlaWaypoint> rear_waypoint =
+  //  vehicleRearWaypoint(transform, bounding_box);
+  //boost::shared_ptr<const CarlaWaypoint> mid_waypoint =
+  //  vehicleWaypoint(transform);
+  boost::shared_ptr<const CarlaWaypoint> head_waypoint = waypoints[2];
+  boost::shared_ptr<const CarlaWaypoint> rear_waypoint = waypoints[0];
+  boost::shared_ptr<const CarlaWaypoint> mid_waypoint  = waypoints[1];
 
   // Find the nodes occupied by this vehicle.
   boost::shared_ptr<Node> head_node = this->closestNode(
@@ -475,10 +501,14 @@ bool TrafficLattice<Router>::moveTrafficForward(
   }
   vehicle_to_nodes_table_.clear();
 
+  // Find waypoints for each of the input vehicle.
+  std::unordered_map<size_t, VehicleWaypoints>
+    vehicle_waypoints = vehicleWaypoints(vehicles);
+
   // Re-search for the start and range of the lattice.
   boost::shared_ptr<CarlaWaypoint> update_start = nullptr;
   double update_range = 0.0;
-  latticeStartAndRange(vehicles, update_start, update_range);
+  latticeStartAndRange(vehicles, vehicle_waypoints, update_start, update_range);
 
   // Modify the lattice to agree with the new start and range.
   boost::shared_ptr<Node> update_start_node = this->closestNode(
@@ -506,7 +536,7 @@ bool TrafficLattice<Router>::moveTrafficForward(
 
   // Register the vehicles onto the lattice.
   std::unordered_set<size_t> remove_vehicles;
-  const bool valid = registerVehicles(vehicles, remove_vehicles);
+  const bool valid = registerVehicles(vehicles, vehicle_waypoints, remove_vehicles);
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
   return valid;
@@ -566,6 +596,7 @@ void TrafficLattice<Router>::baseConstructor(
 template<typename Router>
 void TrafficLattice<Router>::latticeStartAndRange(
     const std::vector<VehicleTuple>& vehicles,
+    const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
     boost::shared_ptr<CarlaWaypoint>& start,
     double& range) const {
 
@@ -579,6 +610,10 @@ void TrafficLattice<Router>::latticeStartAndRange(
 
     vehicle_transforms[id] = transform;
     vehicle_bounding_boxes[id] = bounding_box;
+
+    // Check if we are missing any vehicle in \c vehicle_waypoints.
+    if (vehicle_waypoints.count(id) == 0)
+      throw std::runtime_error("Missing a vehicle in the waypoints map.");
   }
 
   // Arrange the critial waypoint according to roads.
@@ -590,21 +625,9 @@ void TrafficLattice<Router>::latticeStartAndRange(
 
   for (const auto& vehicle : vehicle_transforms) {
 
-    const size_t id = vehicle.first;
+    VehicleWaypoints waypoints = vehicle_waypoints.find(vehicle.first)->second;
 
-    boost::shared_ptr<CarlaWaypoint> head =
-      vehicleHeadWaypoint(vehicle_transforms[id], vehicle_bounding_boxes[id]);
-    boost::shared_ptr<CarlaWaypoint> rear =
-      vehicleRearWaypoint(vehicle_transforms[id], vehicle_bounding_boxes[id]);
-    boost::shared_ptr<CarlaWaypoint> mid  =
-      vehicleWaypoint(vehicle_transforms[id]);
-
-    std::vector<boost::shared_ptr<CarlaWaypoint>> vehicle_waypoints;
-    vehicle_waypoints.push_back(head);
-    vehicle_waypoints.push_back(mid);
-    vehicle_waypoints.push_back(rear);
-
-    for (const auto& waypoint : vehicle_waypoints) {
+    for (const auto& waypoint : waypoints) {
       const size_t road = waypoint->GetRoadId();
       if (!(this->router_->hasRoad(road))) continue;
 
@@ -681,6 +704,7 @@ void TrafficLattice<Router>::latticeStartAndRange(
 template<typename Router>
 bool TrafficLattice<Router>::registerVehicles(
     const std::vector<VehicleTuple>& vehicles,
+    const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
 
   // Clear the \c vehicle_to_node_table_.
@@ -689,7 +713,13 @@ bool TrafficLattice<Router>::registerVehicles(
   // Add vehicles onto the lattice, keep track of the disappearred/removed vehicles as well.
   std::unordered_set<size_t> removed_vehicles;
   for (const auto& vehicle : vehicles) {
-    const int32_t valid = addVehicle(vehicle);
+    size_t id;
+    std::tie(id, std::ignore, std::ignore) = vehicle;
+
+    if (vehicle_waypoints.count(id) == 0)
+      throw std::runtime_error("Waypoints for a vehicle are not available.");
+
+    const int32_t valid = addVehicle(vehicle, vehicle_waypoints.find(id)->second);
     if (valid == 0) removed_vehicles.insert(std::get<0>(vehicle));
     else if (valid == -1) return false;
   }
@@ -773,6 +803,26 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   //    waypoint_location.x, waypoint_location.y, waypoint_location.z);
 
   return map_->GetWaypoint(waypoint_location);
+}
+
+template<typename Router>
+std::unordered_map<size_t, typename TrafficLattice<Router>::VehicleWaypoints>
+  TrafficLattice<Router>::vehicleWaypoints(
+    const std::vector<VehicleTuple>& vehicles) const {
+
+  std::unordered_map<size_t, VehicleWaypoints> vehicle_waypoints;
+
+  for (const auto& vehicle : vehicles) {
+    size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
+    std::tie(id, transform, bounding_box) = vehicle;
+
+    vehicle_waypoints[id] = VehicleWaypoints();
+    vehicle_waypoints[id][0] = vehicleRearWaypoint(transform, bounding_box);
+    vehicle_waypoints[id][1] = vehicleWaypoint(transform);
+    vehicle_waypoints[id][2] = vehicleHeadWaypoint(transform, bounding_box);
+  }
+
+  return vehicle_waypoints;
 }
 
 template<typename Router>

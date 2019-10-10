@@ -48,6 +48,12 @@ protected:
   ///        Is there a better solution than \c tuple?
   using VehicleTuple = std::tuple<size_t, CarlaTransform, CarlaBoundingBox>;
 
+  /// Stores the three waypoints for a vehicle. From index 0-2 are the
+  /// waypoints corresponding to the vehicle rear, middle, and head.
+  /// In the case a waypoint is missing, leave \c nullptr at the correspoinding
+  /// entry.
+  using VehicleWaypoints = std::array<boost::shared_ptr<CarlaWaypoint>, 3>;
+
 private:
 
   using Base = TrafficLattice<Router>;
