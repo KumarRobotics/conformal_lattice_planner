@@ -67,9 +67,11 @@ public:
 
 protected:
 
-  virtual boost::shared_ptr<planner::Snapshot> createSnapshot(
-      const std::pair<size_t, double>& ego,
-      std::unordered_map<size_t, double>& agents) override;
+  boost::shared_ptr<planner::Snapshot> createSnapshot(
+      const std::pair<size_t, double>& ego_policy,
+      const std::pair<size_t, double>& ego_speed,
+      const std::unordered_map<size_t, double>& agent_policies,
+      const std::unordered_map<size_t, double>& agent_speed) override;
 
   virtual void executeCallback(
       const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
