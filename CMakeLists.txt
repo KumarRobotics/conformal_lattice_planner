@@ -182,11 +182,11 @@ add_library(all_ros_nodes
   src/ros/simulator_node.cpp
   #src/ros/random_traffic_node.cpp
   src/ros/no_traffic_node.cpp
-  #src/ros/fixed_scenario_node.cpp
+  src/ros/fixed_scenario_node.cpp
 
   src/ros/ego_lane_following_node.cpp
   #src/ros/ego_conformal_lattice_planning_node.cpp
-  #src/ros/agents_lane_following_node.cpp
+  src/ros/agents_lane_following_node.cpp
 
   src/ros/convert_to_visualization_msgs.cpp
   src/conformal_lattice_planner/utils.cpp
@@ -252,20 +252,20 @@ add_dependencies(no_traffic_node
   ${catkin_EXPORTED_TARGETS}
 )
 
-#add_executable(fixed_scenario_node
-#  src/ros/nodes/fixed_scenario_simulator.cpp
-#)
-#target_link_libraries(fixed_scenario_node
-#  all_planning
-#  all_ros_nodes
-#  ${Carla_LIBRARIES}
-#  ${Boost_LIBRARIES}
-#  ${catkin_LIBRARIES}
-#)
-#add_dependencies(fixed_scenario_node
-#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-#  ${catkin_EXPORTED_TARGETS}
-#)
+add_executable(fixed_scenario_node
+  src/ros/nodes/fixed_scenario_simulator.cpp
+)
+target_link_libraries(fixed_scenario_node
+  all_planning
+  all_ros_nodes
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(fixed_scenario_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 add_executable(ego_lane_following_node
   src/ros/nodes/ego_lane_follower.cpp
@@ -297,20 +297,20 @@ add_dependencies(ego_lane_following_node
 #  ${catkin_EXPORTED_TARGETS}
 #)
 
-#add_executable(agents_lane_following_node
-#  src/ros/nodes/agents_lane_follower.cpp
-#)
-#target_link_libraries(agents_lane_following_node
-#  all_planning
-#  all_ros_nodes
-#  ${Carla_LIBRARIES}
-#  ${Boost_LIBRARIES}
-#  ${catkin_LIBRARIES}
-#)
-#add_dependencies(agents_lane_following_node
-#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-#  ${catkin_EXPORTED_TARGETS}
-#)
+add_executable(agents_lane_following_node
+  src/ros/nodes/agents_lane_follower.cpp
+)
+target_link_libraries(agents_lane_following_node
+  all_planning
+  all_ros_nodes
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+add_dependencies(agents_lane_following_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
 
 
 #############

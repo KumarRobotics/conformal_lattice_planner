@@ -70,7 +70,7 @@ void FixedScenarioNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25, false, false)) {
+  if (!spawnEgoVehicle(ego_waypoint, 25, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
@@ -78,7 +78,7 @@ void FixedScenarioNode::spawnVehicles() {
   {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
       waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
+    if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
   }
@@ -86,7 +86,7 @@ void FixedScenarioNode::spawnVehicles() {
   {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
       waypoint_lattice->rightFront(ego_waypoint, 40.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0, false, false)) {
+    if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
   }

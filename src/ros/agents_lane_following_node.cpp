@@ -63,14 +63,15 @@ void AgentsLaneFollowingNode::executeCallback(
 
   // Get the ego and agent policies.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
-  std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
+  const std::pair<size_t, double> ego_speed  = egoSpeed(goal);
+  const std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
+  const std::unordered_map<size_t, double> agent_speed    = agentSpeed(goal);
 
   // Create the current snapshot.
-  //std::printf("-->Create snapshot.\n");
-  boost::shared_ptr<Snapshot> snapshot = createSnapshot(ego_policy, agent_policies);
+  boost::shared_ptr<Snapshot> snapshot =
+    createSnapshot(ego_policy, ego_speed, agent_policies, agent_speed);
 
   // Create Path planner.
-  //std::printf("-->Find start waypoint for lattice.\n");
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
     traffic_lattice_entries = snapshot->trafficLattice()->latticeEntries();
 
@@ -84,21 +85,21 @@ void AgentsLaneFollowingNode::executeCallback(
 
   if (!waypoint) throw std::runtime_error("No node with distance 0.");
 
-  //std::printf("Create lane follower path planner.\n");
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(map_, waypoint, range, router_);
 
   // Create speed planner.
-  //std::printf("Create speed planner.\n");
   boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
     boost::make_shared<VehicleSpeedPlanner>();
 
   double dt = 0.05;
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
 
+  // Compute the target speed and transform of all agents.
+  conformal_lattice_planner::AgentPlanResult result;
+
   for (const auto& item : snapshot->agents()) {
     const Vehicle& agent = item.second;
-    //std::printf("-->Plan for agent %lu\n", agent.id());
 
     const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
     const double accel = speed_planner->plan(agent.id(), *snapshot);
@@ -106,23 +107,30 @@ void AgentsLaneFollowingNode::executeCallback(
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
     const CarlaTransform updated_transform = path.transformAt(movement).first;
     const double updated_speed = agent.speed() + accel*dt;
-    //std::printf("-->movement: %f\n", movement);
-    //std::printf("-->updated speed: %f\n", updated_speed);
-    //std::printf("-->updated transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-    //    updated_transform.location.x,
-    //    updated_transform.location.y,
-    //    updated_transform.location.z,
-    //    updated_transform.rotation.roll,
-    //    updated_transform.rotation.pitch,
-    //    updated_transform.rotation.yaw);
 
+    ROS_INFO_NAMED("agents_lane_following_planner", "agent %lu", agent.id());
+    ROS_INFO_NAMED("agents_lane_following_planner", "movement:%f", movement);
+    ROS_INFO_NAMED("agents_lane_following_planner", "acceleration:%f", accel);
+    ROS_INFO_NAMED("agents_lane_following_planner", "updated speed:%f", updated_speed);
+    ROS_INFO_NAMED("agents_lane_following_planner", "updated transform: x:%f y:%f z:%f r:%f p:%f y:%f",
+        updated_transform.location.x,
+        updated_transform.location.y,
+        updated_transform.location.z,
+        updated_transform.rotation.roll,
+        updated_transform.rotation.pitch,
+        updated_transform.rotation.yaw);
+
+    // Update the agent transform in the simulator.
     boost::shared_ptr<CarlaVehicle> vehicle = carlaVehicle(agent.id());
     vehicle->SetTransform(updated_transform);
-    vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
+    //vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
+
+    result.agent_target_speed.push_back(conformal_lattice_planner::VehicleSpeed());
+    result.agent_target_speed.back().id = agent.id();
+    result.agent_target_speed.back().speed = updated_speed;
   }
 
   // Inform the client the result of plan.
-  conformal_lattice_planner::AgentPlanResult result;
   result.success = true;
   server_.setSucceeded(result);
 

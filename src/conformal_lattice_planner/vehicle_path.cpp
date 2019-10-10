@@ -204,7 +204,6 @@ DiscretePath::DiscretePath(
     samples_[s] = pathStateToCarlaTransform(state, base_transform.first);
   }
 
-  std::printf("Check the end of the path.\n");
   if (s < path.sf) {
     NonHolonomicPath::State state = path.evaluate(start_state, path.sf);
     samples_[path.sf] = pathStateToCarlaTransform(state, end.first);
