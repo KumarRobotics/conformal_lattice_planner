@@ -44,23 +44,23 @@ bool EgoLaneFollowingNode::initialize() {
   all_param_exist &= nh_.param<int>("port", port, 2000);
 
   // Get the world.
-  ROS_INFO_NAMED("ego_lane_following_planner", "connect to the server.");
+  ROS_INFO_NAMED("ego_planner", "connect to the server.");
   client_ = boost::make_shared<CarlaClient>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
   // Start the action server.
-  ROS_INFO_NAMED("ego_lane_following_planner", "start action server.");
+  ROS_INFO_NAMED("ego_planner", "start action server.");
   server_.start();
 
-  ROS_INFO_NAMED("ego_lane_following_planner", "initialization finishes.");
+  ROS_INFO_NAMED("ego_planner", "initialization finishes.");
   return all_param_exist;
 }
 
 void EgoLaneFollowingNode::executeCallback(
     const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) {
 
-  ROS_INFO_NAMED("ego_lane_following_planner", "executeCallback()");
+  ROS_INFO_NAMED("ego_planner", "executeCallback()");
 
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
@@ -101,10 +101,11 @@ void EgoLaneFollowingNode::executeCallback(
   const CarlaTransform updated_transform = ego_path.transformAt(movement).first;
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
 
-  std::printf("movement:%f\n", movement);
-  std::printf("acceleration:%f\n", ego_accel);
-  std::printf("speed:%f\n", updated_speed);
-  std::printf("transform: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+  ROS_INFO_NAMED("ego_planner", "ego %lu", snapshot->ego().id());
+  ROS_INFO_NAMED("ego_planner", "movement:%f", movement);
+  ROS_INFO_NAMED("ego_planner", "acceleration:%f", ego_accel);
+  ROS_INFO_NAMED("ego_planner", "speed:%f", updated_speed);
+  ROS_INFO_NAMED("ego_planner", "transform: x:%f y:%f z:%f r:%f p:%f y:%f",
       updated_transform.location.x,
       updated_transform.location.y,
       updated_transform.location.z,

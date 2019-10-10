@@ -39,23 +39,23 @@ bool AgentsLaneFollowingNode::initialize() {
   all_param_exist &= nh_.param<int>("port", port, 2000);
 
   // Get the world.
-  ROS_INFO_NAMED("agents_lane_following_planner", "connect to the server.");
+  ROS_INFO_NAMED("agents_planner", "connect to the server.");
   client_ = boost::make_shared<CarlaClient>(host, port);
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
   // Start the action server.
-  ROS_INFO_NAMED("agents_lane_following_planner", "start action server.");
+  ROS_INFO_NAMED("agents_planner", "start action server.");
   server_.start();
 
-  ROS_INFO_NAMED("agents_lane_following_planner", "initialization finishes.");
+  ROS_INFO_NAMED("agents_planner", "initialization finishes.");
   return all_param_exist;
 }
 
 void AgentsLaneFollowingNode::executeCallback(
     const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) {
 
-  ROS_INFO_NAMED("agents_lane_following_planner", "executeCallback()");
+  ROS_INFO_NAMED("agents_planner", "executeCallback()");
 
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
@@ -108,11 +108,11 @@ void AgentsLaneFollowingNode::executeCallback(
     const CarlaTransform updated_transform = path.transformAt(movement).first;
     const double updated_speed = agent.speed() + accel*dt;
 
-    ROS_INFO_NAMED("agents_lane_following_planner", "agent %lu", agent.id());
-    ROS_INFO_NAMED("agents_lane_following_planner", "movement:%f", movement);
-    ROS_INFO_NAMED("agents_lane_following_planner", "acceleration:%f", accel);
-    ROS_INFO_NAMED("agents_lane_following_planner", "updated speed:%f", updated_speed);
-    ROS_INFO_NAMED("agents_lane_following_planner", "updated transform: x:%f y:%f z:%f r:%f p:%f y:%f",
+    ROS_INFO_NAMED("agents_planner", "agent %lu", agent.id());
+    ROS_INFO_NAMED("agents_planner", "movement:%f", movement);
+    ROS_INFO_NAMED("agents_planner", "acceleration:%f", accel);
+    ROS_INFO_NAMED("agents_planner", "updated speed:%f", updated_speed);
+    ROS_INFO_NAMED("agents_planner", "updated transform: x:%f y:%f z:%f r:%f p:%f y:%f",
         updated_transform.location.x,
         updated_transform.location.y,
         updated_transform.location.z,
