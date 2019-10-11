@@ -19,6 +19,7 @@
 #include <boost/smart_ptr.hpp>
 #include <carla/client/Map.h>
 #include <conformal_lattice_planner/snapshot.h>
+#include <conformal_lattice_planner/fast_waypoint_map.h>
 
 namespace planner {
 
@@ -34,15 +35,21 @@ protected:
 protected:
 
   /// Carla map object.
-  boost::shared_ptr<CarlaMap> map_;
+  boost::shared_ptr<CarlaMap> map_ = nullptr;
+
+  /// Fast waypoint map.
+  boost::shared_ptr<utils::FastWaypointMap> fast_map_ = nullptr;
 
 public:
 
   /**
    * \brief Class constructor.
    * \param[in] map The carla map pointer.
+   * \param[in] fast_map The fast map used to retrieve waypoints based on locations.
    */
-  VehiclePathPlanner(const boost::shared_ptr<CarlaMap>& map) : map_(map) {}
+  VehiclePathPlanner(const boost::shared_ptr<CarlaMap>& map,
+                     const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    map_(map), fast_map_(fast_map) {}
 
   /// Class destructor.
   virtual ~VehiclePathPlanner() {}
@@ -52,6 +59,14 @@ public:
 
   /// Get or set the carla map pointer.
   boost::shared_ptr<CarlaMap>& map() { return map_; }
+
+  /// Get the fast waypoint map.
+  const boost::shared_ptr<const utils::FastWaypointMap>
+    fastWaypointMap() const { return fast_map_; }
+
+  /// Get or set the fast waypoint map.
+  boost::shared_ptr<utils::FastWaypointMap>&
+    fastWaypointMap() { return fast_map_; }
 };
 
 } // End namespace planner.

@@ -35,6 +35,7 @@
 #include <conformal_lattice_planner/loop_router.h>
 #include <conformal_lattice_planner/snapshot.h>
 #include <conformal_lattice_planner/utils.h>
+#include <conformal_lattice_planner/fast_waypoint_map.h>
 
 namespace carla {
 
@@ -51,11 +52,12 @@ protected:
 
 protected:
 
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+  boost::shared_ptr<router::LoopRouter> router_       = nullptr;
+  boost::shared_ptr<utils::FastWaypointMap> fast_map_ = nullptr;
 
   boost::shared_ptr<CarlaClient> client_ = nullptr;
-  boost::shared_ptr<CarlaWorld> world_ = nullptr;
-  boost::shared_ptr<CarlaMap> map_ = nullptr;
+  boost::shared_ptr<CarlaWorld> world_   = nullptr;
+  boost::shared_ptr<CarlaMap> map_       = nullptr;
 
   mutable ros::NodeHandle nh_;
 
@@ -112,7 +114,7 @@ protected:
 
     // Create the snapshot.
     return boost::make_shared<planner::Snapshot>(
-        ego_vehicle, agent_vehicles, router_, map_);
+        ego_vehicle, agent_vehicles, router_, map_, fast_map_);
   }
 
   /// Get the carla vehicle by ID.
@@ -131,7 +133,7 @@ protected:
 
   /// Get the carla waypoint a vehicle is at by its ID.
   boost::shared_ptr<CarlaWaypoint> carlaVehicleWaypoint(const size_t id) const {
-    return map_->GetWaypoint(carlaVehicleTransform(id).location);
+    return fast_map_->waypoint(carlaVehicleTransform(id).location);
   }
 
   /// Get the policy for the ego vehicle.

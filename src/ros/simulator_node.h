@@ -39,6 +39,7 @@
 #include <carla/client/Sensor.h>
 #include <carla/sensor/data/Image.h>
 
+#include <conformal_lattice_planner/fast_waypoint_map.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 
@@ -92,6 +93,12 @@ protected:
 
   /// Carla world object.
   boost::shared_ptr<CarlaWorld> world_ = nullptr;
+
+  /// Carla map.
+  boost::shared_ptr<CarlaMap> map_ = nullptr;
+
+  /// Fast waypoint map.
+  boost::shared_ptr<utils::FastWaypointMap> fast_map_ = nullptr;
 
   // A camera following the ego vehicle to generate the third person view.
   boost::shared_ptr<CarlaSensor> following_cam_ = nullptr;

@@ -89,7 +89,7 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
     // 2) If we cannot, this implies the agent is leaving the route.
     //    we will use the carla map API to find an accessible next waypoint.
     boost::shared_ptr<CarlaWaypoint> waypoint =
-      map_->GetWaypoint(agent.transform().location);
+      fast_map_->waypoint(agent.transform().location);
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
 
     boost::shared_ptr<CarlaWaypoint> next_waypoint =

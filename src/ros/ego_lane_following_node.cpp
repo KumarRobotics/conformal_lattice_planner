@@ -49,6 +49,11 @@ bool EgoLaneFollowingNode::initialize() {
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
+  // Create world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
+  fast_map_ = boost::make_shared<utils::FastWaypointMap>(map_);
+
   // Start the action server.
   ROS_INFO_NAMED("ego_planner", "start action server.");
   server_.start();
@@ -64,7 +69,7 @@ void EgoLaneFollowingNode::executeCallback(
 
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
-  map_ = world_->GetMap();
+  //map_ = world_->GetMap();
 
   // Get the ego and agent policies and speed.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
@@ -83,7 +88,7 @@ void EgoLaneFollowingNode::executeCallback(
   // The range of the lattice is just enough for the ego vehicle.
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(
-      map_, carlaVehicleWaypoint(ego_policy.first), 55.0, router_);
+      map_, fast_map_, carlaVehicleWaypoint(ego_policy.first), 55.0, router_);
 
   const DiscretePath ego_path =
     path_planner->plan(ego_policy.first, *snapshot);

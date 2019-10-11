@@ -107,10 +107,10 @@ public:
 
   Station(const Snapshot& snapshot,
           const boost::shared_ptr<const WaypointLattice<router::LoopRouter>>& waypoint_lattice,
-          const boost::shared_ptr<CarlaMap>& map) :
+          const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
     snapshot_(snapshot) {
     boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
-        map->GetWaypoint(snapshot.ego().transform().location),
+        fast_map->waypoint(snapshot.ego().transform().location),
         waypoint_lattice->longitudinalResolution());
     if (!node) throw std::runtime_error("Cannot find a node on the waypoint lattice for the station");
     node_ = node;
@@ -247,16 +247,12 @@ public:
       const double sim_time_step,
       const double spatial_horizon,
       const boost::shared_ptr<router::LoopRouter>& router,
-      const boost::shared_ptr<CarlaMap>& map) :
-    Base(map),
+      const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    Base(map, fast_map),
     sim_time_step_(sim_time_step),
     spatial_horizon_(spatial_horizon),
-    router_(router) {
-
-    if (!map_) throw std::runtime_error("map is not available.");
-    if (!router_) throw std::runtime_error("router is not available.");
-    return;
-  }
+    router_(router) {}
 
   /// Destructor of the class.
   virtual ~ConformalLatticePlanner() {}

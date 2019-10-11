@@ -24,7 +24,8 @@ Snapshot::Snapshot(
     const Vehicle& ego,
     const std::unordered_map<size_t, Vehicle>& agents,
     const boost::shared_ptr<router::LoopRouter>& router,
-    const boost::shared_ptr<CarlaMap>& map) :
+    const boost::shared_ptr<CarlaMap>& map,
+    const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
   ego_(ego),
   agents_(agents) {
 
@@ -36,7 +37,7 @@ Snapshot::Snapshot(
   // Generate the waypoint lattice.
   std::unordered_set<size_t> disappear_vehicles;
   traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(
-      vehicles, map, router, disappear_vehicles);
+      vehicles, map, fast_map, router, disappear_vehicles);
 
   // Remove the disappeared vehicles.
   if (disappear_vehicles.count(ego_.id()) != 0)

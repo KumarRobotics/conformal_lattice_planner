@@ -77,12 +77,14 @@ public:
    * \param[in] start Start waypoint of the lattice.
    * \param[in] range Range of the lattice to be created.
    * \param[in] router A router object giving the road sequences.
-   * \param[in] map A carla map object used to query carla waypoints.
+   * \param[in] map A carla map object used to query roads and lanes.
+   * \param[in] fast_map The fast map is to find waypoints based on locations.
    */
   TrafficManager(const boost::shared_ptr<CarlaWaypoint>& start,
                  const double range,
                  const boost::shared_ptr<Router>& router,
-                 const boost::shared_ptr<CarlaMap>& map);
+                 const boost::shared_ptr<CarlaMap>& map,
+                 const boost::shared_ptr<utils::FastWaypointMap>& fast_map);
 
   /**
    * \brief Update the the vehcile postions in the lattice.

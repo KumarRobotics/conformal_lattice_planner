@@ -29,8 +29,10 @@ template<typename Router>
 TrafficLattice<Router>::TrafficLattice(
     const std::vector<VehicleTuple>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
+    const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
     const boost::shared_ptr<Router>& router,
-    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) : map_(map) {
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) :
+  map_(map), fast_map_(fast_map) {
 
   this->router_ = router;
 
@@ -63,8 +65,10 @@ template<typename Router>
 TrafficLattice<Router>::TrafficLattice(
     const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
+    const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
     const boost::shared_ptr<Router>& router,
-    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) : map_(map) {
+    boost::optional<std::unordered_set<size_t>&> disappear_vehicles) :
+  map_(map), fast_map_(fast_map) {
 
   this->router_ = router;
 
@@ -115,9 +119,10 @@ TrafficLattice<Router>::TrafficLattice(const TrafficLattice<Router>& other) :
     }
   }
 
-  // Carla map won't be copied. \c map_ of different objects point to the
+  // Carla map and fast map won't be copied. \c map_ of different objects point to the
   // same piece of memory.
   map_ = other.map_;
+  fast_map_ = other.fast_map_;
 
   return;
 }
@@ -128,6 +133,7 @@ void TrafficLattice<Router>::swap(TrafficLattice<Router>& other) {
   Base::swap(other);
   std::swap(vehicle_to_nodes_table_, other.vehicle_to_nodes_table_);
   std::swap(map_, other.map_);
+  std::swap(fast_map_, other.fast_map_);
 
   return;
 }
@@ -514,7 +520,17 @@ bool TrafficLattice<Router>::moveTrafficForward(
   boost::shared_ptr<Node> update_start_node = this->closestNode(
       update_start, this->longitudinal_resolution_);
   if (!update_start_node) {
-    std::printf("new start waypoint on road %u\n", update_start->GetRoadId());
+    std::printf("updated start waypoint road:%u lane:%d distance:%f\n",
+        update_start->GetRoadId(),
+        update_start->GetLaneId(),
+        update_start->GetDistance());
+    std::printf("updated start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
+        update_start->GetTransform().location.x,
+        update_start->GetTransform().location.y,
+        update_start->GetTransform().location.z,
+        update_start->GetTransform().rotation.roll,
+        update_start->GetTransform().rotation.pitch,
+        update_start->GetTransform().rotation.yaw);
     std::printf("updated range: %f\n", update_range);
     std::printf("current range: %f\n", this->range());
     for (const auto& vehicle : vehicles) {
@@ -802,7 +818,8 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   //std::printf("head waypoint location: x:%f y:%f z:%f\n",
   //    waypoint_location.x, waypoint_location.y, waypoint_location.z);
 
-  return map_->GetWaypoint(waypoint_location);
+  //return map_->GetWaypoint(waypoint_location);
+  return fast_map_->waypoint(waypoint_location);
 }
 
 template<typename Router>
@@ -845,7 +862,8 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   //    transform.location.x, transform.location.y, transform.location.z);
   //std::printf("rear waypoint location: x:%f y:%f z:%f\n",
   //    waypoint_location.x, waypoint_location.y, waypoint_location.z);
-  return map_->GetWaypoint(waypoint_location);
+  //return map_->GetWaypoint(waypoint_location);
+  return fast_map_->waypoint(waypoint_location);
 }
 
 template<typename Router>

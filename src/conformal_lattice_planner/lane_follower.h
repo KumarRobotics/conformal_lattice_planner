@@ -51,15 +51,17 @@ public:
    * \brief Class constructor.
    *
    * \param[in] map The carla map pointer.
+   * \param[in] fast_map The fast map used to retrieve waypoints based on locations.
    * \param[in] lattice_start The start waypoint of the lattice.
    * \param[in] lattice_range The range of the lattice.
    * \param[in] router The router to be used in creating the waypoint lattice.
    */
   LaneFollower(const boost::shared_ptr<CarlaMap>& map,
+               const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
                const boost::shared_ptr<const CarlaWaypoint>& lattice_start,
                const double lattice_range,
                const boost::shared_ptr<router::LoopRouter>& router) :
-    Base(map),
+    Base(map, fast_map),
     waypoint_lattice_(boost::make_shared<WaypointLattice<router::LoopRouter>>(
           lattice_start, lattice_range, 5.0, router)) {}
 
@@ -94,19 +96,15 @@ public:
    */
   DiscretePath plan(const size_t target, const Snapshot& snapshot) {
 
-    //std::printf("Find target vehicle waypoint.\n");
     // Get the target vehicle and its waypoint.
     const Vehicle target_vehicle = snapshot.vehicle(target);
-
     const boost::shared_ptr<CarlaWaypoint> target_waypoint =
-      map_->GetWaypoint(target_vehicle.transform().location);
+      fast_map_->waypoint(target_vehicle.transform().location);
 
-    //std::printf("Create lattice if necessary.\n");
     // Waypoint lattice is created if not available.
     if (!waypoint_lattice_)
       throw std::runtime_error("The waypoint lattice is not available.\n");
 
-    //std::printf("Find target front waypoint.\n");
     // Find the waypoint 50m ahead of the current postion of the target vehicle.
     const boost::shared_ptr<const WaypointNode> front_node =
       waypoint_lattice_->front(target_waypoint, 50.0);

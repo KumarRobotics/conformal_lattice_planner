@@ -95,6 +95,7 @@ public:
     }
 
     // Build a KDtree with the point cloud.
+    kdtree_.setEpsilon(resolution_);
     kdtree_.setInputCloud(cloud_);
 
     return;

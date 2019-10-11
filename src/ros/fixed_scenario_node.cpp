@@ -33,7 +33,7 @@ void FixedScenarioNode::spawnVehicles() {
 
   // Find the available spawn point cloest to the start point.
   std::vector<CarlaTransform> spawn_points =
-    world_->GetMap()->GetRecommendedSpawnPoints();
+    map_->GetRecommendedSpawnPoints();
   CarlaTransform start_transform;
   double min_distance_sq = std::numeric_limits<double>::max();
 
@@ -52,7 +52,7 @@ void FixedScenarioNode::spawnVehicles() {
 
   // Start waypoint of the lattice.
   boost::shared_ptr<CarlaWaypoint> start_waypoint =
-    world_->GetMap()->GetWaypoint(start_transform.location);
+    fast_map_->waypoint(start_transform.location);
 
   boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice=
     boost::make_shared<WaypointLattice<LoopRouter>>(start_waypoint, 100, 1.0, loop_router_);

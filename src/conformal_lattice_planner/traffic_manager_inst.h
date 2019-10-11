@@ -28,9 +28,11 @@ TrafficManager<Router>::TrafficManager(
     const boost::shared_ptr<CarlaWaypoint>& start,
     const double range,
     const boost::shared_ptr<Router>& router,
-    const boost::shared_ptr<CarlaMap>& map) {
+    const boost::shared_ptr<CarlaMap>& map,
+    const boost::shared_ptr<utils::FastWaypointMap>& fast_map) {
   // The \c longitudinal_resolution_ is fixed to 1.0m.
   this->map_ = map;
+  this->fast_map_ = fast_map;
   this->baseConstructor(start, range, 1.0, router);
   return;
 }

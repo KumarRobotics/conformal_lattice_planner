@@ -43,6 +43,10 @@ bool SimulatorNode::initialize() {
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   ros::Duration(1.0).sleep();
 
+  // Set the map.
+  map_ = world_->GetMap();
+  fast_map_ = boost::make_shared<utils::FastWaypointMap>(map_);
+
   // Applying the world settings.
   double fixed_delta_seconds = 0.05;
   bool no_rendering_mode = true;
@@ -293,7 +297,7 @@ std::vector<boost::shared_ptr<const SimulatorNode::CarlaVehicle>>
 void SimulatorNode::publishMap() const {
 
   std::vector<boost::shared_ptr<CarlaWaypoint>> waypoints =
-    world_->GetMap()->GenerateWaypoints(5.0);
+    map_->GenerateWaypoints(5.0);
   std::vector<boost::shared_ptr<const CarlaWaypoint>> const_waypoints;
 
   for (const auto& waypoint : waypoints)
@@ -302,9 +306,9 @@ void SimulatorNode::publishMap() const {
   visualization_msgs::MarkerPtr waypoints_msg =
     createWaypointMsg(const_waypoints);
   visualization_msgs::MarkerPtr junctions_msg =
-    createJunctionMsg(world_->GetMap()->GetTopology());
+    createJunctionMsg(map_->GetTopology());
   visualization_msgs::MarkerArrayPtr road_ids_msg =
-    createRoadIdsMsg(world_->GetMap()->GetMap().GetMap().GetRoads());
+    createRoadIdsMsg(map_->GetMap().GetMap().GetRoads());
 
   visualization_msgs::MarkerArrayPtr map_msg(new visualization_msgs::MarkerArray);
   map_msg->markers.push_back(*waypoints_msg);

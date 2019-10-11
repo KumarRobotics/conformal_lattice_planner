@@ -44,6 +44,11 @@ bool AgentsLaneFollowingNode::initialize() {
   client_->SetTimeout(std::chrono::seconds(10));
   client_->GetWorld();
 
+  // Create world and map.
+  world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
+  map_ = world_->GetMap();
+  fast_map_ = boost::make_shared<utils::FastWaypointMap>(map_);
+
   // Start the action server.
   ROS_INFO_NAMED("agents_planner", "start action server.");
   server_.start();
@@ -59,7 +64,7 @@ void AgentsLaneFollowingNode::executeCallback(
 
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
-  map_ = world_->GetMap();
+  //map_ = world_->GetMap();
 
   // Get the ego and agent policies.
   const std::pair<size_t, double> ego_policy = egoPolicy(goal);
@@ -86,7 +91,7 @@ void AgentsLaneFollowingNode::executeCallback(
   if (!waypoint) throw std::runtime_error("No node with distance 0.");
 
   boost::shared_ptr<LaneFollower> path_planner =
-    boost::make_shared<LaneFollower>(map_, waypoint, range, router_);
+    boost::make_shared<LaneFollower>(map_, fast_map_, waypoint, range, router_);
 
   // Create speed planner.
   boost::shared_ptr<VehicleSpeedPlanner> speed_planner =

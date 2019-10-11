@@ -36,7 +36,7 @@ void RandomTrafficNode::spawnVehicles() {
 
   // Find the available spawn point cloest to the start point.
   std::vector<CarlaTransform> spawn_points =
-    world_->GetMap()->GetRecommendedSpawnPoints();
+    map_->GetRecommendedSpawnPoints();
   CarlaTransform start_transform;
   double min_distance_sq = std::numeric_limits<double>::max();
 
@@ -55,11 +55,11 @@ void RandomTrafficNode::spawnVehicles() {
 
   // Start waypoint of the lattice.
   boost::shared_ptr<CarlaWaypoint> start_waypoint =
-    world_->GetMap()->GetWaypoint(start_transform.location);
+    fast_map_->waypoint(start_transform.location);
 
   // Initialize the traffic manager.
   traffic_manager_ = boost::make_shared<TrafficManager<LoopRouter>>(
-      start_waypoint, 150.0, loop_router_, world_->GetMap());
+      start_waypoint, 150.0, loop_router_, map_, fast_map_);
 
   // Spawn the ego vehicle.
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer
@@ -218,7 +218,7 @@ void RandomTrafficNode::manageTraffic() {
   // Check the position of the ego vehicle on the lattice.
   // We wanto to make sure it is at the 50m distance.
   const boost::shared_ptr<CarlaWaypoint> ego_waypoint =
-    world_->GetMap()->GetWaypoint(egoVehicle()->GetTransform().location);
+    fast_map_->waypoint(egoVehicle()->GetTransform().location);
   boost::shared_ptr<const TrafficManager<LoopRouter>> const_traffic_manager =
     boost::const_pointer_cast<const TrafficManager<LoopRouter>>(traffic_manager_);
   const double ego_distance = const_traffic_manager->closestNode(ego_waypoint, 1.0)->distance();

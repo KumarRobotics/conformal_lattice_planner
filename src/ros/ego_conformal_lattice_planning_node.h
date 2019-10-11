@@ -22,7 +22,6 @@
 
 #include <conformal_lattice_planner/conformal_lattice_planner.h>
 #include <conformal_lattice_planner/vehicle_speed_planner.h>
-#include <conformal_lattice_planner/fast_waypoint_map.h>
 #include <ros/planning_node.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
 

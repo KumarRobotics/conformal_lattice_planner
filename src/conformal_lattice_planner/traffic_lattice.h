@@ -24,6 +24,7 @@
 #include <carla/client/Map.h>
 
 #include <conformal_lattice_planner/utils.h>
+#include <conformal_lattice_planner/fast_waypoint_map.h>
 #include <conformal_lattice_planner/waypoint_lattice.h>
 
 namespace planner {
@@ -155,15 +156,19 @@ protected:
    */
   std::unordered_map<size_t, std::vector<boost::weak_ptr<Node>>> vehicle_to_nodes_table_;
 
-  /// Carla map, used to find waypoints using locations.
+  /// Carla map, used to road and lanes.
   boost::shared_ptr<CarlaMap> map_;
+
+  /// Fast waypoint map, used to find carla waypoints based on locations.
+  boost::shared_ptr<utils::FastWaypointMap> fast_map_;
 
 public:
 
   /**
    * \brief Class constructor.
    * \param[in] vehicles Vehicles to be registered onto the lattice.
-   * \param[in] map A carla map object used to find waypoints.
+   * \param[in] map The carla map used to find roads and lanes.
+   * \param[in] fast_map Fast waypoint map used to find waypoints based on locations.
    * \param[in] router A router object used to find road sequences.
    * \param[out] disappear_vehicles The vehicles that cannot be registered onto the lattice.
    *                                This can be due to that the road which the vehicle is on
@@ -172,13 +177,15 @@ public:
   TrafficLattice(
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
       const boost::shared_ptr<Router>& router,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   /**
    * \brief Class constructor.
    * \param[in] vehicles Vehicles to be registered onto the lattice.
-   * \param[in] map A carla map object used to find waypoints.
+   * \param[in] map The carla map used to find roads and lanes.
+   * \param[in] fast_map Fast waypoint map used to find waypoints based on locations.
    * \param[in] router A router object used to find road sequences.
    * \param[out] disappear_vehicles The vehicles that cannot be registered onto the lattice.
    *                                This can be due to that the road which the vehicle is on
@@ -187,6 +194,7 @@ public:
   TrafficLattice(
       const std::vector<VehicleTuple>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
       const boost::shared_ptr<Router>& router,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
@@ -387,7 +395,8 @@ protected:
    */
   boost::shared_ptr<CarlaWaypoint> vehicleWaypoint(
       const CarlaTransform& transform) const {
-    return map_->GetWaypoint(transform.location);
+    //return map_->GetWaypoint(transform.location);
+    return fast_map_->waypoint(transform.location);
   }
 
   /**

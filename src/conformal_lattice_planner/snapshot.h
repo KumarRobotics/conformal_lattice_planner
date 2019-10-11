@@ -60,7 +60,8 @@ public:
   Snapshot(const Vehicle& ego,
            const std::unordered_map<size_t, Vehicle>& agents,
            const boost::shared_ptr<router::LoopRouter>& router,
-           const boost::shared_ptr<CarlaMap>& map);
+           const boost::shared_ptr<CarlaMap>& map,
+           const boost::shared_ptr<utils::FastWaypointMap>& fast_map);
 
   Snapshot(const Snapshot& other);
 

@@ -52,14 +52,19 @@ protected:
   /// Carla map.
   boost::shared_ptr<CarlaMap> map_ = nullptr;
 
+  /// Fast waypoint map.
+  boost::shared_ptr<utils::FastWaypointMap> fast_map_ = nullptr;
+
 public:
 
   TrafficSimulator(const Snapshot& snapshot,
-                   const boost::shared_ptr<CarlaMap>& map) :
+                   const boost::shared_ptr<CarlaMap>& map,
+                   const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
     snapshot_(snapshot),
     idm_(boost::make_shared<IntelligentDriverModel>()),
     router_(boost::make_shared<router::LoopRouter>()),
-    map_(map) {}
+    map_(map),
+    fast_map_(fast_map) {}
 
   const Snapshot& snapshot() const { return snapshot_; }
 

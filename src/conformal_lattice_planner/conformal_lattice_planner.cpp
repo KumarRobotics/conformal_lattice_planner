@@ -210,14 +210,14 @@ DiscretePath ConformalLatticePlanner::plan(
 bool ConformalLatticePlanner::immediateNextStationReached(
     const Snapshot& snapshot) const {
 
-  std::printf("immediateNextStationReached(): \n");
+  //std::printf("immediateNextStationReached(): \n");
 
   boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
     boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
 
   // Find out the current distance of the ego on the lattice.
   boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
-      map_->GetWaypoint(snapshot.ego().transform().location),
+      fast_map_->waypoint(snapshot.ego().transform().location),
       waypoint_lattice->longitudinalResolution());
   double ego_distance = ego_node->distance();
 
@@ -242,15 +242,15 @@ bool ConformalLatticePlanner::immediateNextStationReached(
 
 void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 
-  std::printf("updateWaypointLattice(): \n");
+  //std::printf("updateWaypointLattice(): \n");
 
   // If the waypoint lattice has not been initialized, a new one is created with
   // the start waypoint as where the ego currently is. Meanwhile, the range of
   // the lattice is set to the spatial horizon. The resolution is hardcoded as 1.0m.
   if (!waypoint_lattice_) {
-    std::printf("Create new waypoint lattice.\n");
+    //std::printf("Create new waypoint lattice.\n");
     boost::shared_ptr<CarlaWaypoint> ego_waypoint =
-      map_->GetWaypoint(snapshot.ego().transform().location);
+      fast_map_->waypoint(snapshot.ego().transform().location);
     waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
         ego_waypoint, spatial_horizon_, 1.0, router_);
     return;
@@ -260,7 +260,7 @@ void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
   // update the lattice or leave it as it currently is based on whether the ego
   // has reached one of the child stations of the root.
   if (immediateNextStationReached(snapshot)) {
-    std::printf("Shift the waypoint lattice forward by 50.0m.\n");
+    //std::printf("Shift the waypoint lattice forward by 50.0m.\n");
     waypoint_lattice_->shift(50.0);
   }
 
@@ -270,7 +270,7 @@ void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 std::queue<boost::shared_ptr<Station>>
   ConformalLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
-  std::printf("pruneStationGraph(): \n");
+  //std::printf("pruneStationGraph(): \n");
 
   // Stores the stations to be explored.
   std::queue<boost::shared_ptr<Station>> station_queue;
@@ -283,7 +283,7 @@ std::queue<boost::shared_ptr<Station>>
 
     // Initialize the new root station.
     boost::shared_ptr<Station> root =
-      boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
+      boost::make_shared<Station>(snapshot, waypoint_lattice_, fast_map_);
     node_to_station_table_[root->id()] = root;
     root_ = root;
 
@@ -297,7 +297,7 @@ std::queue<boost::shared_ptr<Station>>
 
   // Create the new root station.
   boost::shared_ptr<Station> new_root =
-    boost::make_shared<Station>(snapshot, waypoint_lattice_, map_);
+    boost::make_shared<Station>(snapshot, waypoint_lattice_, fast_map_);
 
   // Find the immedidate waypoint nodes.
   boost::shared_ptr<const WaypointNode> front_node = nullptr;
@@ -384,7 +384,7 @@ std::queue<boost::shared_ptr<Station>>
 void ConformalLatticePlanner::constructStationGraph(
     std::queue<boost::shared_ptr<Station>>& station_queue) {
 
-  std::printf("constructStationGraph(): \n");
+  //std::printf("constructStationGraph(): \n");
   //std::queue<boost::shared_ptr<Station>> station_queue;
   //station_queue.push(root_.lock());
 
@@ -477,7 +477,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
 
   // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_);
+  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -488,7 +488,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
-      simulator.snapshot(), waypoint_lattice_, map_);
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
   if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
 
@@ -572,7 +572,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
 
   // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_);
+  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -583,7 +583,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
-      simulator.snapshot(), waypoint_lattice_, map_);
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
   if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
 
@@ -667,7 +667,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
 
   // Now, simulate the traffic forward with the ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_);
+  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -678,7 +678,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
   boost::shared_ptr<Station> next_station = boost::make_shared<Station>(
-      simulator.snapshot(), waypoint_lattice_, map_);
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
   if (node_to_station_table_.count(next_station->id()) != 0)
     next_station = node_to_station_table_[next_station->id()];
 
