@@ -31,9 +31,31 @@ find_package(catkin REQUIRED COMPONENTS
 # System dependencies are found with CMake's conventions
 find_package(Boost 1.69 REQUIRED COMPONENTS timer)
 find_package(GooglePerfTools REQUIRED)
-#message("GooglePerfTools Include Dir: " ${GOOGLE_PERFTOOLS_INCLUDE_DIR})
-#message("GooglePerfTools Libs: " ${PROFILER_LIBRARIES})
+find_package(PCL 1.9.1 EXACT REQUIRED COMPONENTS kdtree)
 
+# Copied from pcl_ros package.
+if(NOT "${PCL_LIBRARIES}" STREQUAL "")
+  # For debian: https://github.com/ros-perception/perception_pcl/issues/139
+  list(REMOVE_ITEM PCL_LIBRARIES
+    "vtkGUISupportQt"
+    "vtkGUISupportQtOpenGL"
+    "vtkGUISupportQtSQL"
+    "vtkGUISupportQtWebkit"
+    "vtkViewsQt"
+    "vtkRenderingQt")
+endif()
+
+# Copied from pcl_ros package.
+if(NOT "${PCL_INCLUDE_DIRS}" STREQUAL "")
+  foreach(item ${PCL_INCLUDE_DIRS})
+    string(REGEX MATCH "/usr/include/.*-linux-gnu/freetype2" item ${item})
+    if(item)
+      list(REMOVE_ITEM PCL_INCLUDE_DIRS ${item})
+    endif()
+  endforeach()
+endif()
+
+message("PCL components: " ${PCL_COMPONENTS})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -139,6 +161,8 @@ include_directories(
   $ENV{Carla_INCLUDE_DIRS}/system
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${GOOGLE_PERFTOOLS_INCLUDE_DIR}
 )
 
 link_directories(
@@ -176,6 +200,7 @@ target_link_libraries(all_planning
   ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 add_dependencies(all_planning
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
@@ -200,6 +225,7 @@ target_link_libraries(all_ros_nodes
   ${Carla_LIBRARIES}
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 add_dependencies(all_ros_nodes
   ${${PROJECT_NAME}_EXPORTED_TARGETS}

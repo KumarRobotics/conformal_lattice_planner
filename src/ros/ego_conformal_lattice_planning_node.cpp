@@ -63,6 +63,37 @@ bool EgoConformalLatticePlanningNode::initialize() {
   ROS_INFO_NAMED("ego_planner", "start action server.");
   server_.start();
 
+  ROS_INFO_NAMED("ego_planner", "Check fast waypoint map.");
+  boost::shared_ptr<utils::FastWaypointMap> fast_waypoint_map =
+    boost::make_shared<utils::FastWaypointMap>(map_);
+
+  carla::geom::Location location{0.0, 0.0, 0.0};
+
+  ros::Time start = ros::Time::now();
+  boost::shared_ptr<CarlaWaypoint> true_waypoint = map_->GetWaypoint(location);
+  std::printf("carla map API time: %f\n", (ros::Time::now()-start).toSec());
+
+  start = ros::Time::now();
+  boost::shared_ptr<CarlaWaypoint> test_waypoint = fast_waypoint_map->waypoint(location);
+  std::printf("fast map API time: %f\n", (ros::Time::now()-start).toSec());
+
+  ROS_INFO_NAMED("ego_planner", "true waypoint transform: x:%f y:%f z:%f r:%f p:%f y:%f",
+      true_waypoint->GetTransform().location.x,
+      true_waypoint->GetTransform().location.y,
+      true_waypoint->GetTransform().location.z,
+      true_waypoint->GetTransform().rotation.roll,
+      true_waypoint->GetTransform().rotation.pitch,
+      true_waypoint->GetTransform().rotation.yaw);
+
+  ROS_INFO_NAMED("ego_planner", "test waypoint transform: x:%f y:%f z:%f r:%f p:%f y:%f",
+      test_waypoint->GetTransform().location.x,
+      test_waypoint->GetTransform().location.y,
+      test_waypoint->GetTransform().location.z,
+      test_waypoint->GetTransform().rotation.roll,
+      test_waypoint->GetTransform().rotation.pitch,
+      test_waypoint->GetTransform().rotation.yaw);
+
+
   ROS_INFO_NAMED("ego_planner", "initialization finishes.");
   return all_param_exist;
 }
