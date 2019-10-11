@@ -518,6 +518,11 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
 
+  // Return directly if the target node is already very close to the station.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-station->node().lock()->distance() < 10.0)
+    return nullptr;
+
   // Check the left front and left back vehicles.
   //
   // If there are vehicles at the left front or left back of the ego,
@@ -612,6 +617,11 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
+
+  // Return directly if the target node is already very close to the station.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-station->node().lock()->distance() < 10.0)
+    return nullptr;
 
   // Check the right front and right back vehicles.
   //
