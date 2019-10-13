@@ -15,6 +15,8 @@
  */
 
 #include <stdexcept>
+#include <string>
+#include <boost/format.hpp>
 #include <carla/road/Road.h>
 #include <carla/road/element/RoadInfoGeometry.h>
 #include <conformal_lattice_planner/utils.h>
@@ -56,7 +58,6 @@ carla::geom::Transform convertTransform(const carla::geom::Transform& in) {
   return out;
 }
 
-
 const double curvatureAtWaypoint(
     const boost::shared_ptr<const carla::client::Waypoint>& waypoint,
     const boost::shared_ptr<const carla::client::Map>& map) {
@@ -74,25 +75,34 @@ const double curvatureAtWaypoint(
   // Get the curvature.
   double curvature = 0.0;
 
-  if (geometry.GetType() == carla::road::element::GeometryType::LINE)
+  if (geometry.GetType() == carla::road::element::GeometryType::LINE) {
     curvature = 0.0;
 
-  if (geometry.GetType() == carla::road::element::GeometryType::ARC) {
+  } else if (geometry.GetType() == carla::road::element::GeometryType::ARC) {
     const carla::road::element::GeometryArc& geometry_arc =
       dynamic_cast<const carla::road::element::GeometryArc&>(geometry);
     curvature = geometry_arc.GetCurvature();
+
+  } else if (geometry.GetType() == carla::road::element::GeometryType::SPIRAL) {
+    //FIXME: Not sure how to deal with this.
+    //       But there is no example for this road type from Town01 to Town07.
+    std::string error_msg("curvatureAtWaypoint(): cannot get curvature for waypointa on spiral roads.\n");
+    boost::format format("waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%\n");
+    format % waypoint->GetId()
+           % waypoint->GetTransform().location.x
+           % waypoint->GetTransform().location.y
+           % waypoint->GetTransform().location.z
+           % waypoint->GetTransform().rotation.roll
+           % waypoint->GetTransform().rotation.pitch
+           % waypoint->GetTransform().rotation.yaw
+           % waypoint->GetRoadId()
+           % waypoint->GetLaneId();
+
+    throw std::runtime_error(error_msg+format.str());
+  } else {
   }
 
-  if (geometry.GetType() == carla::road::element::GeometryType::SPIRAL) {
-    //FIXME: Not sure how to deal with this. But there is no example for this road type
-    //       from Town01 to Town07.
-    throw std::runtime_error("Curvature for spiral road is not defined.\n");
-    //const carla::road::element::GeometrySpiral& geometry_spiral =
-    //  dynamic_cast<const carla::road::element::GeometrySpiral&>(geometry);
-    //return geometry_spiral.GetCurvatureEnd();
-  }
-
-  //std::printf("lane id:%d curvature:%f\n", waypoint->GetLaneId(), curvature);
+  // Fix the curvature based on the sign of the lane ID.
   if (waypoint->GetLaneId() >= 0) return curvature;
   else return -curvature;
 }

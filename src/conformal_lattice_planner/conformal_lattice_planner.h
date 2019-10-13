@@ -101,7 +101,10 @@ public:
   Station(const Snapshot& snapshot, const boost::shared_ptr<const WaypointNode>& node) :
     node_    (node),
     snapshot_(snapshot) {
-    if (!node) throw std::runtime_error("node == nullptr");
+    if (!node) {
+      throw std::runtime_error(
+          "Station::Station(): input node = nullptr.\n");
+    }
     return;
   }
 
@@ -112,7 +115,15 @@ public:
     boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
         fast_map->waypoint(snapshot.ego().transform().location),
         waypoint_lattice->longitudinalResolution());
-    if (!node) throw std::runtime_error("Cannot find a node on the waypoint lattice for the station");
+    if (!node) {
+      std::string error_msg(
+          "Station::Station(): "
+          "cannot find a node on the waypoint lattice corresponding to the ego location.\n");
+      throw std::runtime_error(
+          error_msg +
+          snapshot.string("snapshot: \n") +
+          waypoint_lattice->string("waypoint lattice: \n"));
+    }
     node_ = node;
     return;
   }
@@ -121,8 +132,11 @@ public:
   boost::weak_ptr<const WaypointNode>& node() { return node_; }
 
   const size_t id() const {
-    if (!node_.lock())
-      throw std::runtime_error("The station is not associated with any node.");
+    if (!node_.lock()) {
+      throw std::runtime_error(
+          "Station::id(): "
+          "The station is not associated with any node.");
+    }
     return node_.lock()->id();
   }
 
@@ -131,7 +145,11 @@ public:
   const Snapshot& snapshot() const { return snapshot_; }
 
   const double costToCome() const {
-    if (!optimal_parent_) throw std::runtime_error("Optimal parent not available.");
+    if (!optimal_parent_) {
+      throw std::runtime_error(
+          "Station::costToCome(): "
+          "optimal parent is not available for this station.");
+    }
     return std::get<1>(*optimal_parent_);
   }
 
@@ -278,26 +296,7 @@ public:
   /// Get the edges on the lattice, corresponding to the path.
   std::vector<ContinuousPath> edges() const;
 
-  /**
-   * \brief The main interface of the path planner.
-   *
-   * \param[in] ego The ID of the target vehicle.
-   * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \return The planned path.
-   */
-  DiscretePath plan(const size_t ego, const Snapshot& snapshot);
-
-  /**
-   * \brief The main interface of the path planner.
-   *
-   * \param[in] ego The ID of the target vehicle.
-   * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \param[out] path The planned path.
-   */
-  void plan(const size_t ego, const Snapshot& snapshot, DiscretePath& path) {
-    path = plan(ego, snapshot);
-    return;
-  }
+  virtual DiscretePath plan(const size_t ego, const Snapshot& snapshot) override;
 
 protected:
 

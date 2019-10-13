@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <string>
 #include <cmath>
 #include <stdexcept>
 #include <algorithm>
@@ -54,8 +55,10 @@ std::pair<carla::geom::Transform, double> VehiclePath::interpolateTransform(
     const double w) const {
 
   if (w < 0.0 || w > 1.0) {
-    throw std::runtime_error(
-        "Weight for the first transform should be within the range of [0, 1].");
+    std::string error_msg = (boost::format(
+          "VehiclePath::interpolateTransform(): "
+          "w=%1% is outside the range [0, 1].\n") % w).str();
+    throw std::runtime_error(error_msg);
   }
 
   auto unrollAngle = [](const double angle)->double{
@@ -99,16 +102,23 @@ ContinuousPath::ContinuousPath(
   // Convert the start and end to right handed coordinate system.
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
-
   const bool success = path_.optimizePath(start_state, end_state);
-  //std::printf("path a:%f b:%f c:%f d:%f sf:%f\n", path_.a, path_.b, path_.c, path_.d, path_.sf);
 
   if (!success) {
-    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
-        start_state.x, start_state.y, start_state.theta, start_state.kappa);
-    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
-        end_state.x, end_state.y, end_state.theta, end_state.kappa);
-    throw std::runtime_error("Path optimization diverges.\n");
+    std::string error_msg("ContinuousPath::ContinuousPath(): path optimization diverges.\n");
+    std::string start_msg = (boost::format(
+        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % start.first.location.x
+        % start.first.location.y
+        % start.first.rotation.yaw
+        % start.second).str();
+    std::string end_msg = (boost::format(
+        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % end.first.location.x
+        % end.first.location.y
+        % end.first.rotation.yaw
+        % end.second).str();
+    throw std::runtime_error(error_msg + start_msg + end_msg);
   }
   return;
 }
@@ -121,14 +131,23 @@ ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
   // Convert the start and end to right handed coordinate system.
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end_);
-
   const bool success = path_.optimizePath(start_state, end_state);
+
   if (!success) {
-    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
-        start_state.x, start_state.y, start_state.theta, start_state.kappa);
-    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
-        end_state.x, end_state.y, end_state.theta, end_state.kappa);
-    throw std::runtime_error("Path optimization diverges.\n");
+    std::string error_msg("ContinuousPath::ContinuousPath(): path optimization diverges.\n");
+    std::string start_msg = (boost::format(
+        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % start_.first.location.x
+        % start_.first.location.y
+        % start_.first.rotation.yaw
+        % start_.second).str();
+    std::string end_msg = (boost::format(
+        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % end_.first.location.x
+        % end_.first.location.y
+        % end_.first.rotation.yaw
+        % end_.second).str();
+    throw std::runtime_error(error_msg + start_msg + end_msg);
   }
   return;
 }
@@ -137,8 +156,10 @@ const std::pair<ContinuousPath::CarlaTransform, double>
 ContinuousPath::transformAt(const double s) const {
 
   if (s < 0.0 || s > path_.sf) {
-    std::printf("s:%f sf:%f\n", s, path_.sf);
-    throw std::out_of_range("The input distance is out of the range of the path.");
+    throw std::runtime_error((boost::format(
+            "ContinuousPath::transformAt(): "
+            "the input distance %1% is outside path range $2$.\n")
+            % s % path_.sf).str());
   }
 
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start_);
@@ -186,11 +207,22 @@ DiscretePath::DiscretePath(
   NonHolonomicPath path;
   const bool success = path.optimizePath(start_state, end_state);
   if (!success) {
-    std::printf("start state x:%f y:%f theta:%f kappa:%f\n",
-        start_state.x, start_state.y, start_state.theta, start_state.kappa);
-    std::printf("end state x:%f y:%f theta:%f kappa:%f\n",
-        end_state.x, end_state.y, end_state.theta, end_state.kappa);
-    throw std::runtime_error("Path optimization diverges.\n");
+    std::string error_msg(
+        "DiscretePath::DiscretePath(): "
+        "path optimization diverges.\n");
+    std::string start_msg = (boost::format(
+        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % start.first.location.x
+        % start.first.location.y
+        % start.first.rotation.yaw
+        % start.second).str();
+    std::string end_msg = (boost::format(
+        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % end.first.location.x
+        % end.first.location.y
+        % end.first.rotation.yaw
+        % end.second).str();
+    throw std::runtime_error(error_msg + start_msg + end_msg);
   }
 
   // Sample the path with 0.1m resolution.
@@ -209,8 +241,10 @@ DiscretePath::DiscretePath(
     samples_[path.sf] = pathStateToCarlaTransform(state, end.first);
   }
 
-  if (samples_.empty())
-    throw std::runtime_error("Empty discrete path.");
+  if (samples_.empty()) {
+    throw std::runtime_error(
+        "DiscretePath::DiscretePath(): empty discrete path.\n");
+  }
 
   return;
 }
@@ -227,8 +261,10 @@ DiscretePath::DiscretePath(const ContinuousPath& continuous_path) :
       continuous_path.transformAt(continuous_path.range());
   }
 
-  if (samples_.empty())
-    throw std::runtime_error("Empty discrete path.");
+  if (samples_.empty()) {
+    throw std::runtime_error(
+        "DiscretePath::DiscretePath(): empty discrete path.\n");
+  }
 
   return;
 }
@@ -237,8 +273,10 @@ const std::pair<DiscretePath::CarlaTransform, double>
 DiscretePath::transformAt(const double s) const {
 
   if (s < 0.0 || s > range()) {
-    std::printf("s:%f sf:%f\n", s, range());
-    throw std::out_of_range("The input distance is out of the range of the path.");
+    throw std::runtime_error((boost::format(
+            "DiscretePath::transformAt(): "
+            "the input distance %1% is outside path range $2$.\n")
+            % s % range()).str());
   }
 
   if (s == 0.0) return samples_.begin()->second;
@@ -249,8 +287,12 @@ DiscretePath::transformAt(const double s) const {
         return sample.first > s;
       });
 
-  if (iter==samples_.begin() || iter==samples_.end())
-    throw std::runtime_error("The input distance is out of the range of the path.");
+  if (iter==samples_.begin() || iter==samples_.end()) {
+    throw std::runtime_error((boost::format(
+            "DiscretePath::transformAt(): "
+            "the input distance %1% is outside path range $2$.\n")
+            % s % range()).str());
+  }
 
   auto iter1 = --iter; ++iter;
   auto iter2 = iter;
@@ -270,8 +312,11 @@ void DiscretePath::append(const DiscretePath& path) {
   // Only location is compared.
   const double gap = (endTransform().first.location -
                       path.startTransform().first.location).Length();
-  //std::printf("gap: %f\n", gap);
-  if (gap > 0.1) throw std::runtime_error("gap > 0.1m");
+
+  if (gap > 0.1) {
+    throw std::runtime_error((boost::format(
+            "The gap [%1%] between paths is greater than 0.1m.\n") % gap).str());
+  }
 
   // Append the samples in the input path to this path.
   // The first sample in the input path should be ignored.

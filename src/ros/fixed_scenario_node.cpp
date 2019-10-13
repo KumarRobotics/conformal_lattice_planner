@@ -85,8 +85,16 @@ void FixedScenarioNode::spawnVehicles() {
 
   {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
-      waypoint_lattice->rightFront(ego_waypoint, 40.0)->waypoint();
+      waypoint_lattice->rightFront(ego_waypoint, 20.0)->waypoint();
     if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
+
+  {
+    boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
+      waypoint_lattice->leftBack(ego_waypoint, 15.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 29.0, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
   }

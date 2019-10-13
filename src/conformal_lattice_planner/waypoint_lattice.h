@@ -20,9 +20,11 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <string>
 
 #include <boost/smart_ptr.hpp>
 #include <boost/pointer_cast.hpp>
+#include <boost/format.hpp>
 
 #include <carla/client/World.h>
 #include <carla/client/Map.h>
@@ -108,6 +110,24 @@ public:
 
   // Get the distance of the node.
   const double distance() const { return distance_; }
+
+  // Get the string describing the node.
+  std::string string(const std::string& prefix="") const {
+    boost::format waypoint_format(
+        "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n");
+    std::string waypoint_msg = (waypoint_format
+        % waypoint_->GetTransform().location.x
+        % waypoint_->GetTransform().location.y
+        % waypoint_->GetTransform().location.z
+        % waypoint_->GetTransform().rotation.roll
+        % waypoint_->GetTransform().rotation.pitch
+        % waypoint_->GetTransform().rotation.yaw
+        % waypoint_->GetRoadId()
+        % waypoint_->GetLaneId()).str();
+    std::string distance_msg = (boost::format("node distance: %1%\n") % distance_).str();
+    return prefix + waypoint_msg + distance_msg;
+    // TODO: Add the info for neighbor waypoints as well.
+  }
 }; // End class WaypointNode.
 
 /**
@@ -337,6 +357,9 @@ public:
       const boost::shared_ptr<const CarlaWaypoint>& query,
       const double range) const;
   /// @}
+
+  /// Get the string describing the lattice.
+  std::string string(const std::string& prefix="") const;
 
 protected:
 

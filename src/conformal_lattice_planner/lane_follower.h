@@ -75,26 +75,7 @@ public:
     return waypoint_lattice_;
   }
 
-  /**
-   * \brief The main interface of the path planner.
-   *
-   * \param[in] target The ID of the target vehicle.
-   * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \param[out] path The planned path.
-   */
-  void plan(const size_t target, const Snapshot& snapshot, DiscretePath& path) {
-    path = plan(target, snapshot);
-    return;
-  }
-
-  /**
-   * \brief The main interface of the path planner.
-   *
-   * \param[in] target The ID of the target vehicle.
-   * \param[in] snapshot Snapshot of the current traffic scenario.
-   * \return The planned path.
-   */
-  DiscretePath plan(const size_t target, const Snapshot& snapshot) {
+  virtual DiscretePath plan(const size_t target, const Snapshot& snapshot) override {
 
     // Get the target vehicle and its waypoint.
     const Vehicle target_vehicle = snapshot.vehicle(target);
@@ -102,8 +83,10 @@ public:
       fast_map_->waypoint(target_vehicle.transform().location);
 
     // Waypoint lattice is created if not available.
-    if (!waypoint_lattice_)
-      throw std::runtime_error("The waypoint lattice is not available.\n");
+    if (!waypoint_lattice_) {
+      throw std::runtime_error(
+          "LaneFollower::plan(): the waypoint lattice is not set yet.\n");
+    }
 
     // Find the waypoint 50m ahead of the current postion of the target vehicle.
     const boost::shared_ptr<const WaypointNode> front_node =
@@ -112,16 +95,34 @@ public:
 
     if (!front_node) {
       if (target_vehicle.id() == snapshot.ego().id()) {
-        // If there is no front node for the ego, there must be something else wrong.
-        // The ego should be always follow the route.
-        throw std::runtime_error("Ego vehicle can no longer keep the current lane.");
+        // If there is no front node 50m ahead of the ego,
+        // the waypoint lattice must be set incorrectly.
+        std::string error_msg("LaneFollower::plan(): there is no node 50m ahead of ego.\n");
+        std::string ego_msg = snapshot.ego().string();
+        throw std::runtime_error(error_msg + ego_msg);
       } else {
         // If there is no front node for an agent vehicle. We may just find its next
         // accessible waypoint with some distance.
         std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
           target_waypoint->GetNext(10.0);
-        if (front_waypoints.size() <= 0)
-          throw std::runtime_error("The agent vehicle cannot proceed further.");
+
+        if (front_waypoints.size() <= 0) {
+          std::string error_msg("LaneFollower::plan(): cannot find next waypoints for an agent.\n");
+          std::string agent_msg = target_vehicle.string();
+          std::string waypoint_msg =
+            (boost::format("waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n")
+             % target_waypoint->GetId()
+             % target_waypoint->GetTransform().location.x
+             % target_waypoint->GetTransform().location.y
+             % target_waypoint->GetTransform().location.z
+             % target_waypoint->GetTransform().rotation.roll
+             % target_waypoint->GetTransform().rotation.pitch
+             % target_waypoint->GetTransform().rotation.yaw
+             % target_waypoint->GetRoadId()
+             % target_waypoint->GetLaneId()).str();
+          throw std::runtime_error(error_msg + agent_msg + waypoint_msg);
+        }
+
         front_waypoint = front_waypoints[0];
       }
     } else {
@@ -134,28 +135,9 @@ public:
     const CarlaTransform current_transform = target_waypoint->GetTransform();
     const double current_curvature = utils::curvatureAtWaypoint(target_waypoint, map_);
 
-    //std::printf("current transform: x:%f y:%f z:%f r:%f p:%f y:%f c:%f\n",
-    //    current_transform.location.x,
-    //    current_transform.location.y,
-    //    current_transform.location.z,
-    //    current_transform.rotation.roll,
-    //    current_transform.rotation.pitch,
-    //    current_transform.rotation.yaw,
-    //    current_curvature);
-
     const CarlaTransform reference_transform = front_waypoint->GetTransform();
     const double reference_curvature = utils::curvatureAtWaypoint(front_waypoint, map_);
 
-    //std::printf("reference transform: x:%f y:%f z:%f r:%f p:%f y:%f c:%f\n",
-    //    reference_transform.location.x,
-    //    reference_transform.location.y,
-    //    reference_transform.location.z,
-    //    reference_transform.rotation.roll,
-    //    reference_transform.rotation.pitch,
-    //    reference_transform.rotation.yaw,
-    //    reference_curvature);
-
-    //std::printf("Plan discrete path.\n");
     // Generate the path.
     return DiscretePath(
         std::make_pair(current_transform, current_curvature),

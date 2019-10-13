@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <algorithm>
+#include <string>
 #include <boost/format.hpp>
 
 #include <conformal_lattice_planner/waypoint_lattice.h>
@@ -37,9 +38,12 @@ Lattice<Node, Router>::Lattice(
   longitudinal_resolution_(longitudinal_resolution) {
 
   if (range <= longitudinal_resolution_) {
-    throw std::runtime_error(
-        (boost::format("The given range [%1%] is too small."
-                       "Range should be at least 1xlongitudinal_resolution.") % range).str());
+    std::string error_msg = (boost::format(
+            "Lattice::Lattice(): "
+            "range [%1%] < longitudinal resolution [%2%].\n")
+          % range
+          % longitudinal_resolution).str();
+    throw std::runtime_error(error_msg);
   }
 
   // Create the start node.
@@ -220,8 +224,13 @@ double Lattice<Node, Router>::range() const {
 template<typename Node, typename Router>
 void Lattice<Node, Router>::extend(double range) {
 
-  if (range <= 0.0)
-    throw std::runtime_error("range <= 0.0");
+  if (range <= 0.0) {
+    std::string error_msg = (boost::format(
+            "Lattice::Lattice(): "
+            "range [%1%] <= 0.0.\n")
+          % range).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // If the current range of the lattice exceeds the given range,
   // no operation is performed.
@@ -252,8 +261,12 @@ void Lattice<Node, Router>::extend(double range) {
 template<typename Node, typename Router>
 void Lattice<Node, Router>::shorten(double range) {
 
-  if (range < 0.0)
-    throw std::runtime_error("range < 0.0");
+  if (range < 0.0) {
+    std::string error_msg((boost::format(
+            "Lattice::shorten(): "
+            "required range [%1%] < 0.0.\n") % range).str());
+    throw std::runtime_error(error_msg);
+  }
 
   // If the current lattice range is already smaller than the given range,
   // no operation is performed.
@@ -778,6 +791,28 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
   if (closest_distance < tolerance) return closest_node;
   else return nullptr;
   //return nullptr;
+}
+
+template<typename Node, typename Router>
+std::string Lattice<Node, Router>::string(const std::string& prefix) const {
+
+  std::string lattice_msg = (boost::format(
+        "lattice longitudinal resolution: %1%.\n"
+        "lattice node #: %2%\n")
+      % longitudinal_resolution_
+      % waypoint_to_node_table_.size()).str();
+
+  std::string lattice_entries_msg = (boost::format(
+        "%1% lattice entries:\n") % lattice_entries_.size()).str();
+  for (const auto& entry : lattice_entries_)
+    lattice_entries_msg += entry.lock()->string();
+
+  std::string lattice_exits_msg = (boost::format(
+        "%1% lattice exits:\n") % lattice_exits_.size()).str();
+  for (const auto& exit : lattice_exits_)
+    lattice_exits_msg += exit.lock()->string();
+
+  return prefix + lattice_msg + lattice_entries_msg + lattice_exits_msg;
 }
 
 } // End namespace planner.

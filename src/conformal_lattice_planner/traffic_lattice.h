@@ -19,7 +19,11 @@
 #include <cstdint>
 #include <tuple>
 #include <array>
+#include <string>
+
+#include <boost/format.hpp>
 #include <boost/optional.hpp>
+
 #include <carla/client/Vehicle.h>
 #include <carla/client/Map.h>
 
@@ -103,6 +107,32 @@ public:
 
   /// Get or set the vehicle ID at this node.
   boost::optional<size_t>& vehicle() { return vehicle_; }
+
+  // Get the string describing the node.
+  std::string string(const std::string& prefix="") const {
+    boost::format waypoint_format(
+        "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n");
+    std::string waypoint_msg = (waypoint_format
+        % waypoint_->GetTransform().location.x
+        % waypoint_->GetTransform().location.y
+        % waypoint_->GetTransform().location.z
+        % waypoint_->GetTransform().rotation.roll
+        % waypoint_->GetTransform().rotation.pitch
+        % waypoint_->GetTransform().rotation.yaw
+        % waypoint_->GetRoadId()
+        % waypoint_->GetLaneId()).str();
+
+    std::string distance_msg = (boost::format("node distance: %1%\n") % distance_).str();
+
+    std::string vehicle_msg;
+    if (!vehicle_)
+      vehicle_msg = "vehicle at this node: \n";
+    else
+      vehicle_msg = (boost::format("vehicle at this node: %1%\n") % (*vehicle_)).str();
+
+    return prefix + waypoint_msg + distance_msg + vehicle_msg;
+    // TODO: Add the info for neighbor waypoints as well.
+  }
 
 }; // End class WaypointNodeWithVehicle.
 
@@ -319,6 +349,9 @@ public:
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
+  /// Get the string describing the lattice.
+  std::string string(const std::string& prefix="") const;
+
 protected:
 
   // Hide some of the inherited public functions.
@@ -464,8 +497,23 @@ protected:
   double waypointToRoadStartDistance(
       const boost::shared_ptr<CarlaWaypoint>& waypoint) const {
 
-    if (waypoint->GetLaneId() == 0)
-      throw std::runtime_error("Waypoint has lane ID 0.");
+    if (waypoint->GetLaneId() == 0) {
+      std::string error_msg(
+          "TrafficLattice::waypointToRoadStartDistance(): "
+          "waypoint had lane Id 0.\n");
+      std::string waypoint_msg =
+        (boost::format("waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n")
+         % waypoint->GetId()
+         % waypoint->GetTransform().location.x
+         % waypoint->GetTransform().location.y
+         % waypoint->GetTransform().location.z
+         % waypoint->GetTransform().rotation.roll
+         % waypoint->GetTransform().rotation.pitch
+         % waypoint->GetTransform().rotation.yaw
+         % waypoint->GetRoadId()
+         % waypoint->GetLaneId()).str();
+      throw std::runtime_error(error_msg + waypoint_msg);
+    }
 
     const CarlaRoad& road = map_->GetMap().GetMap().GetRoad(waypoint->GetRoadId());
     if (waypoint->GetLaneId() > 0) return road.GetLength() - waypoint->GetDistance();

@@ -114,6 +114,8 @@ void EgoConformalLatticePlanningNode::executeCallback(
 
   ROS_INFO_NAMED("ego_planner", "executeCallback()");
 
+  ros::Time start_time = ros::Time::now();
+
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   //map_ = world_->GetMap();
@@ -132,7 +134,7 @@ void EgoConformalLatticePlanningNode::executeCallback(
   const DiscretePath ego_path = path_planner_->plan(ego_policy.first, *snapshot);
 
   // Publish the station graph.
-  //conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
+  conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
   path_pub_.publish(createEgoPathMsg(ego_path));
   //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
@@ -173,6 +175,14 @@ void EgoConformalLatticePlanningNode::executeCallback(
   result.ego_target_speed.id = ego_policy.first;
   result.ego_target_speed.speed = updated_speed;
   server_.setSucceeded(result);
+
+  ros::Time end_time = ros::Time::now();
+  ROS_INFO_NAMED("ego_planner", "planning time: %f",
+      (end_time-start_time).toSec());
+  if ((end_time-start_time).toSec() < 0.2) {
+    ros::Duration delay(0.2-(end_time-start_time).toSec());
+    delay.sleep();
+  }
 
   return;
 }

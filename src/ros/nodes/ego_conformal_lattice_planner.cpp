@@ -35,8 +35,8 @@ int main(int argc, char** argv) {
     ROS_ERROR("Cannot initialize the ego conformal lattice planner.");
   }
 
-  ProfilerStart("conformal_lattice_planner.stat");
+  //ProfilerStart("conformal_lattice_planner.stat");
   ros::spin();
-  ProfilerStop();
+  //ProfilerStop();
   return 0;
 }

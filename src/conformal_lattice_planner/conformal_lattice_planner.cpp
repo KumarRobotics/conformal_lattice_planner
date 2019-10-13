@@ -28,7 +28,11 @@ void Station::updateOptimalParent() {
     if (left_parent_) optimal_parent_ = left_parent_;
     else if (back_parent_) optimal_parent_ = back_parent_;
     else if (right_parent_) optimal_parent_ = right_parent_;
-    else throw std::runtime_error("Cannot update optimal parent since there is no parent available.");
+    else {
+      throw std::runtime_error(
+          "Station::updateOptimalParent(): "
+          "cannot update optimal parent since there is no parent available.\n");
+    }
   }
 
   // Set the \c optimal_parent_ to the existing parent with the minimum cost-to-come.
@@ -186,8 +190,18 @@ std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
 DiscretePath ConformalLatticePlanner::plan(
     const size_t ego, const Snapshot& snapshot) {
 
-  if (ego != snapshot.ego().id())
-    throw std::runtime_error("The conformal lattice planner should only plan for the ego.");
+  if (ego != snapshot.ego().id()) {
+    std::string error_msg(
+        "ConformalLatticePlanner::plan(): "
+        "The conformal lattice planner can only plan for the ego.\n");
+    std::string id_msg = (boost::format(
+          "Target vehicle ID:%1% "
+          "Ego vehicle ID:%2%\n")
+        % ego
+        % snapshot.ego().id()).str();
+
+    throw std::runtime_error(error_msg + id_msg);
+  }
 
   // Update the waypoint lattice.
   updateWaypointLattice(snapshot);
@@ -339,8 +353,12 @@ std::queue<boost::shared_ptr<Station>>
     }
 
     vehicle_node = vehicle_node->front();
-    if (!vehicle_node)
-      throw std::runtime_error("Searching reaches the end of lattice. Immediate next node is missing.");
+    if (!vehicle_node) {
+      std::string error_msg(
+          "ConformalLatticePlanner::pruneStationGraph(): "
+          "Immediate next stations are missing.\n");
+      throw std::runtime_error(error_msg + new_root->string());
+    }
   }
 
   // Try to connect the new root with above nodes.
@@ -712,8 +730,12 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
 const double ConformalLatticePlanner::terminalSpeedCost(
     const boost::shared_ptr<Station>& station) const {
 
-  if (station->hasChild())
-    throw std::runtime_error("The station is not a terminal station.");
+  if (station->hasChild()) {
+    std::string error_msg(
+        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "The input station is not a terminal.\n");
+    throw std::runtime_error(error_msg + station->string());
+  }
 
   static std::unordered_map<int, double> cost_map {
     {0, 3.0}, {1, 3.0}, {2, 2.0}, {3, 2.0}, {4, 2.0},
@@ -722,8 +744,16 @@ const double ConformalLatticePlanner::terminalSpeedCost(
 
   const double ego_speed = station->snapshot().ego().speed();
   const double ego_policy_speed = station->snapshot().ego().policySpeed();
-  if (ego_speed < 0.0 || ego_policy_speed < 0.0)
-    throw std::runtime_error("invalid ego speed or ego policy speed.");
+  if (ego_speed < 0.0 || ego_policy_speed < 0.0) {
+    std::string error_msg(
+        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "ego speed<0.0 or ego policy speed<0.0.\n");
+    std::string speed_msg = (boost::format(
+          "ego speed:%1% ego policy speed:%2%\n")
+          % ego_speed
+          % ego_policy_speed).str();
+    throw std::runtime_error(error_msg + speed_msg);
+  }
 
   // FIXME: What if the policy speed is 0.
   //        Should not worry about this too much here since,
@@ -740,8 +770,12 @@ const double ConformalLatticePlanner::terminalSpeedCost(
 const double ConformalLatticePlanner::terminalDistanceCost(
     const boost::shared_ptr<Station>& station) const {
 
-  if (station->hasChild())
-    throw std::runtime_error("The station is not a terminal station.");
+  if (station->hasChild()) {
+    std::string error_msg(
+        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "The input station is not a terminal.\n");
+    throw std::runtime_error(error_msg + station->string());
+  }
 
   static std::unordered_map<int, double> cost_map {
     {0, 3.0}, {1, 3.0}, {2, 3.0}, {3, 3.0}, {4, 2.0},
@@ -757,8 +791,12 @@ const double ConformalLatticePlanner::terminalDistanceCost(
 const double ConformalLatticePlanner::costFromRootToTerminal(
     const boost::shared_ptr<Station>& terminal) const {
 
-  if (terminal->hasChild())
-    throw std::runtime_error("The station is not a terminal station.");
+  if (terminal->hasChild()) {
+    std::string error_msg(
+        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "The input station is not a terminal.\n");
+    throw std::runtime_error(error_msg + terminal->string());
+  }
 
   const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
@@ -770,7 +808,7 @@ const double ConformalLatticePlanner::costFromRootToTerminal(
 
 std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
-  std::printf("selectOptimalPath():\n");
+  //std::printf("selectOptimalPath():\n");
 
   //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Station> optimal_station = nullptr;
@@ -799,12 +837,18 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   }
 
   // There should be at least one parent node.
-  if (!optimal_station)
-    throw std::runtime_error("No terminal station in the graph.");
+  if (!optimal_station) {
+    throw std::runtime_error(
+        "ConformalLatticePlanner::selectOptimalPath(): "
+        "no terminal station in the graph.\n");
+  }
 
   // There should always be parent stations for a terminal station.
-  if (!optimal_station->hasParent())
-    throw std::runtime_error("Graph only consists of one root station.");
+  if (!optimal_station->hasParent()) {
+    throw std::runtime_error(
+        "ConformalLatticePlanner::selectOptimalPath(): "
+        "the graph only has root station.\n");
+  }
 
   // Lambda function to get the child station IDs given a parent station.
   auto frontChildId = [this](const boost::shared_ptr<Station>& station)->boost::optional<size_t>{
@@ -831,7 +875,12 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
 
     boost::shared_ptr<Station> parent_station =
       std::get<2>((*(station->optimalParent()))).lock();
-    if (!parent_station) throw std::runtime_error("Optimal parent does not exist.");
+    if (!parent_station) {
+      std::string error_msg(
+          "ConformalLatticePlanner::selectOptimalPath(): "
+          "cannot find parent when tracing back optimal path from station.\n");
+      throw std::runtime_error(error_msg + station->string());
+    }
 
     // The station is the front child station of the parent.
     if (frontChildId(parent_station) &&

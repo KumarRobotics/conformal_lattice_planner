@@ -54,7 +54,24 @@ TrafficLattice<Router>::TrafficLattice(
   // Register the vehicles onto the lattice nodes.
   std::unordered_set<size_t> remove_vehicles;
   if(!registerVehicles(vehicles, vehicle_waypoints, remove_vehicles)) {
-    throw std::runtime_error("Collisions detected within the input vehicles.");
+    std::string error_msg(
+        "TrafficLattice::TrafficLattice(): "
+        "collision detected within the given vehicles.\n");
+
+    std::string vehicle_msg;
+    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4%.\n");
+
+    for (const auto& vehicle : vehicles) {
+      size_t id; CarlaTransform transform;
+      std::tie(id, transform, std::ignore) = vehicle;
+      vehicle_msg += (vehicle_format
+          % id
+          % transform.location.x
+          % transform.location.y
+          % transform.location.z).str();
+    }
+
+    throw std::runtime_error(error_msg + vehicle_msg);
   }
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
@@ -98,7 +115,24 @@ TrafficLattice<Router>::TrafficLattice(
   // Register the vehicles onto the lattice nodes.
   std::unordered_set<size_t> remove_vehicles;
   if(!registerVehicles(vehicle_tuples, vehicle_waypoints, remove_vehicles)) {
-    throw std::runtime_error("Collisions detected within the input vehicles.");
+    std::string error_msg(
+        "TrafficLattice::TrafficLattice(): "
+        "collision detected within the given vehicles.\n");
+
+    std::string vehicle_msg;
+    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4%.\n");
+
+    for (const auto& vehicle : vehicle_tuples) {
+      size_t id; CarlaTransform transform;
+      std::tie(id, transform, std::ignore) = vehicle;
+      vehicle_msg += (vehicle_format
+          % id
+          % transform.location.x
+          % transform.location.y
+          % transform.location.z).str();
+    }
+
+    throw std::runtime_error(error_msg + vehicle_msg);
   }
   if (disappear_vehicles) *disappear_vehicles = remove_vehicles;
 
@@ -142,8 +176,12 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::front(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::front(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // head of the vehicle.
@@ -155,8 +193,12 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::back(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::back(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // back of the vehicle.
@@ -168,13 +210,22 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::leftFront(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::leftFront(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // head of the vehicle.
   boost::shared_ptr<const Node> start = vehicleHeadNode(vehicle);
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::leftFront(): "
+          "head of vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the left node of the start.
   // If there is no left node, there is no left front vehicle.
@@ -200,13 +251,22 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::leftBack(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::leftBack(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // rear of the vehicle.
   boost::shared_ptr<const Node> start = vehicleRearNode(vehicle);
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::leftBack(): "
+          "rear of vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the left node of the start.
   // If there is no left node, there is no left back vehicle.
@@ -232,13 +292,22 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::rightFront(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::rightFront(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // head of the vehicle.
   boost::shared_ptr<const Node> start = vehicleHeadNode(vehicle);
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::rightFront(): "
+          "head of vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the right node of the start.
   // If there is no right node, there is no right front vehicle.
@@ -264,13 +333,22 @@ template<typename Router>
 boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::rightBack(const size_t vehicle) const {
 
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::out_of_range("Given vehicle is not on lattice");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::rightBack(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the node in the lattice which corresponds to the
   // rear of the vehicle.
   boost::shared_ptr<const Node> start = vehicleRearNode(vehicle);
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::rightBack(): "
+          "rear of vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Find the right node of the start.
   // If there is no right node, there is no right back vehicle.
@@ -303,8 +381,12 @@ std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
 
 template<typename Router>
 int32_t TrafficLattice<Router>::isChangingLane(const size_t vehicle) const {
-  if (vehicle_to_nodes_table_.count(vehicle) == 0)
-    throw std::runtime_error("The input vehicle does not exist on the traffic lattice.");
+  if (vehicle_to_nodes_table_.count(vehicle) == 0) {
+    std::string error_msg = (boost::format(
+          "TrafficLattice::isChangingLane(): "
+          "Input vehicle [%1%] is not on lattice.\n") % vehicle).str();
+    throw std::runtime_error(error_msg);
+  }
 
   boost::shared_ptr<const Node> rear_node = vehicleRearNode(vehicle);
   boost::shared_ptr<const Node> head_node = vehicleHeadNode(vehicle);
@@ -316,14 +398,29 @@ int32_t TrafficLattice<Router>::isChangingLane(const size_t vehicle) const {
   boost::shared_ptr<const Node> front_node = rear_node;
   for (int i = 0; i < length; ++i) {
     front_node = front_node->front();
-    if (!front_node)
-      throw std::runtime_error("There is no more front node on the same lane of the rear node.");
+    if (!front_node) {
+      std::string error_msg = (boost::format(
+            "TrafficLattice::isChangingLane(): "
+            "Cannot find a front node %1% steps ahead of the rear node on vehicle [%2%].\n")
+          % i
+          % vehicle).str();
+      throw std::runtime_error(
+          error_msg +
+          rear_node->string("rear node: ") +
+          head_node->string("head node: "));
+    }
   }
 
   if (front_node->id() == head_node->id()) return 0;
   if (front_node->left() && front_node->left()->id() == head_node->id()) return -1;
   if (front_node->right() && front_node->right()->id() == head_node->id()) return 1;
-  throw std::runtime_error("Cannot match to the head node of the vehicle.");
+
+  std::string error_msg("Cannot match front node to the head node.\n");
+  throw std::runtime_error(
+      error_msg +
+      front_node->string("front node: ") +
+      head_node->string("head node: ") +
+      rear_node->string("rear node: "));
 }
 
 template<typename Router>
@@ -491,12 +588,21 @@ bool TrafficLattice<Router>::moveTrafficForward(
     update_vehicles.insert(std::get<0>(item));
 
   if (existing_vehicles != update_vehicles) {
-    //std::printf("existing vehicles: ");
-    //for (const auto id : existing_vehicles) std::printf("%lu ", id);
-    //std::printf("\n update vehicles: ");
-    //for (const auto id : update_vehicles) std::printf("%lu ", id);
-    //std::printf("\n");
-    throw std::runtime_error("The vehicles to update do not match the exisiting vehicles");
+    std::string error_msg(
+        "TrafficLattice::moveTrafficForward(): "
+        "update vehicles does not match existing vehicles.\n");
+
+    std::string existing_vehicles_msg("Existing vehicles: ");
+    for (const auto id : existing_vehicles)
+      existing_vehicles_msg += std::to_string(id) + " ";
+    existing_vehicles_msg += "\n";
+
+    std::string update_vehicles_msg("Update vehicles: ");
+    for (const auto id : update_vehicles)
+      update_vehicles_msg += std::to_string(id) + " ";
+    update_vehicles_msg += "\n";
+
+    throw std::runtime_error(error_msg + existing_vehicles_msg + update_vehicles_msg);
   }
 
   // Clear all vehicles for the moment, will add them back later.
@@ -519,34 +625,27 @@ bool TrafficLattice<Router>::moveTrafficForward(
   // Modify the lattice to agree with the new start and range.
   boost::shared_ptr<Node> update_start_node = this->closestNode(
       update_start, this->longitudinal_resolution_);
+
   if (!update_start_node) {
-    std::printf("updated start waypoint road:%u lane:%d distance:%f\n",
-        update_start->GetRoadId(),
-        update_start->GetLaneId(),
-        update_start->GetDistance());
-    std::printf("updated start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        update_start->GetTransform().location.x,
-        update_start->GetTransform().location.y,
-        update_start->GetTransform().location.z,
-        update_start->GetTransform().rotation.roll,
-        update_start->GetTransform().rotation.pitch,
-        update_start->GetTransform().rotation.yaw);
-    std::printf("updated range: %f\n", update_range);
-    std::printf("current range: %f\n", this->range());
-    for (const auto& vehicle : vehicles) {
-      size_t id; CarlaTransform transform;
-      std::tie(id, transform, std::ignore) = vehicle;
-      std::printf("vehicle id %lu: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-          id,
-          transform.location.x,
-          transform.location.y,
-          transform.location.z,
-          transform.rotation.roll,
-          transform.rotation.pitch,
-          transform.rotation.yaw);
-    }
-    throw std::runtime_error("All vehicles moves outside the old lattice.");
+    std::string error_msg(
+        "TrafficLattice::moveTrafficForward(): "
+        "cannot find the new start waypoint on the existing lattice.\n");
+    std::string new_start_msg = (
+        boost::format(
+          "new start waypoint %1%: "
+          "x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n")
+        % update_start->GetId()
+        % update_start->GetTransform().location.x
+        % update_start->GetTransform().location.y
+        % update_start->GetTransform().location.z
+        % update_start->GetTransform().rotation.roll
+        % update_start->GetTransform().rotation.pitch
+        % update_start->GetTransform().rotation.yaw
+        % update_start->GetRoadId()
+        % update_start->GetLaneId()).str();
+    throw std::runtime_error(error_msg + new_start_msg + this->string());
   }
+
   this->shorten(this->range()-update_start_node->distance());
   this->extend(update_range);
 
@@ -590,9 +689,12 @@ void TrafficLattice<Router>::baseConstructor(
   this->router_ = router;
 
   if (range <= this->longitudinal_resolution_) {
-    throw std::runtime_error(
-        (boost::format("The given range [%1%] is too small."
-                       "Range should be at least 1xlongitudinal_resolution.") % range).str());
+    std::string error_msg = (boost::format(
+            "TrafficLattice::baseConstructor(): "
+            "range [%1%] < longitudinal resolution [%2%].\n")
+          % range
+          % longitudinal_resolution).str();
+    throw std::runtime_error(error_msg);
   }
 
   // Create the start node.
@@ -628,8 +730,24 @@ void TrafficLattice<Router>::latticeStartAndRange(
     vehicle_bounding_boxes[id] = bounding_box;
 
     // Check if we are missing any vehicle in \c vehicle_waypoints.
-    if (vehicle_waypoints.count(id) == 0)
-      throw std::runtime_error("Missing a vehicle in the waypoints map.");
+    if (vehicle_waypoints.count(id) == 0) {
+      std::string error_msg(
+          "TrafficLattice::latticeStartAndRange(): "
+          "vehicle tuples and vehicle waypoints does not match.\n");
+
+      std::string vehicle_tuples_msg("vehicle tuples: ");
+      for (const auto& vehicle : vehicles)
+        vehicle_tuples_msg += std::to_string(std::get<0>(vehicle)) + " ";
+      vehicle_tuples_msg += "\n";
+
+      std::string vehicle_waypoints_msg("vehicle waypoints: ");
+      for (const auto& vehicle : vehicle_waypoints)
+        vehicle_waypoints_msg += std::to_string(vehicle.first) + " ";
+      vehicle_waypoints_msg += "\n";
+
+      throw std::runtime_error(
+          error_msg + vehicle_tuples_msg + vehicle_waypoints_msg);
+    }
   }
 
   // Arrange the critial waypoint according to roads.
@@ -732,8 +850,24 @@ bool TrafficLattice<Router>::registerVehicles(
     size_t id;
     std::tie(id, std::ignore, std::ignore) = vehicle;
 
-    if (vehicle_waypoints.count(id) == 0)
-      throw std::runtime_error("Waypoints for a vehicle are not available.");
+    if (vehicle_waypoints.count(id) == 0) {
+      std::string error_msg(
+          "TrafficLattice::registerVehicles(): "
+          "vehicle tuples and vehicle waypoints does not match.\n");
+
+      std::string vehicle_tuples_msg("vehicle tuples: ");
+      for (const auto& vehicle : vehicles)
+        vehicle_tuples_msg += std::to_string(std::get<0>(vehicle)) + " ";
+      vehicle_tuples_msg += "\n";
+
+      std::string vehicle_waypoints_msg("vehicle waypoints: ");
+      for (const auto& vehicle : vehicle_waypoints)
+        vehicle_waypoints_msg += std::to_string(vehicle.first) + " ";
+      vehicle_waypoints_msg += "\n";
+
+      throw std::runtime_error(
+          error_msg + vehicle_tuples_msg + vehicle_waypoints_msg);
+    }
 
     const int32_t valid = addVehicle(vehicle, vehicle_waypoints.find(id)->second);
     if (valid == 0) removed_vehicles.insert(std::get<0>(vehicle));
@@ -782,9 +916,17 @@ std::deque<size_t> TrafficLattice<Router>::sortRoads(
   // If for some weired reason, there is still some road remaining
   // which cannot be sorted, throw a runtime error.
   if (!remaining_roads.empty()) {
-    throw std::runtime_error(
-        "The given roads cannot be sorted."
-        "This is probably because the given vehicles does not construct a local traffic.");
+    std::string error_msg(
+        "TrafficLattice::sortRoads(): "
+        "Some of the roads cannot be sorted, "
+        "which is probably because the vehicles does not construct a local traffic.\n");
+
+    std::string roads_msg("roads cannot be sorted: ");
+    for (const auto road : remaining_roads)
+      roads_msg += std::to_string(road) + " ";
+    roads_msg += "\n";
+
+    throw std::runtime_error(error_msg + roads_msg);
   }
 
   // Trim the sorted road vector so that both the first and last road
@@ -871,7 +1013,12 @@ boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::frontVehicle(
       const boost::shared_ptr<const Node>& start) const {
 
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg(
+        "TrafficLattice::frontVehicle(): "
+        "the input start node does not exist on lattice.\n");
+    throw std::runtime_error(error_msg);
+  }
 
   boost::shared_ptr<const Node> front = start->front();
   while (front) {
@@ -891,7 +1038,12 @@ boost::optional<std::pair<size_t, double>>
   TrafficLattice<Router>::backVehicle(
       const boost::shared_ptr<const Node>& start) const {
 
-  if (!start) throw std::runtime_error("Node no longer exists.");
+  if (!start) {
+    std::string error_msg(
+        "TrafficLattice::backVehicle(): "
+        "the input start node does not exist on lattice.\n");
+    throw std::runtime_error(error_msg);
+  }
 
   boost::shared_ptr<const Node> back = start->back();
   while (back) {
@@ -904,6 +1056,22 @@ boost::optional<std::pair<size_t, double>>
 
   // There is no back vehicle from the given node.
   return boost::none;
+}
+
+template<typename Router>
+std::string TrafficLattice<Router>::string(const std::string& prefix) const {
+
+  std::string lattice_msg = Base::string(prefix);
+
+  std::string vehicles_msg;
+  for (const auto& vehicle : vehicle_to_nodes_table_) {
+    std::string vehicle_msg = (boost::format("vehicle %1%:\n") % vehicle.first).str();
+    for (const auto& node : vehicle.second)
+      vehicle_msg += node.lock()->string();
+    vehicles_msg += vehicle_msg;
+  }
+
+  return lattice_msg + vehicles_msg;
 }
 
 } // End namespace planner.

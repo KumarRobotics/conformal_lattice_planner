@@ -54,12 +54,21 @@ bool TrafficManager<Router>::moveTrafficForward(
     update_vehicles.insert(std::get<0>(item));
 
   if (existing_vehicles != update_vehicles) {
-    std::printf("existing vehicles: ");
-    for (const auto id : existing_vehicles) std::printf("%lu ", id);
-    std::printf("\n update vehicles: ");
-    for (const auto id : update_vehicles) std::printf("%lu ", id);
-    std::printf("\n");
-    throw std::runtime_error("The vehicles to update do not match the exisiting vehicles");
+    std::string error_msg(
+        "TrafficManager::moveTrafficForward(): "
+        "update vehicles does not match existing vehicles.\n");
+
+    std::string existing_vehicles_msg("Existing vehicles: ");
+    for (const auto id : existing_vehicles)
+      existing_vehicles_msg += std::to_string(id) + " ";
+    existing_vehicles_msg += "\n";
+
+    std::string update_vehicles_msg("Update vehicles: ");
+    for (const auto id : update_vehicles)
+      update_vehicles_msg += std::to_string(id) + " ";
+    update_vehicles_msg += "\n";
+
+    throw std::runtime_error(error_msg + existing_vehicles_msg + update_vehicles_msg);
   }
 
   // Clear all vehicles for the moment, will add them back later.

@@ -16,6 +16,8 @@
 
 #include <cmath>
 #include <limits>
+#include <string>
+#include <boost/format.hpp>
 
 #include <conformal_lattice_planner/utils.h>
 #include <conformal_lattice_planner/traffic_simulator.h>
@@ -96,10 +98,37 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
       router_->frontWaypoint(waypoint, movement);
 
     if (!next_waypoint) {
+      // Find the next waypoint candidates.
       std::vector<boost::shared_ptr<CarlaWaypoint>> next_waypoints =
         waypoint->GetNext(movement);
-      if (next_waypoints.size() == 0)
-        throw std::runtime_error("Cannot find next waypoints for a agent.");
+
+      if (next_waypoints.size() == 0) {
+        std::string error_msg("TrafficSimulator::updatedAgentTuple(): cannot find a next waypoint for an agent.\n");
+        std::string agent_msg =
+          (boost::format("agent %1%: x:%2% y:%3% z:%4% speed:%5% accel:%6% movement:%7%\n")
+            % agent.id()
+            % agent.transform().location.x
+            % agent.transform().location.y
+            % agent.transform().location.z
+            % agent.speed()
+            % accel
+            % movement).str();
+        std::string waypoint_msg =
+          (boost::format("waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n")
+           % waypoint->GetId()
+           % waypoint->GetTransform().location.x
+           % waypoint->GetTransform().location.y
+           % waypoint->GetTransform().location.z
+           % waypoint->GetTransform().rotation.roll
+           % waypoint->GetTransform().rotation.pitch
+           % waypoint->GetTransform().rotation.yaw
+           % waypoint->GetRoadId()
+           % waypoint->GetLaneId()).str();
+        throw std::runtime_error(error_msg + agent_msg + waypoint_msg);
+      }
+
+      // Select the first one in all the found next waypoints.
+      // Actually, anyone should work.
       next_waypoint = next_waypoints.front();
     }
 
@@ -115,8 +144,11 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
 const double TrafficSimulator::remainingTime(
     const double speed, const double accel, const double distance) const {
 
-  if (speed < 0.0)
-    throw std::runtime_error("The input speed cannot be negative.");
+  if (speed < 0.0) {
+    std::string error_msg = (
+        boost::format("TrafficSimulator::remainingTime(): the input speed [%1%] < 0.0.\n") % speed).str();
+    throw std::runtime_error(error_msg);
+  }
 
   // Just a number large enough.
   double t = 100.0;
@@ -141,7 +173,11 @@ const double TrafficSimulator::ttcCost(const double ttc) const {
     {0, 4.0}, {1, 2.0}, {2, 1.0}
   };
 
-  if (ttc < 0.0) throw std::runtime_error("ttc < 0");
+  if (ttc < 0.0) {
+    std::string error_msg = (
+        boost::format("TrafficSimulator::ttcCost(): the input ttc [%1%] < 0.0.\n") % ttc).str();
+    throw std::runtime_error(error_msg);
+  }
 
   const int ttc_key = static_cast<int>(ttc);
   if (ttc_key <= 2) return cost_map[ttc_key];

@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+#include <string>
 #include <stdexcept>
 #include <unordered_set>
+#include <boost/format.hpp>
 #include <conformal_lattice_planner/snapshot.h>
 
 namespace planner {
@@ -40,8 +42,11 @@ Snapshot::Snapshot(
       vehicles, map, fast_map, router, disappear_vehicles);
 
   // Remove the disappeared vehicles.
-  if (disappear_vehicles.count(ego_.id()) != 0)
-    throw std::runtime_error("The ego vehicle is removed from the snapshot");
+  if (disappear_vehicles.count(ego_.id()) != 0) {
+    std::string error_msg("Snapshot::Snapshot(): the ego vehicle is removed from the snapshot.\n");
+    std::string snapshot_msg = this->string();
+    throw std::runtime_error(error_msg + snapshot_msg);
+  }
 
   for (const size_t agent : disappear_vehicles)
     agents_.erase(agent);
@@ -64,8 +69,10 @@ Snapshot& Snapshot::operator=(const Snapshot& other) {
 const Vehicle& Snapshot::agent(const size_t id) const {
   std::unordered_map<size_t, Vehicle>::const_iterator iter = agents_.find(id);
   if (iter == agents_.end()) {
-    std::printf("Looking for %lu\n", id);
-    throw std::out_of_range("The required agent vehicle does not exist in the snapshot");
+    std::string error_msg = (boost::format(
+          "Snapshot::agent(): the required agent %1% does not exist in the snapshot.\n") % id).str();
+    std::string snapshot_msg = this->string();
+    throw std::runtime_error(error_msg + snapshot_msg);
   }
   return iter->second;
 }
@@ -73,8 +80,10 @@ const Vehicle& Snapshot::agent(const size_t id) const {
 Vehicle& Snapshot::agent(const size_t id) {
   std::unordered_map<size_t, Vehicle>::iterator iter = agents_.find(id);
   if (iter == agents_.end()) {
-    std::printf("Looking for %lu\n", id);
-    throw std::out_of_range("The required agent vehicle does not exist in the snapshot");
+    std::string error_msg = (boost::format(
+          "Snapshot::agent(): the required agent %1% does not exist in the snapshot.\n") % id).str();
+    std::string snapshot_msg = this->string();
+    throw std::runtime_error(error_msg + snapshot_msg);
   }
   return iter->second;
 }
@@ -98,14 +107,6 @@ bool Snapshot::updateTraffic(
   std::unordered_set<size_t> updated_vehicles;
   for (const auto& update : updates)
     updated_vehicles.insert(std::get<0>(update));
-
-  if (updated_vehicles.count(ego_.id()) == 0)
-    throw std::runtime_error("Update for the ego vehicle is missing.");
-
-  for (const auto& agent : agents_) {
-    if (updated_vehicles.count(agent.first) == 0)
-      throw std::runtime_error("Update for an agent vehicle is missing.");
-  }
 
   // Update the transform, speed, and acceleration for all vehicles.
   for (const auto& update : updates) {
@@ -139,20 +140,15 @@ bool Snapshot::updateTraffic(
   for (const auto& agent : agents_)
     vehicles.push_back(agent.second.tuple());
 
-  //for (const auto& vehicle : vehicles) {
-  //  std::printf("id:%lu x:%f y:%f z:%f\n",
-  //      std::get<0>(vehicle),
-  //      std::get<1>(vehicle).location.x,
-  //      std::get<1>(vehicle).location.y,
-  //      std::get<1>(vehicle).location.z);
-  //}
-
   std::unordered_set<size_t> disappear_vehicles;
   const bool no_collision = traffic_lattice_->moveTrafficForward(vehicles, disappear_vehicles);
 
   // Remove the \c disappear_vehicles from the snapshot.
-  if (disappear_vehicles.count(ego_.id()) != 0)
-    throw std::runtime_error("The ego vehicle is removed from the lattice.");
+  if (disappear_vehicles.count(ego_.id()) != 0) {
+    std::string error_msg("Snapshot::Snapshot(): the ego vehicle is removed from the snapshot.\n");
+    std::string snapshot_msg = this->string();
+    throw std::runtime_error(error_msg + snapshot_msg);
+  }
 
   for (const size_t disappear_vehicle : disappear_vehicles)
     agents_.erase(disappear_vehicle);

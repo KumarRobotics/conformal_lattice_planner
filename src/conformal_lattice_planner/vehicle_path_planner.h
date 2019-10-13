@@ -20,6 +20,7 @@
 #include <carla/client/Map.h>
 #include <conformal_lattice_planner/snapshot.h>
 #include <conformal_lattice_planner/fast_waypoint_map.h>
+#include <conformal_lattice_planner/vehicle_path.h>
 
 namespace planner {
 
@@ -67,6 +68,27 @@ public:
   /// Get or set the fast waypoint map.
   boost::shared_ptr<utils::FastWaypointMap>&
     fastWaypointMap() { return fast_map_; }
+
+  /**
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] target The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \return The planned path.
+   */
+  virtual DiscretePath plan(const size_t target, const Snapshot& snapshot) = 0;
+
+  /**
+   * \brief The main interface of the path planner.
+   *
+   * \param[in] target The ID of the target vehicle.
+   * \param[in] snapshot Snapshot of the current traffic scenario.
+   * \param[out] path The planned path.
+   */
+  virtual void plan(const size_t target, const Snapshot& snapshot, DiscretePath& path) {
+    path = plan(target, snapshot);
+    return;
+  }
 };
 
 } // End namespace planner.

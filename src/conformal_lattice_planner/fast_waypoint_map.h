@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <unordered_map>
+#include <boost/format.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/core/noncopyable.hpp>
 
@@ -116,13 +118,22 @@ public:
     // Search for the closest point.
     std::vector<int> indices(1);
     std::vector<float> sqr_distance(1);
-    kdtree_.nearestKSearch(query_point, 1, indices, sqr_distance);
+    int num = kdtree_.nearestKSearch(query_point, 1, indices, sqr_distance);
+
+    if (num <= 0) {
+      std::string error_msg("Cannot find a waypoint close to the query location.\n");
+      std::string location_msg = (
+          boost::format("Query location: x:%1% y:%2% z:%3%\n")
+          % location.x % location.y % location.z).str();
+      std::string fast_map_msg = (
+          boost::format("fast map size:%lu resolution:%f\n")
+          % size() % resolution()).str();
+
+      throw std::runtime_error(error_msg + location_msg);
+    }
 
     const pcl::PointXYZ target_point = cloud_->at(indices[0]);
     const auto iter = xyz_to_waypoint_table_.find(target_point);
-
-    if (iter == xyz_to_waypoint_table_.end())
-      throw std::out_of_range("No waypoint close to the given location.");
     return iter->second;
   }
 
