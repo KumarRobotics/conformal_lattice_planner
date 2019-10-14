@@ -141,9 +141,19 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
         throw std::runtime_error(error_msg + agent_msg + waypoint_msg);
       }
 
-      // Select the first one in all the found next waypoints.
-      // Actually, anyone should work.
+      // Select the one with the least angle difference.
       next_waypoint = next_waypoints.front();
+      for (size_t i = 1; i < next_waypoints.size(); ++i) {
+        const double diff1 = utils::shortestAngle(
+            waypoint->GetTransform().rotation.yaw,
+            next_waypoint->GetTransform().rotation.yaw);
+        const double diff2 = utils::shortestAngle(
+            waypoint->GetTransform().rotation.yaw,
+            next_waypoints[i]->GetTransform().rotation.yaw);
+
+        if (std::fabs(diff2) < std::fabs(diff1))
+          next_waypoint = next_waypoints[i];
+      }
     }
 
     double update_curvature = 0.0;
