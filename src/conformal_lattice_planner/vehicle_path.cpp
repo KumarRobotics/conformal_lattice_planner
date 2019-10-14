@@ -61,41 +61,21 @@ std::pair<carla::geom::Transform, double> VehiclePath::interpolateTransform(
     throw std::runtime_error(error_msg);
   }
 
-  auto unrollAngle = [](double angle)->double{
-    angle = std::remainder(angle, 360.0);
-    if (angle < 0.0) angle += 360.0;
-    return angle;
-  };
-
-  auto shortestAngle = [&unrollAngle](double angle1, double angle2)->double{
-    angle1 = unrollAngle(angle1);
-    angle2 = unrollAngle(angle2);
-
-    double diff = angle1 - angle2;
-    if (std::abs(diff+360.0) < std::abs(diff)) diff += 360.0;
-    if (std::abs(diff-360.0) < std::abs(diff)) diff -= 360.0;
-
-    return diff;
-  };
-
   const CarlaTransform& ct1 = t1.first;
   const CarlaTransform& ct2 = t2.first;
 
   CarlaTransform ct;
   ct.location = ct1.location*w + ct2.location*(1.0-w);
-  //ct.rotation.roll  = unrollAngle(ct1.rotation.roll) *w + unrollAngle(ct2.rotation.roll) *(1.0-w);
-  //ct.rotation.pitch = unrollAngle(ct1.rotation.pitch)*w + unrollAngle(ct2.rotation.pitch)*(1.0-w);
-  //ct.rotation.yaw   = unrollAngle(ct1.rotation.yaw)  *w + unrollAngle(ct2.rotation.yaw)  *(1.0-w);
 
-  ct.rotation.roll = unrollAngle(
+  ct.rotation.roll = utils::unrollAngle(
       ct2.rotation.roll +
-      w*shortestAngle(ct1.rotation.roll, ct2.rotation.roll));
-  ct.rotation.pitch = unrollAngle(
+      w*utils::shortestAngle(ct1.rotation.roll, ct2.rotation.roll));
+  ct.rotation.pitch = utils::unrollAngle(
       ct2.rotation.pitch +
-      w*shortestAngle(ct1.rotation.pitch, ct2.rotation.pitch));
-  ct.rotation.yaw = unrollAngle(
+      w*utils::shortestAngle(ct1.rotation.pitch, ct2.rotation.pitch));
+  ct.rotation.yaw = utils::unrollAngle(
       ct2.rotation.yaw +
-      w*shortestAngle(ct1.rotation.yaw, ct2.rotation.yaw));
+      w*utils::shortestAngle(ct1.rotation.yaw, ct2.rotation.yaw));
 
   //if (std::fabs(shortestAngle(ct1.rotation.yaw, ct.rotation.yaw))>10.0 &&
   //    std::fabs(shortestAngle(ct2.rotation.yaw, ct.rotation.yaw))>10.0) {

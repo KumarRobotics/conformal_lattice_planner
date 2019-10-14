@@ -86,8 +86,11 @@ const double curvatureAtWaypoint(
   } else if (geometry.GetType() == carla::road::element::GeometryType::SPIRAL) {
     //FIXME: Not sure how to deal with this.
     //       But there is no example for this road type from Town01 to Town07.
-    std::string error_msg("curvatureAtWaypoint(): cannot get curvature for waypointa on spiral roads.\n");
-    boost::format format("waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%\n");
+    std::string error_msg(
+        "curvatureAtWaypoint(): "
+        "cannot get curvature for waypointa on spiral roads.\n");
+    boost::format format(
+        "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%\n");
     format % waypoint->GetId()
            % waypoint->GetTransform().location.x
            % waypoint->GetTransform().location.y
@@ -105,6 +108,23 @@ const double curvatureAtWaypoint(
   // Fix the curvature based on the sign of the lane ID.
   if (waypoint->GetLaneId() >= 0) return curvature;
   else return -curvature;
+}
+
+const double unrollAngle(double angle) {
+  angle = std::remainder(angle, 360.0);
+  if (angle < 0.0) angle += 360.0;
+  return angle;
+}
+
+const double shortestAngle(double angle1, double angle2) {
+  angle1 = unrollAngle(angle1);
+  angle2 = unrollAngle(angle2);
+
+  double diff = angle1 - angle2;
+  if (std::abs(diff+360.0) < std::abs(diff)) diff += 360.0;
+  if (std::abs(diff-360.0) < std::abs(diff)) diff -= 360.0;
+
+  return diff;
 }
 
 } // End namespace utils.

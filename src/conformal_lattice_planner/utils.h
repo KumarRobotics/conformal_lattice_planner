@@ -81,4 +81,8 @@ const double curvatureAtWaypoint(
     const boost::shared_ptr<const carla::client::Waypoint>& waypoint,
     const boost::shared_ptr<const carla::client::Map>& map);
 
+const double unrollAngle(double angle);
+
+const double shortestAngle(double angle1, double angle2);
+
 } // End namespace utils.
