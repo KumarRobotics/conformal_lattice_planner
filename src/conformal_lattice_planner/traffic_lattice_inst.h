@@ -123,7 +123,7 @@ TrafficLattice<Router>::TrafficLattice(
         "collision detected within the given vehicles.\n");
 
     std::string vehicle_msg;
-    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4%.\n");
+    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4% r:%5% p:%6% y:%7%.\n");
 
     for (const auto& vehicle : vehicles) {
       size_t id; CarlaTransform transform;
