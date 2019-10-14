@@ -58,7 +58,7 @@ bool EgoConformalLatticePlanningNode::initialize() {
 
   // Initialize the path and speed planner.
   boost::shared_ptr<router::LoopRouter> router = boost::make_shared<router::LoopRouter>();
-  path_planner_ = boost::make_shared<planner::ConformalLatticePlanner>(0.1, 105.0, router, map_, fast_map_);
+  path_planner_ = boost::make_shared<planner::ConformalLatticePlanner>(0.1, 120.0, router, map_, fast_map_);
   speed_planner_ = boost::make_shared<planner::VehicleSpeedPlanner>();
 
   // Start the action server.
@@ -185,13 +185,13 @@ void EgoConformalLatticePlanningNode::executeCallback(
   result.ego_target_speed.speed = updated_speed;
   server_.setSucceeded(result);
 
-  ros::Time end_time = ros::Time::now();
-  ROS_INFO_NAMED("ego_planner", "planning time: %f",
-      (end_time-start_time).toSec());
-  if ((end_time-start_time).toSec() < 0.2) {
-    ros::Duration delay(0.2-(end_time-start_time).toSec());
-    delay.sleep();
-  }
+  //ros::Time end_time = ros::Time::now();
+  //ROS_INFO_NAMED("ego_planner", "planning time: %f",
+  //    (end_time-start_time).toSec());
+  //if ((end_time-start_time).toSec() < 0.2) {
+  //  ros::Duration delay(0.2-(end_time-start_time).toSec());
+  //  delay.sleep();
+  //}
 
   return;
 }
