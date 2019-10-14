@@ -524,7 +524,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
 
   // Return directly if the target node is already very close to the station.
   // It is not reasonable to change lane with this short distance.
-  if (target_node->distance()-station->node().lock()->distance() < 10.0)
+  if (target_node->distance()-station->node().lock()->distance() < 20.0)
     return nullptr;
 
   // Check the left front and left back vehicles.
@@ -540,11 +540,11 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
     station->snapshot().trafficLattice()->leftBack(station->snapshot().ego().id());
 
   if (left_front && left_front->second <= 0.0) {
-    std::printf("Close left front vehicle.\n");
+    //std::printf("Close left front vehicle.\n");
     return nullptr;
   }
   if (left_back  && left_back->second  <= 0.0) {
-    std::printf("Close left back vehicle.\n");
+    //std::printf("Close left back vehicle.\n");
     return nullptr;
   }
 
@@ -610,7 +610,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
 
   // Return directly if the target node is already very close to the station.
   // It is not reasonable to change lane with this short distance.
-  if (target_node->distance()-station->node().lock()->distance() < 10.0)
+  if (target_node->distance()-station->node().lock()->distance() < 20.0)
     return nullptr;
 
   // Check the right front and right back vehicles.
@@ -626,11 +626,11 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
     station->snapshot().trafficLattice()->rightBack(station->snapshot().ego().id());
 
   if (right_front && right_front->second <= 0.0) {
-    std::printf("Close right front vehicle.\n");
+    //std::printf("Close right front vehicle.\n");
     return nullptr;
   }
   if (right_back  && right_back->second  <= 0.0) {
-    std::printf("Close right back vehicle. \n");
+    //std::printf("Close right back vehicle. \n");
     return nullptr;
   }
 
