@@ -45,6 +45,8 @@ protected:
   // Used to find the waypoint on the same lane.
   boost::shared_ptr<WaypointLattice<router::LoopRouter>> waypoint_lattice_ = nullptr;
 
+  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+
 public:
 
   /**
@@ -63,7 +65,8 @@ public:
                const boost::shared_ptr<router::LoopRouter>& router) :
     Base(map, fast_map),
     waypoint_lattice_(boost::make_shared<WaypointLattice<router::LoopRouter>>(
-          lattice_start, lattice_range, 5.0, router)) {}
+          lattice_start, lattice_range, 5.0, router)),
+    router_(router) {}
 
   /// Get the waypoint lattice maintained in the object.
   boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypointLattice() const {
@@ -100,11 +103,12 @@ public:
         std::string error_msg("LaneFollower::plan(): there is no node 50m ahead of ego.\n");
         std::string ego_msg = snapshot.ego().string();
         throw std::runtime_error(error_msg + ego_msg);
+      } else if (front_waypoint = router_->frontWaypoint(target_waypoint, 50.0)) {
       } else {
         // If there is no front node for an agent vehicle. We may just find its next
         // accessible waypoint with some distance.
         std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
-          target_waypoint->GetNext(5.0);
+          target_waypoint->GetNext(10.0);
 
         if (front_waypoints.size() <= 0) {
           std::string error_msg("LaneFollower::plan(): cannot find next waypoints for an agent.\n");
@@ -123,7 +127,20 @@ public:
           throw std::runtime_error(error_msg + agent_msg + waypoint_msg);
         }
 
+        // Select the one with the least angle difference.
         front_waypoint = front_waypoints[0];
+        for (size_t i = 1; i < front_waypoints.size(); ++i) {
+          const double diff1 = utils::shortestAngle(
+              target_waypoint->GetTransform().rotation.yaw,
+              front_waypoint->GetTransform().rotation.yaw);
+          const double diff2 = utils::shortestAngle(
+              target_waypoint->GetTransform().rotation.yaw,
+              front_waypoints[i]->GetTransform().rotation.yaw);
+
+          if (std::fabs(diff2) < std::fabs(diff1))
+            front_waypoint = front_waypoints[i];
+        }
+
       }
     } else {
       front_waypoint = front_node->waypoint();
