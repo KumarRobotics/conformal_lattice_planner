@@ -94,16 +94,30 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
       fast_map_->waypoint(agent.transform().location);
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
 
-    boost::shared_ptr<CarlaWaypoint> next_waypoint =
-      router_->frontWaypoint(waypoint, movement);
+    boost::shared_ptr<CarlaWaypoint> next_waypoint = nullptr;
 
-    if (!next_waypoint) {
+    try {
+      // Prefer the next waypoint on the route.
+      next_waypoint = router_->frontWaypoint(waypoint, movement);
+      // It is normal that we cannot find the next waypoint on the route.
+      // It is treated as an exception so that, all exceptions (together with
+      // the ones thrown by \c frontWayoint) can be handed by the following
+      // \c catch.
+      if (!next_waypoint) {
+        throw std::runtime_error(
+          "TrafficSimulator::updateAgentTupel"
+          "next waypoint is not available.\n");
+      }
+    } catch (...) {
+      // Otherwise, we have to settle with some waypoints outside the route.
       // Find the next waypoint candidates.
       std::vector<boost::shared_ptr<CarlaWaypoint>> next_waypoints =
         waypoint->GetNext(movement);
 
       if (next_waypoints.size() == 0) {
-        std::string error_msg("TrafficSimulator::updatedAgentTuple(): cannot find a next waypoint for an agent.\n");
+        std::string error_msg(
+            "TrafficSimulator::updatedAgentTuple(): "
+            "cannot find a next waypoint for an agent.\n");
         std::string agent_msg =
           (boost::format("agent %1%: x:%2% y:%3% z:%4% speed:%5% accel:%6% movement:%7%\n")
             % agent.id()
@@ -145,8 +159,9 @@ const double TrafficSimulator::remainingTime(
     const double speed, const double accel, const double distance) const {
 
   if (speed < 0.0) {
-    std::string error_msg = (
-        boost::format("TrafficSimulator::remainingTime(): the input speed [%1%] < 0.0.\n") % speed).str();
+    std::string error_msg = (boost::format(
+          "TrafficSimulator::remainingTime(): "
+          "the input speed [%1%] < 0.0.\n") % speed).str();
     throw std::runtime_error(error_msg);
   }
 

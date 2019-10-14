@@ -167,7 +167,16 @@ void EgoConformalLatticePlanningNode::executeCallback(
   ego_vehicle->SetTransform(updated_transform);
   //ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
 
-  //std::cin.get();
+  auto unrollAngle = [](double angle)->double{
+    angle = std::remainder(angle, 360.0);
+    if (angle < -180) angle += 360.0;
+    if (angle > 180) angle -= 360;
+    return angle;
+  };
+  if (std::fabs(unrollAngle(updated_transform.rotation.pitch)) > 10.0 ||
+      std::fabs(unrollAngle(updated_transform.rotation.roll))  > 10.0) {
+    throw std::runtime_error("Invalid roll or pitch");
+  }
 
   // Inform the client the result of plan.
   conformal_lattice_planner::EgoPlanResult result;

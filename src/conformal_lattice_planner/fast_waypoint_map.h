@@ -134,6 +134,21 @@ public:
 
     const pcl::PointXYZ target_point = cloud_->at(indices[0]);
     const auto iter = xyz_to_waypoint_table_.find(target_point);
+
+    const CarlaLocation target_location(
+        target_point.x, target_point.y, target_point.z);
+    if ((target_location-location).Length() > resolution_) {
+      std::string error_msg = (boost::format(
+          "FastWaypointMap::waypoint(): "
+          "the distance between query location and closest location > %1%") % resolution_).str();
+      std::string location_msg = (
+          boost::format("query location x:%1% y:%2% z:%3%\n")
+          % location.x % location.y % location.z).str();
+      std::string target_location_msg = (
+          boost::format("closest location x:%1% y:%2% z:%3%\n")
+          % target_location.x % target_location.y % target_location.z).str();
+    }
+
     return iter->second;
   }
 

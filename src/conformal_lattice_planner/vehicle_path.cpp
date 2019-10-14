@@ -61,17 +61,81 @@ std::pair<carla::geom::Transform, double> VehiclePath::interpolateTransform(
     throw std::runtime_error(error_msg);
   }
 
-  auto unrollAngle = [](const double angle)->double{
-    return std::remainder(angle, 360.0);
+  auto unrollAngle = [](double angle)->double{
+    angle = std::remainder(angle, 360.0);
+    if (angle < 0.0) angle += 360.0;
+    return angle;
+  };
+
+  auto shortestAngle = [&unrollAngle](double angle1, double angle2)->double{
+    angle1 = unrollAngle(angle1);
+    angle2 = unrollAngle(angle2);
+
+    double diff = angle1 - angle2;
+    if (std::abs(diff+360.0) < std::abs(diff)) diff += 360.0;
+    if (std::abs(diff-360.0) < std::abs(diff)) diff -= 360.0;
+
+    return diff;
   };
 
   const CarlaTransform& ct1 = t1.first;
   const CarlaTransform& ct2 = t2.first;
+
   CarlaTransform ct;
-  ct.location       = ct1.location*w + ct2.location*(1.0-w);
-  ct.rotation.roll  = unrollAngle(ct1.rotation.roll) *w + unrollAngle(ct2.rotation.roll) *(1.0-w);
-  ct.rotation.pitch = unrollAngle(ct1.rotation.pitch)*w + unrollAngle(ct2.rotation.pitch)*(1.0-w);
-  ct.rotation.yaw   = unrollAngle(ct1.rotation.yaw)  *w + unrollAngle(ct2.rotation.yaw)  *(1.0-w);
+  ct.location = ct1.location*w + ct2.location*(1.0-w);
+  //ct.rotation.roll  = unrollAngle(ct1.rotation.roll) *w + unrollAngle(ct2.rotation.roll) *(1.0-w);
+  //ct.rotation.pitch = unrollAngle(ct1.rotation.pitch)*w + unrollAngle(ct2.rotation.pitch)*(1.0-w);
+  //ct.rotation.yaw   = unrollAngle(ct1.rotation.yaw)  *w + unrollAngle(ct2.rotation.yaw)  *(1.0-w);
+
+  ct.rotation.roll = unrollAngle(
+      ct2.rotation.roll +
+      w*shortestAngle(ct1.rotation.roll, ct2.rotation.roll));
+  ct.rotation.pitch = unrollAngle(
+      ct2.rotation.pitch +
+      w*shortestAngle(ct1.rotation.pitch, ct2.rotation.pitch));
+  ct.rotation.yaw = unrollAngle(
+      ct2.rotation.yaw +
+      w*shortestAngle(ct1.rotation.yaw, ct2.rotation.yaw));
+
+  //if (std::fabs(shortestAngle(ct1.rotation.yaw, ct.rotation.yaw))>10.0 &&
+  //    std::fabs(shortestAngle(ct2.rotation.yaw, ct.rotation.yaw))>10.0) {
+  //  std::string error_msg(
+  //      "VehiclePath::interpolateTransform(): "
+  //      "Invalid yaw interpolation.\n");
+  //  boost::format transform_format("x:%1% y:%2% z:%3% r:%4% p:%5% y:%6% curvature:%7%\n");
+  //  std::string transform1_msg = std::string("transform 1: ") +
+  //    (transform_format
+  //      % ct1.location.x
+  //      % ct1.location.y
+  //      % ct1.location.z
+  //      % ct1.rotation.roll
+  //      % ct1.rotation.pitch
+  //      % ct1.rotation.yaw
+  //      % t1.second).str();
+  //  std::string transform2_msg = std::string("transform 2: ") +
+  //    (transform_format
+  //      % ct2.location.x
+  //      % ct2.location.y
+  //      % ct2.location.z
+  //      % ct2.rotation.roll
+  //      % ct2.rotation.pitch
+  //      % ct2.rotation.yaw
+  //      % t2.second).str();
+  //  std::string transform_msg = std::string("interpolated transform: ") +
+  //    (transform_format
+  //      % ct.location.x
+  //      % ct.location.y
+  //      % ct.location.z
+  //      % ct.rotation.roll
+  //      % ct.rotation.pitch
+  //      % ct.rotation.yaw
+  //      % (t1.second*w + t2.second*(1.0-w))).str();
+  //  std::string ratio_msg = (boost::format(
+  //        "t1 weight:%1% t2 weight:%2%\n") % w % (1.0-w)).str();
+  //  //std::printf("%s", (error_msg+transform1_msg+transform2_msg+ratio_msg+transform_msg).c_str());
+  //  throw std::runtime_error(
+  //      error_msg + transform1_msg + transform2_msg + ratio_msg + transform_msg);
+  //}
 
   const double c = t1.second*w + t2.second*(1.0-w);
 
@@ -199,11 +263,15 @@ DiscretePath::DiscretePath(
     const LaneChangeType& lane_change_type) :
   Base(lane_change_type) {
 
+  //std::printf("DiscretePath::DiscretePath():\n");
+
   // Convert the start and end to right handed coordinate system.
+  //std::printf("Convert carla transform to state.\n");
   const NonHolonomicPath::State start_state = carlaTransformToPathState(start);
   const NonHolonomicPath::State end_state = carlaTransformToPathState(end);
 
   // Compute the Kelly-Navy path.
+  //std::printf("Optimize path.\n");
   NonHolonomicPath path;
   const bool success = path.optimizePath(start_state, end_state);
   if (!success) {
@@ -226,6 +294,7 @@ DiscretePath::DiscretePath(
   }
 
   // Sample the path with 0.1m resolution.
+  //std::printf("Take samples on path.\n");
   double s = 0.0;
   for (; s <= path.sf; s += 0.1) {
     const double ratio = s / path.sf;
@@ -236,11 +305,13 @@ DiscretePath::DiscretePath(
     samples_[s] = pathStateToCarlaTransform(state, base_transform.first);
   }
 
+  //std::printf("Take a sample at the path end.\n");
   if (s < path.sf) {
     NonHolonomicPath::State state = path.evaluate(start_state, path.sf);
     samples_[path.sf] = pathStateToCarlaTransform(state, end.first);
   }
 
+  //std::printf("Check the number of samples.\n");
   if (samples_.empty()) {
     throw std::runtime_error(
         "DiscretePath::DiscretePath(): empty discrete path.\n");
@@ -294,8 +365,11 @@ DiscretePath::transformAt(const double s) const {
             % s % range()).str());
   }
 
-  auto iter1 = --iter; ++iter;
-  auto iter2 = iter;
+  //std::printf("samples size: %lu\n", samples_.size());
+  //std::printf("movement: %f\n", s);
+
+  auto iter1 = --iter;
+  auto iter2 = ++iter;
   const double ratio = (iter2->first-s) / (iter2->first-iter1->first);
   return interpolateTransform(iter1->second, iter2->second, ratio);
 }

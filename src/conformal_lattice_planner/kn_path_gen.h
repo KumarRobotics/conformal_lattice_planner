@@ -310,11 +310,11 @@ class NonHolonomicPath {
     angle1 = unrollAngle(angle1);
     angle2 = unrollAngle(angle2);
 
-    double diff1 = angle1 - angle2;
-    double diff2 = angle1 + 2 * M_PI - angle2;
+    double diff = angle1 - angle2;
+    if (std::fabs(diff+2*M_PI) < std::fabs(diff)) diff += 2*M_PI;
+    if (std::fabs(diff-2*M_PI) < std::fabs(diff)) diff -= 2*M_PI;
 
-    double result = std::abs(diff1) <= std::abs(diff2) ? diff1 : diff2;
-    return result;
+    return diff;
   }
 
   /**
@@ -324,7 +324,10 @@ class NonHolonomicPath {
    */
   static double unrollAngle(double angle) {
     //return std::fmod(angle + M_PI, (2 * M_PI)) - M_PI;
-    return std::remainder(angle, 2.0*M_PI);
+    angle = std::remainder(angle, 2.0*M_PI);
+    if (angle < -M_PI) angle += 2.0*M_PI;
+    if (angle >  M_PI) angle -= 2.0*M_PI;
+    return angle;
   }
 };
 

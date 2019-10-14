@@ -59,7 +59,7 @@ TrafficLattice<Router>::TrafficLattice(
         "collision detected within the given vehicles.\n");
 
     std::string vehicle_msg;
-    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4%.\n");
+    boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4% r:%5% p:%6% y:%7%.\n");
 
     for (const auto& vehicle : vehicles) {
       size_t id; CarlaTransform transform;
@@ -68,7 +68,10 @@ TrafficLattice<Router>::TrafficLattice(
           % id
           % transform.location.x
           % transform.location.y
-          % transform.location.z).str();
+          % transform.location.z
+          % transform.rotation.roll
+          % transform.rotation.pitch
+          % transform.rotation.yaw).str();
     }
 
     throw std::runtime_error(error_msg + vehicle_msg);
@@ -122,14 +125,17 @@ TrafficLattice<Router>::TrafficLattice(
     std::string vehicle_msg;
     boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4%.\n");
 
-    for (const auto& vehicle : vehicle_tuples) {
+    for (const auto& vehicle : vehicles) {
       size_t id; CarlaTransform transform;
       std::tie(id, transform, std::ignore) = vehicle;
       vehicle_msg += (vehicle_format
           % id
           % transform.location.x
           % transform.location.y
-          % transform.location.z).str();
+          % transform.location.z
+          % transform.rotation.roll
+          % transform.rotation.pitch
+          % transform.rotation.yaw).str();
     }
 
     throw std::runtime_error(error_msg + vehicle_msg);
@@ -794,7 +800,25 @@ void TrafficLattice<Router>::latticeStartAndRange(
   //std::printf("roads to be sorted: ");
   //for (const size_t road : roads) std::printf("%lu ", road);
   //std::printf("\n");
-  std::deque<size_t> sorted_roads = sortRoads(roads);
+  std::deque<size_t> sorted_roads;
+  try {
+    sorted_roads = sortRoads(roads);
+  } catch(std::exception& e) {
+    std::string vehicles_msg;
+    for (const auto& vehicle : vehicles) {
+      std::string vehicle_msg = (boost::format(
+            "vehicle %1%: x:%2% y:%3% z:%4% r:%5% p:%6% y:%7%\n")
+          % std::get<0>(vehicle)
+          % std::get<1>(vehicle).location.x
+          % std::get<1>(vehicle).location.y
+          % std::get<1>(vehicle).location.z
+          % std::get<1>(vehicle).rotation.roll
+          % std::get<1>(vehicle).rotation.pitch
+          % std::get<1>(vehicle).rotation.yaw).str();
+      vehicles_msg += vehicle_msg;
+    }
+    throw std::runtime_error(e.what() + vehicles_msg);
+  }
 
   // Find the first (minimum distance) and last (maximum distance)
   // waypoint of all available waypoints.
@@ -871,7 +895,10 @@ bool TrafficLattice<Router>::registerVehicles(
 
     const int32_t valid = addVehicle(vehicle, vehicle_waypoints.find(id)->second);
     if (valid == 0) removed_vehicles.insert(std::get<0>(vehicle));
-    else if (valid == -1) return false;
+    else if (valid == -1) {
+      std::printf("Collision detected for vehicle %lu.\n", id);
+      return false;
+    }
   }
 
   if (disappear_vehicles) *disappear_vehicles = removed_vehicles;
@@ -892,8 +919,8 @@ std::deque<size_t> TrafficLattice<Router>::sortRoads(
   sorted_roads.push_back(*(remaining_roads.begin()));
   remaining_roads.erase(remaining_roads.begin());
 
-  // We will only expand 5 times.
-  for (size_t i = 0; i < 5; ++i) {
+  // We will only expand 8 times.
+  for (size_t i = 0; i < 8; ++i) {
     // Current first and last road in the chain.
     const size_t first_road = sorted_roads.front();
     const size_t last_road = sorted_roads.back();
@@ -921,12 +948,18 @@ std::deque<size_t> TrafficLattice<Router>::sortRoads(
         "Some of the roads cannot be sorted, "
         "which is probably because the vehicles does not construct a local traffic.\n");
 
-    std::string roads_msg("roads cannot be sorted: ");
-    for (const auto road : remaining_roads)
-      roads_msg += std::to_string(road) + " ";
-    roads_msg += "\n";
+    std::string input_roads_msg("roads to be sorted: ");
+    for (const auto road : roads)
+      input_roads_msg += std::to_string(road) + " ";
+    input_roads_msg += "\n";
 
-    throw std::runtime_error(error_msg + roads_msg);
+    std::string remaining_roads_msg("roads cannot be sorted: ");
+    for (const auto road : remaining_roads)
+      remaining_roads_msg += std::to_string(road) + " ";
+    remaining_roads_msg += "\n";
+
+    throw std::runtime_error(
+        error_msg + input_roads_msg + remaining_roads_msg);
   }
 
   // Trim the sorted road vector so that both the first and last road

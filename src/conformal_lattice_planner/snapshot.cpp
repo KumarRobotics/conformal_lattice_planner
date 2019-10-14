@@ -43,7 +43,9 @@ Snapshot::Snapshot(
 
   // Remove the disappeared vehicles.
   if (disappear_vehicles.count(ego_.id()) != 0) {
-    std::string error_msg("Snapshot::Snapshot(): the ego vehicle is removed from the snapshot.\n");
+    std::string error_msg(
+        "Snapshot::Snapshot(): "
+        "the ego vehicle is removed from the snapshot.\n");
     std::string snapshot_msg = this->string();
     throw std::runtime_error(error_msg + snapshot_msg);
   }
@@ -70,7 +72,8 @@ const Vehicle& Snapshot::agent(const size_t id) const {
   std::unordered_map<size_t, Vehicle>::const_iterator iter = agents_.find(id);
   if (iter == agents_.end()) {
     std::string error_msg = (boost::format(
-          "Snapshot::agent(): the required agent %1% does not exist in the snapshot.\n") % id).str();
+          "Snapshot::agent(): "
+          "the required agent %1% does not exist in the snapshot.\n") % id).str();
     std::string snapshot_msg = this->string();
     throw std::runtime_error(error_msg + snapshot_msg);
   }
@@ -81,7 +84,8 @@ Vehicle& Snapshot::agent(const size_t id) {
   std::unordered_map<size_t, Vehicle>::iterator iter = agents_.find(id);
   if (iter == agents_.end()) {
     std::string error_msg = (boost::format(
-          "Snapshot::agent(): the required agent %1% does not exist in the snapshot.\n") % id).str();
+          "Snapshot::agent(): "
+          "the required agent %1% does not exist in the snapshot.\n") % id).str();
     std::string snapshot_msg = this->string();
     throw std::runtime_error(error_msg + snapshot_msg);
   }
@@ -145,7 +149,9 @@ bool Snapshot::updateTraffic(
 
   // Remove the \c disappear_vehicles from the snapshot.
   if (disappear_vehicles.count(ego_.id()) != 0) {
-    std::string error_msg("Snapshot::Snapshot(): the ego vehicle is removed from the snapshot.\n");
+    std::string error_msg(
+        "Snapshot::Snapshot(): "
+        "the ego vehicle is removed from the snapshot.\n");
     std::string snapshot_msg = this->string();
     throw std::runtime_error(error_msg + snapshot_msg);
   }

@@ -7,7 +7,7 @@
     <node pkg="conformal_lattice_planner"
       type="ego_lane_following_node"
       name="ego_lane_following_planner"
-      output="log">
+      output="screen">
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
       <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>

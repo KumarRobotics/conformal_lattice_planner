@@ -106,9 +106,11 @@ void AgentsLaneFollowingNode::executeCallback(
   for (const auto& item : snapshot->agents()) {
     const Vehicle& agent = item.second;
 
+    ROS_INFO_NAMED("agents_planner", "plan path and speed.");
     const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
     const double accel = speed_planner->plan(agent.id(), *snapshot);
 
+    ROS_INFO_NAMED("agents_planner", "Prepare to update state.");
     const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
     const CarlaTransform updated_transform = path.transformAt(movement).first;
     const double updated_speed = agent.speed() + accel*dt;

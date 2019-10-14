@@ -472,24 +472,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
         std::make_pair(target_node->waypoint()->GetTransform(),
                        target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::KeepLane);
-  } catch (...) {
+  } catch (std::exception& e) {
     // If for whatever reason, the path cannot be created, the station
     // cannot be created either.
-    std::printf("Fail to generate keep lane change path.\n");
-    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        station->transform().location.x,
-        station->transform().location.y,
-        station->transform().location.z,
-        station->transform().rotation.roll,
-        station->transform().rotation.pitch,
-        station->transform().rotation.yaw);
-    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        target_node->waypoint()->GetTransform().location.x,
-        target_node->waypoint()->GetTransform().location.y,
-        target_node->waypoint()->GetTransform().location.z,
-        target_node->waypoint()->GetTransform().rotation.roll,
-        target_node->waypoint()->GetTransform().rotation.pitch,
-        target_node->waypoint()->GetTransform().rotation.yaw);
+    std::printf("%s", e.what());
     return nullptr;
   }
 
@@ -572,24 +558,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
         std::make_pair(target_node->waypoint()->GetTransform(),
                        target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::LeftLaneChange);
-  } catch (...) {
+  } catch (const std::exception& e) {
     // If for whatever reason, the path cannot be created,
     // just ignore this option.
-    std::printf("Fail to generate left lane change path.\n");
-    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        station->transform().location.x,
-        station->transform().location.y,
-        station->transform().location.z,
-        station->transform().rotation.roll,
-        station->transform().rotation.pitch,
-        station->transform().rotation.yaw);
-    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        target_node->waypoint()->GetTransform().location.x,
-        target_node->waypoint()->GetTransform().location.y,
-        target_node->waypoint()->GetTransform().location.z,
-        target_node->waypoint()->GetTransform().rotation.roll,
-        target_node->waypoint()->GetTransform().rotation.pitch,
-        target_node->waypoint()->GetTransform().rotation.yaw);
+    std::printf("%s", e.what());
     return nullptr;
   }
 
@@ -672,24 +644,10 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
         std::make_pair(target_node->waypoint()->GetTransform(),
                        target_node->curvature(map_)),
         ContinuousPath::LaneChangeType::RightLaneChange);
-  } catch (...) {
+  } catch (std::exception& e) {
     // If for whatever reason, the path cannot be created,
     // just ignore this option.
-    std::printf("Fail to generate right lane change path.\n");
-    std::printf("Start waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        station->transform().location.x,
-        station->transform().location.y,
-        station->transform().location.z,
-        station->transform().rotation.roll,
-        station->transform().rotation.pitch,
-        station->transform().rotation.yaw);
-    std::printf("End waypoint: x:%f y:%f z:%f r:%f p:%f y:%f\n",
-        target_node->waypoint()->GetTransform().location.x,
-        target_node->waypoint()->GetTransform().location.y,
-        target_node->waypoint()->GetTransform().location.z,
-        target_node->waypoint()->GetTransform().rotation.roll,
-        target_node->waypoint()->GetTransform().rotation.pitch,
-        target_node->waypoint()->GetTransform().rotation.yaw);
+    std::printf("%s", e.what());
     return nullptr;
   }
 

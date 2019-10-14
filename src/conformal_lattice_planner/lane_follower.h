@@ -104,7 +104,7 @@ public:
         // If there is no front node for an agent vehicle. We may just find its next
         // accessible waypoint with some distance.
         std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
-          target_waypoint->GetNext(10.0);
+          target_waypoint->GetNext(5.0);
 
         if (front_waypoints.size() <= 0) {
           std::string error_msg("LaneFollower::plan(): cannot find next waypoints for an agent.\n");
