@@ -94,6 +94,17 @@ protected:
                        ego_policy.second,
                        ego_curvature);
 
+    if (ego_vehicle.transform().location.x==0.0 &&
+        ego_vehicle.transform().location.y==0.0 &&
+        ego_vehicle.transform().location.z==0.0) {
+      std::string error_msg(
+          "PlanningNode::createSnapshot(): "
+          "ego vehicle is set back to origin.\n");
+      std::string ego_msg = (
+          boost::format("Ego ID: %lu\n") % ego_vehicle.id()).str();
+      throw std::runtime_error(error_msg + ego_msg);
+    }
+
     // Create the agent vehicles.
     std::unordered_map<size_t, planner::Vehicle> agent_vehicles;
     for (const auto& agent : agent_policies) {
@@ -105,11 +116,21 @@ protected:
       const double policy_speed = agent.second;
       const double current_speed = agent_speed.find(agent.first)->second;
 
-      agent_vehicles.insert(std::make_pair(agent.first, planner::Vehicle(
-              carlaVehicle(agent.first),
-              current_speed,
-              policy_speed,
-              curvature)));
+      const planner::Vehicle vehicle(
+          carlaVehicle(agent.first), current_speed, policy_speed, curvature);
+
+      if (vehicle.transform().location.x==0.0 &&
+          vehicle.transform().location.y==0.0 &&
+          vehicle.transform().location.z==0.0) {
+        std::string error_msg(
+            "PlanningNode::createSnapshot(): "
+            "an agent vehicle is set back to origin.\n");
+        std::string agent_msg = (
+            boost::format("Agent ID: %lu\n") % vehicle.id()).str();
+        throw std::runtime_error(error_msg + agent_msg);
+      }
+
+      agent_vehicles.insert(std::make_pair(agent.first, vehicle));
     }
 
     // Create the snapshot.
@@ -120,9 +141,12 @@ protected:
   /// Get the carla vehicle by ID.
   boost::shared_ptr<CarlaVehicle> carlaVehicle(const size_t id) const {
     boost::shared_ptr<CarlaVehicle> vehicle =
-      boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(id));
-    if (!vehicle)
-      throw std::runtime_error("Cannot get the required vehicle in the carla server.");
+      boost::dynamic_pointer_cast<CarlaVehicle>(world_->GetActor(id));
+    if (!vehicle) {
+      throw std::runtime_error(
+          "PlanningNode::carlaVehicle(): "
+          "Cannot get the required vehicle in the carla server.");
+    }
     return vehicle;
   }
 

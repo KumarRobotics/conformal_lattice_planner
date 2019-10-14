@@ -88,7 +88,8 @@ void AgentsLaneFollowingNode::executeCallback(
     break;
   }
 
-  if (!waypoint) throw std::runtime_error("No node with distance 0.");
+  //if (!waypoint)
+  //  throw std::runtime_error("No node with distance 0.");
 
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(map_, fast_map_, waypoint, range, router_);
@@ -106,14 +107,29 @@ void AgentsLaneFollowingNode::executeCallback(
   for (const auto& item : snapshot->agents()) {
     const Vehicle& agent = item.second;
 
-    ROS_INFO_NAMED("agents_planner", "plan path and speed.");
-    const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
-    const double accel = speed_planner->plan(agent.id(), *snapshot);
+    double accel = 0.0;
+    double movement = 0.0;
+    CarlaTransform updated_transform;
+    double updated_speed = agent.speed();
 
-    ROS_INFO_NAMED("agents_planner", "Prepare to update state.");
-    const double movement = agent.speed()*dt + 0.5*accel*dt*dt;
-    const CarlaTransform updated_transform = path.transformAt(movement).first;
-    const double updated_speed = agent.speed() + accel*dt;
+    try {
+      const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
+      accel = speed_planner->plan(agent.id(), *snapshot);
+
+      movement = agent.speed()*dt + 0.5*accel*dt*dt;
+      updated_transform = path.transformAt(movement).first;
+      updated_speed = agent.speed() + accel*dt;
+
+    } catch(...) {
+      movement = agent.speed() * dt;
+      // If we fail to plan a path for an agent vehicle,
+      // we assume it moves with constant speed and get to the next accessible waypoint.
+      boost::shared_ptr<CarlaWaypoint> agent_waypoint =
+        fast_map_->waypoint(agent.transform());
+      std::vector<boost::shared_ptr<CarlaWaypoint>> front_waypoints =
+        agent_waypoint->GetNext(movement);
+      updated_transform = front_waypoints.front()->GetTransform();
+    }
 
     ROS_INFO_NAMED("agents_planner", "agent %lu", agent.id());
     ROS_INFO_NAMED("agents_planner", "movement:%f", movement);
@@ -126,6 +142,16 @@ void AgentsLaneFollowingNode::executeCallback(
         updated_transform.rotation.roll,
         updated_transform.rotation.pitch,
         updated_transform.rotation.yaw);
+
+    //if (updated_transform.location.x==0.0 &&
+    //    updated_transform.location.y==0.0 &&
+    //    updated_transform.location.z==0.0) {
+    //  std::string error_msg(
+    //      "AgentsLaneFollowingNode::executeCallback(): "
+    //      "The updated transform of an agent vehicle is at origin.\n");
+    //  std::string agent_msg = (boost::format("Agent ID: %lu\n") % agent.id()).str();
+    //  throw std::runtime_error(error_msg + agent_msg);
+    //}
 
     // Update the agent transform in the simulator.
     boost::shared_ptr<CarlaVehicle> vehicle = carlaVehicle(agent.id());

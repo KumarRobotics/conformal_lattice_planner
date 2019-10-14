@@ -214,8 +214,9 @@ class NonHolonomicPath {
     // the optimization has diverged. Here we only use the difference ratio
     // in x and y directions.
     auto xf_L_test = evaluate(x0_L, sf);
-    if (std::fabs(xf_L_test.x-xf_L.x) / std::fabs(xf_L.x) > 0.1 ||
-        std::fabs(xf_L_test.y-xf_L.y) / std::fabs(xf_L.y) > 0.1) return false;
+    // FIXME: Use both ratio and absolute threshold to check convergence.
+    if (std::fabs(xf_L_test.x-xf_L.x) / std::fabs(xf_L.x) > 0.2 ||
+        std::fabs(xf_L_test.y-xf_L.y) / std::fabs(xf_L.y) > 0.2) return false;
 
     return true;
   }

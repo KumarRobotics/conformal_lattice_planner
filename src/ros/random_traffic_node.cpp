@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include <string>
 #include <array>
 #include <limits>
 #include <random>
+#include <chrono>
 #include <unordered_set>
 #include <boost/timer/timer.hpp>
+#include <boost/format.hpp>
 
 #include <ros/convert_to_visualization_msgs.h>
 #include <ros/random_traffic_node.h>
@@ -173,7 +176,7 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
-  transform.location.z += 1.5;
+  transform.location.z += 0.5;
 
   boost::shared_ptr<CarlaActor> actor = world_->TrySpawnActor(blueprint, transform);
   boost::shared_ptr<CarlaVehicle> vehicle = boost::static_pointer_cast<CarlaVehicle>(actor);
@@ -244,8 +247,11 @@ void RandomTrafficNode::manageTraffic() {
 
     // Remove the vehicle from the carla server.
     boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(id);
-    if (!world_->GetActor(id)->Destroy())
-      ROS_WARN_NAMED("carla simulator", "Cannot destroy an agent");
+    while (!world_->GetActor(id)->Destroy()) {
+      static size_t destroy_counter = 0;
+      ROS_WARN_NAMED("carla simulator",
+          "Cannot destroy an agent for the [%lu] time.", destroy_counter);
+    }
 
     // Remove the vehicle from the object.
     agent_policies_.erase(id);
@@ -310,11 +316,49 @@ void RandomTrafficNode::manageTraffic() {
 
 void RandomTrafficNode::tickWorld() {
 
+  static size_t episode_id = -1;
+
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
+  ROS_INFO_NAMED("carla simulator", "tick 1 episode id: %lu",
+      world_->GetSnapshot().GetId());
+  //while (world_->GetSnapshot().GetId() == episode_id)
+  //  ros::Duration(0.01).sleep();
+  //episode_id = world_->GetSnapshot().GetId();
+
   manageTraffic();
-  // This tick is for adding or removing vehicles informed by the \c manageTraffic() function.
+
+  // This tick is for adding or removing vehicles informed
+  // by the \c manageTraffic() function.
+  // FIXME: Sometimes a new vehicle is not still added properly,
+  //        but is left at the origin.
   world_->Tick();
+  ROS_INFO_NAMED("carla simulator", "tick 2 episode id: %lu",
+      world_->GetSnapshot().GetId());
+  //while (world_->GetSnapshot().GetId() == episode_id)
+  //  ros::Duration(0.01).sleep();
+  //episode_id = world_->GetSnapshot().GetId();
+
+  std::string agent_ids_msg("agents in the sim: ");
+  for (const auto& agent : agent_policies_) {
+    boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(agent.first);
+    const CarlaTransform transform = vehicle->GetTransform();
+
+    agent_ids_msg += std::to_string(agent.first) + " ";
+
+    if (std::fabs(transform.location.x)<1e-3 &&
+        std::fabs(transform.location.y)<1e-3 &&
+        std::fabs(transform.location.z)<1e-3) {
+      std::string error_msg(
+          "randomTrafficNode::tickWorld(): "
+          "An agent vehicle is at origin after ticking.\n");
+      std::string agent_msg = (boost::format("Agent ID: %lu\n") % agent.first).str();
+      throw std::runtime_error(error_msg + agent_msg);
+    }
+  }
+
+  ROS_INFO_NAMED("carla_simulator", "%s", agent_ids_msg.c_str());
+
   publishTraffic();
   sendEgoGoal();
   sendAgentsGoal();
