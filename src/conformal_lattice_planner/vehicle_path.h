@@ -146,8 +146,9 @@ private:
 protected:
 
   /// Stores the samples on path..
-  //std::map<double, CarlaTransform> samples_;
   std::map<double, std::pair<CarlaTransform, double>> samples_;
+
+  double resolution_ = 0.5;
 
 public:
 
@@ -176,8 +177,8 @@ public:
   virtual const std::pair<CarlaTransform, double>
     transformAt(const double s) const override;
 
-  virtual const std::vector<std::pair<CarlaTransform, double>>
-    samples() const override;
+  //virtual const std::vector<std::pair<CarlaTransform, double>>
+  //  samples() const override;
 
   virtual void append(const DiscretePath& path);
 

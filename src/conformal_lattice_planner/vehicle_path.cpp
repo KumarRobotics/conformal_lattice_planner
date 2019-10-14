@@ -146,7 +146,7 @@ VehiclePath::samples() const {
 
   double s = 0.0;
   std::vector<std::pair<CarlaTransform, double>> samples;
-  for (; s < range(); s+=0.1)
+  for (; s < range(); s+=1.0)
     samples.push_back(transformAt(s));
 
   if (s < range())
@@ -293,10 +293,10 @@ DiscretePath::DiscretePath(
     throw std::runtime_error(error_msg + start_msg + end_msg);
   }
 
-  // Sample the path with 0.1m resolution.
+  // Sample the path with pre-determined resolution.
   //std::printf("Take samples on path.\n");
   double s = 0.0;
-  for (; s <= path.sf; s += 0.1) {
+  for (; s <= path.sf; s += resolution_) {
     const double ratio = s / path.sf;
     std::pair<CarlaTransform, double> base_transform =
       interpolateTransform(start, end, 1.0-ratio);
@@ -324,7 +324,7 @@ DiscretePath::DiscretePath(const ContinuousPath& continuous_path) :
   Base(continuous_path.laneChangeType()) {
 
   double s = 0.0;
-  for (; s <= continuous_path.range(); s += 0.1)
+  for (; s <= continuous_path.range(); s += resolution_)
     samples_[s] = continuous_path.transformAt(s);
 
   if (s < continuous_path.range()) {
@@ -374,12 +374,12 @@ DiscretePath::transformAt(const double s) const {
   return interpolateTransform(iter1->second, iter2->second, ratio);
 }
 
-const std::vector<std::pair<DiscretePath::CarlaTransform, double>>
-DiscretePath::samples() const {
-  std::vector<std::pair<CarlaTransform, double>> samples;
-  for (const auto& sample : samples_) samples.push_back(sample.second);
-  return samples;
-}
+//const std::vector<std::pair<DiscretePath::CarlaTransform, double>>
+//DiscretePath::samples() const {
+//  std::vector<std::pair<CarlaTransform, double>> samples;
+//  for (const auto& sample : samples_) samples.push_back(sample.second);
+//  return samples;
+//}
 
 void DiscretePath::append(const DiscretePath& path) {
   // Check if the start of the input path matches the end of this path.
@@ -387,9 +387,9 @@ void DiscretePath::append(const DiscretePath& path) {
   const double gap = (endTransform().first.location -
                       path.startTransform().first.location).Length();
 
-  if (gap > 0.1) {
+  if (gap > resolution_) {
     throw std::runtime_error((boost::format(
-            "The gap [%1%] between paths is greater than 0.1m.\n") % gap).str());
+            "The gap [%1%] between paths is greater than %2%.\n") % gap % resolution_).str());
   }
 
   // Append the samples in the input path to this path.
