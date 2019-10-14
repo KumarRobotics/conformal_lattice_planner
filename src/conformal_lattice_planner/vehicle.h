@@ -137,8 +137,11 @@ public:
   void updateCarlaVehicle(const boost::shared_ptr<CarlaVehicle>& actor) const {
     if (actor->GetId() != id_) {
       std::string error_msg(
-          "Vehicle::updateCarlaVehicle(): failed to update the vehicle in the simulatior because of mismatched id.\n");
-      std::string id_msg = (boost::format("Vehicle ID:%lu Actor ID:%u\n") % id_ % actor->GetId()).str();
+          "Vehicle::updateCarlaVehicle(): "
+          "failed to update the vehicle in the simulatior because of mismatched id.\n");
+      std::string id_msg = (boost::format(
+            "Vehicle ID:%1% Actor ID:%2%\n")
+          % id_ % actor->GetId()).str();
       throw std::runtime_error(error_msg + id_msg);
     }
     actor->SetTransform(transform_);

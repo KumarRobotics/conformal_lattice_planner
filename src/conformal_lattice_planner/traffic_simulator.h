@@ -209,7 +209,7 @@ const bool TrafficSimulator::simulate(
 
     // Update the snapshot.
     if (!snapshot_.updateTraffic(updated_tuples)) {
-      std::printf("Collision detected in the simulation.\n");
+      //std::printf("Collision detected in the simulation.\n");
       return false;
     }
 

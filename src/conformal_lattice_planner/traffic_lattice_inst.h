@@ -895,10 +895,7 @@ bool TrafficLattice<Router>::registerVehicles(
 
     const int32_t valid = addVehicle(vehicle, vehicle_waypoints.find(id)->second);
     if (valid == 0) removed_vehicles.insert(std::get<0>(vehicle));
-    else if (valid == -1) {
-      std::printf("Collision detected for vehicle %lu.\n", id);
-      return false;
-    }
+    else if (valid == -1) return false;
   }
 
   if (disappear_vehicles) *disappear_vehicles = removed_vehicles;

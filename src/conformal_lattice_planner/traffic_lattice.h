@@ -113,6 +113,7 @@ public:
     boost::format waypoint_format(
         "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n");
     std::string waypoint_msg = (waypoint_format
+        % waypoint_->GetId()
         % waypoint_->GetTransform().location.x
         % waypoint_->GetTransform().location.y
         % waypoint_->GetTransform().location.z
