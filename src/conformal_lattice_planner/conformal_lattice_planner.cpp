@@ -342,9 +342,19 @@ std::queue<boost::shared_ptr<Station>>
   boost::shared_ptr<const WaypointNode> vehicle_node = new_root->node().lock();
 
   while (true) {
-    if (front_node && vehicle_node->id()==front_node->id())
-      break;
+    // The ego is still on the same lane.
+    if (front_node &&
+        vehicle_node->id()==front_node->id()) break;
 
+    if (left_front_node &&
+        vehicle_node->left() &&
+        vehicle_node->left()->id()==left_front_node->id()) break;
+
+    if (right_front_node &&
+        vehicle_node->right() &&
+        vehicle_node->right()->id()==right_front_node->id()) break;
+
+    // The ego has moved to the left lane.
     if (left_front_node && vehicle_node->id()==left_front_node->id()) {
       right_front_node = front_node;
       front_node = left_front_node;
@@ -352,6 +362,7 @@ std::queue<boost::shared_ptr<Station>>
       break;
     }
 
+    // The ego has moved to the right lane.
     if (right_front_node && vehicle_node->id()==right_front_node->id()) {
       left_front_node = front_node;
       front_node = right_front_node;
@@ -757,9 +768,13 @@ const double ConformalLatticePlanner::terminalDistanceCost(
     throw std::runtime_error(error_msg + station->string());
   }
 
+  //static std::unordered_map<int, double> cost_map {
+  //  {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
+  //  {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
+  //};
   static std::unordered_map<int, double> cost_map {
-    {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
-    {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
+    {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
+    {5, 3.0}, {6, 2.0}, {7, 2.0}, {8, 1.0}, {9, 1.0},
   };
 
   const double distance_ratio = station->node().lock()->distance() / spatial_horizon_;
