@@ -22,12 +22,12 @@
 namespace planner {
 
     /**
-     * \brief IntelligentDriverModel implements the simplest IDM.
+     * \brief BasicIntelligentDriverModel implements the simplest IDM.
      *
      * The details of the model can be found at the following pdf:
      * <http://www.traffic-flow-dynamics.org/res/SampleChapter11.pdf>
      */
-    class IntelligentDriverModel {
+    class BasicIntelligentDriverModel {
 
     protected:
 
@@ -50,7 +50,7 @@ namespace planner {
          * can provide \c boost::none for a variable in the constructor if
          * the default value is to be used.
          */
-        IntelligentDriverModel(
+        BasicIntelligentDriverModel(
                 const boost::optional<double> time_gap = boost::none,
                 const boost::optional<double> distance_gap = boost::none,
                 const boost::optional<double> accel_exp = boost::none,
@@ -157,13 +157,13 @@ namespace planner {
             return accel;
         }
 
-    }; // End class IntelligentDriverModel.
+    }; // End class BasicIntelligentDriverModel.
 
 
     /**
      * Improved IDM driver acceleration model.
      */
-    class ImprovedIDM : public IntelligentDriverModel {
+    class ImprovedIntelligentDriverModel : public BasicIntelligentDriverModel {
 
     public:
         /**
@@ -173,7 +173,7 @@ namespace planner {
          * can provide \c boost::none for a variable in the constructor if
          * the default value is to be used.
          */
-        ImprovedIDM(
+        ImprovedIntelligentDriverModel(
                 const boost::optional<double> time_gap = boost::none,
                 const boost::optional<double> distance_gap = boost::none,
                 const boost::optional<double> accel_exp = boost::none,
@@ -181,7 +181,7 @@ namespace planner {
                 const boost::optional<double> comfort_decel = boost::none,
                 const boost::optional<double> max_accel = boost::none,
                 const boost::optional<double> max_decel = boost::none) :
-                IntelligentDriverModel(time_gap, distance_gap, accel_exp,
+                BasicIntelligentDriverModel(time_gap, distance_gap, accel_exp,
                         comfort_accel, comfort_decel, max_accel, max_decel) {};
 
 
@@ -235,12 +235,12 @@ namespace planner {
         }
 
 
-    }; // End Class ImprovedIDM
+    }; // End Class ImprovedIntelligentDriverModel
 
     /**
      * Adaptive Cruise Control driver acceleration model.
      */
-    class ACC : public ImprovedIDM {
+    class AdaptiveCruiseControl : public ImprovedIntelligentDriverModel {
 
     protected:
 
@@ -254,7 +254,7 @@ namespace planner {
                * can provide \c boost::none for a variable in the constructor if
                * the default value is to be used.
                */
-        ACC(const boost::optional<double> time_gap = boost::none,
+        AdaptiveCruiseControl(const boost::optional<double> time_gap = boost::none,
             const boost::optional<double> distance_gap = boost::none,
             const boost::optional<double> accel_exp = boost::none,
             const boost::optional<double> comfort_accel = boost::none,
@@ -262,7 +262,7 @@ namespace planner {
             const boost::optional<double> max_accel = boost::none,
             const boost::optional<double> max_decel = boost::none,
             const boost::optional<double> coolness_factor = boost::none) :
-            ImprovedIDM(time_gap, distance_gap, accel_exp, comfort_accel, comfort_decel, max_accel, max_decel) {
+            ImprovedIntelligentDriverModel(time_gap, distance_gap, accel_exp, comfort_accel, comfort_decel, max_accel, max_decel) {
 
           if (coolness_factor) coolness_factor_ = *coolness_factor;
           return;
@@ -287,7 +287,7 @@ namespace planner {
 
 
             double accel_ {0.0};
-            double a_iidm = ImprovedIDM::idm(ego_v, ego_v0, lead_v, s);
+            double a_iidm = ImprovedIntelligentDriverModel::idm(ego_v, ego_v0, lead_v, s);
             if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
                 return a_iidm;
             }
@@ -336,7 +336,7 @@ namespace planner {
 
     };
 
-// TODO: Implement ACC / IDM.
+    using IntelligentDriverModel = BasicIntelligentDriverModel;
 
 } // End namespace planner
 
