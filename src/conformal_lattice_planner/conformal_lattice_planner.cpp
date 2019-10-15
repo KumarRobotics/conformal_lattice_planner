@@ -266,7 +266,7 @@ void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
     boost::shared_ptr<CarlaWaypoint> ego_waypoint =
       fast_map_->waypoint(snapshot.ego().transform().location);
     waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
-        ego_waypoint, spatial_horizon_, 1.0, router_);
+        ego_waypoint, spatial_horizon_+30.0, 1.0, router_);
     return;
   }
 
@@ -274,8 +274,15 @@ void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
   // update the lattice or leave it as it currently is based on whether the ego
   // has reached one of the child stations of the root.
   if (immediateNextStationReached(snapshot)) {
-    //std::printf("Shift the waypoint lattice forward by 50.0m.\n");
-    waypoint_lattice_->shift(50.0);
+    boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
+      boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
+
+    boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
+        fast_map_->waypoint(snapshot.ego().transform().location),
+        waypoint_lattice->longitudinalResolution());
+    //std::printf("Shift the lattice by %f\n", ego_node->distance()-5.0);
+    const double shift_distance = ego_node->distance() - 5.0;
+    waypoint_lattice_->shift(shift_distance);
   }
 
   return;
