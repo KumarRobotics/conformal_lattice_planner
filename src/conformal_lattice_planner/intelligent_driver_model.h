@@ -109,7 +109,6 @@ namespace planner {
          * \param[in] ego_v Speed of the ego vehicle.
          * \param[in] ego_v0 The desired speed of the ego vehicle.
          * \param[in] lead_v The speed of the lead vehicle, left empty if there is no lead.
-         * \param[in] lead_v_dot The acceleration of the lead vehicle, left empty if there is no lead.
          * \param[in] s The (positive) distance between the ego and lead vehicle,
          *              left empty if there is no lead.
          */
@@ -117,8 +116,7 @@ namespace planner {
                 const double ego_v,
                 const double ego_v0,
                 const boost::optional<double> lead_v = boost::none,
-                const boost::optional<double> s = boost::none,
-                const boost::optional<double> lead_v_dot = boost::none) const {
+                const boost::optional<double> s = boost::none) const {
 
             double accel = 0.0;
 
@@ -187,11 +185,10 @@ namespace planner {
                         comfort_accel, comfort_decel, max_accel, max_decel) {};
 
 
-        double idm(const double ego_v,
+        virtual double idm(const double ego_v,
                    const double ego_v0,
                    const boost::optional<double> lead_v = boost::none,
-                   const boost::optional<double> s = boost::none,
-                   const boost::optional<double> lead_v_dot = boost::none) const override {
+                   const boost::optional<double> s = boost::none) const override {
 
             double accel = 0.0;
 
@@ -275,15 +272,22 @@ namespace planner {
         double& coolnessFactor() { return coolness_factor_; }
 
 
-        double idm(const double ego_v,
+        virtual double idm(const double ego_v,
                    const double ego_v0,
                    const boost::optional<double> lead_v = boost::none,
-                   const boost::optional<double> s = boost::none,
-                   const boost::optional<double> lead_v_dot = 0.0) const override {
+                   const boost::optional<double> s = boost::none) const override {
+          return idm(ego_v, ego_v0, lead_v, s, 0.0);
+        }
+
+        double idm(const double ego_v,
+                   const double ego_v0,
+                   const boost::optional<double> lead_v_dot = 0.0,
+                   const boost::optional<double> lead_v = boost::none,
+                   const boost::optional<double> s = boost::none) const {
 
 
             double accel_ {0.0};
-            double a_iidm = ImprovedIDM::idm(ego_v, ego_v0, lead_v, s, lead_v_dot);
+            double a_iidm = ImprovedIDM::idm(ego_v, ego_v0, lead_v, s);
             if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
                 return a_iidm;
             }
