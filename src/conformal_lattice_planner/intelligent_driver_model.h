@@ -222,7 +222,7 @@ namespace planner {
             return saturateAccel(accel);
         }
 
-    private:
+    protected:
 
         double a_free(const double ego_v,
                       const double ego_v0) const {
@@ -241,9 +241,13 @@ namespace planner {
     }; // End Class ImprovedIDM
 
     /**
-     * Automatic Cruise Control driver acceleration model.
+     * Adaptive Cruise Control driver acceleration model.
      */
     class ACC : public ImprovedIDM {
+
+    protected:
+
+      double coolness_factor_ = 0.9;
 
     public:
         /**
@@ -254,14 +258,21 @@ namespace planner {
                * the default value is to be used.
                */
         ACC(const boost::optional<double> time_gap = boost::none,
-                const boost::optional<double> distance_gap = boost::none,
-                const boost::optional<double> accel_exp = boost::none,
-                const boost::optional<double> comfort_accel = boost::none,
-                const boost::optional<double> comfort_decel = boost::none,
-                const boost::optional<double> max_accel = boost::none,
-                const boost::optional<double> max_decel = boost::none) :
+            const boost::optional<double> distance_gap = boost::none,
+            const boost::optional<double> accel_exp = boost::none,
+            const boost::optional<double> comfort_accel = boost::none,
+            const boost::optional<double> comfort_decel = boost::none,
+            const boost::optional<double> max_accel = boost::none,
+            const boost::optional<double> max_decel = boost::none,
+            const boost::optional<double> coolness_factor = boost::none) :
+            ImprovedIDM(time_gap, distance_gap, accel_exp, comfort_accel, comfort_decel, max_accel, max_decel) {
 
-                ImprovedIDM(time_gap, distance_gap, accel_exp, comfort_accel, comfort_decel, max_accel, max_decel) {};
+          if (coolness_factor) coolness_factor_ = *coolness_factor;
+          return;
+        }
+
+        double coolnessFactor() const { return coolness_factor_; }
+        double& coolnessFactor() { return coolness_factor_; }
 
 
         double idm(const double ego_v,
@@ -273,46 +284,47 @@ namespace planner {
 
             double accel_ {0.0};
             double a_iidm = ImprovedIDM::idm(ego_v, ego_v0, lead_v, s, lead_v_dot);
-            if (lead_v == boost::none) { // If there is no Lead Vehicle, the rest does not apply.
+            if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
                 return a_iidm;
             }
-            double acah_ = acah(ego_v, ego_v0, lead_v, lead_v_dot, s);
-            double c {.99}; // TODO Should this be customizable ??
+            double acah_ = acah(ego_v, ego_v0, *lead_v, *lead_v_dot, *s);
+            //double c {.99}; // TODO Should this be customizable ??
 
             // Implement Equation 11.26
             if (a_iidm >= acah_) {
                 accel_ = a_iidm;
             }
             else {
-                accel_ = (1-c) * a_iidm + c * (acah_ + comfort_decel_ * std::tanh((a_iidm - acah_)/comfort_decel_));
+                accel_ = (1-coolness_factor_) * a_iidm +
+                         coolness_factor_ * (acah_ + comfort_decel_ * std::tanh((a_iidm - acah_)/comfort_decel_));
             }
             return saturateAccel(accel_);
 
         } // End IDM function
 
 
-    private:
+    protected:
         /**
          * Compute the Constant Acceleration Heuristic Acceleration (ACAH)
          * @return The ACAH value.
          */
         double acah(const double ego_v,
                     const double ego_v0,
-                    const boost::optional<double> lead_v = boost::none,
-                    const boost::optional<double> lead_v_dot = boost::none,
-                    const boost::optional<double> s = boost::none) const {
+                    const double lead_v,
+                    const double lead_v_dot,
+                    const double s) const {
 
-            double a_tilde = std::min(*lead_v_dot, comfort_accel_);
+            double a_tilde = std::min(lead_v_dot, comfort_accel_);
             double acah_ {0.0};
 
             auto heaviside = [](double x) { return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
 
             // Implement Equation 11.25
-            if (*lead_v * (ego_v - *lead_v) <= -2* *s * a_tilde) { // First Case
-                acah_ = std::pow(ego_v, 2) * a_tilde / (std::pow(*lead_v, 2) - 2 * *s * a_tilde);
+            if (lead_v * (ego_v - lead_v) <= -2 * s * a_tilde) { // First Case
+                acah_ = std::pow(ego_v, 2) * a_tilde / (std::pow(lead_v, 2) - 2 * s * a_tilde);
             }
             else {
-                acah_ = a_tilde - std::pow(ego_v - *lead_v, 2) * heaviside(ego_v - *lead_v) / (2 * *s);
+                acah_ = a_tilde - std::pow(ego_v - lead_v, 2) * heaviside(ego_v - lead_v) / (2 * s);
             }
 
             return acah_;
