@@ -198,18 +198,18 @@ public:
         if (s_ratio >= 1) {
           accel = comfort_accel_ * (1 - std::pow(s_ratio, 2));
         } else {
-          double a_free_ = a_free(ego_v, ego_v0);
-          accel = a_free_ * (1 - std::pow(s_ratio, (2 * comfort_accel_) / a_free_));
+          double a_free = freeAccel(ego_v, ego_v0);
+          accel = a_free * (1 - std::pow(s_ratio, (2 * comfort_accel_) / a_free));
         }
       } else { // v >= v0 Equation 11.24
-        accel = a_free(ego_v, ego_v0);
+        accel = freeAccel(ego_v, ego_v0);
         if (s_ratio >= 1) {
           accel += comfort_accel_ * (1 - std::pow(s_ratio, 2));
         }
       }
     } // End Lead Vehicle Present Case
     else { // No Lead vehicle, so we may simply return the free acceleration.
-      accel = a_free(ego_v, ego_v0);
+      accel = freeAccel(ego_v, ego_v0);
     }
 
     return saturateAccel(accel);
@@ -217,8 +217,7 @@ public:
 
 protected:
 
-  double a_free(const double ego_v,
-                const double ego_v0) const {
+  double freeAccel(const double ego_v, const double ego_v0) const {
     // There is no lead vehicle, thus we use the free acceleration model. Eq 11.22
     const double v_ratio = ego_v / ego_v0;
     double accel{0.0};
@@ -287,24 +286,24 @@ public:
              const boost::optional<double> s = boost::none) const {
 
 
-    double accel_ {0.0};
+    double accel {0.0};
     double a_iidm = ImprovedIntelligentDriverModel::idm(ego_v, ego_v0, lead_v, s);
     if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
       return a_iidm;
     }
-    double acah_ = acah(ego_v, ego_v0, *lead_v, *lead_v_dot, *s);
+    double acah = constAccelHeuristic(ego_v, ego_v0, *lead_v, *lead_v_dot, *s);
     //double c {.99}; // TODO Should this be customizable ??
 
     // Implement Equation 11.26
-    if (a_iidm >= acah_) {
-      accel_ = a_iidm;
+    if (a_iidm >= acah) {
+      accel = a_iidm;
     }
     else {
-      accel_ = (1-coolness_factor_) * a_iidm +
-               coolness_factor_ * (acah_ + comfort_decel_ * std::tanh((a_iidm - acah_)/comfort_decel_));
+      accel = (1-coolness_factor_) * a_iidm +
+               coolness_factor_ * (acah + comfort_decel_ * std::tanh((a_iidm - acah)/comfort_decel_));
     }
 
-    return saturateAccel(accel_);
+    return saturateAccel(accel);
   }
 
 protected:
@@ -313,26 +312,27 @@ protected:
    * Compute the Constant Acceleration Heuristic Acceleration (ACAH)
    * @return The ACAH value.
    */
-  double acah(const double ego_v,
-              const double ego_v0,
-              const double lead_v,
-              const double lead_v_dot,
-              const double s) const {
+  double constAccelHeuristic(
+      const double ego_v,
+      const double ego_v0,
+      const double lead_v,
+      const double lead_v_dot,
+      const double s) const {
 
     double a_tilde = std::min(lead_v_dot, comfort_accel_);
-    double acah_ {0.0};
+    double acah {0.0};
 
     auto heaviside = [](double x) { return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
 
     // Implement Equation 11.25
     if (lead_v * (ego_v - lead_v) <= -2 * s * a_tilde) { // First Case
-      acah_ = std::pow(ego_v, 2) * a_tilde / (std::pow(lead_v, 2) - 2 * s * a_tilde);
+      acah = std::pow(ego_v, 2) * a_tilde / (std::pow(lead_v, 2) - 2 * s * a_tilde);
     }
     else {
-      acah_ = a_tilde - std::pow(ego_v - lead_v, 2) * heaviside(ego_v - lead_v) / (2 * s);
+      acah = a_tilde - std::pow(ego_v - lead_v, 2) * heaviside(ego_v - lead_v) / (2 * s);
     }
 
-    return acah_;
+    return acah;
   }
 
 };
