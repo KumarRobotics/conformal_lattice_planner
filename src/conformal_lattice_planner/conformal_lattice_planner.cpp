@@ -364,7 +364,22 @@ std::queue<boost::shared_ptr<Station>>
       std::string error_msg(
           "ConformalLatticePlanner::pruneStationGraph(): "
           "Immediate next stations are missing.\n");
-      throw std::runtime_error(error_msg + new_root->string());
+
+      std::string front_node_msg;
+      if (front_node)
+        front_node_msg = front_node->string("front node:\n");
+
+      std::string left_front_node_msg;
+      if (left_front_node)
+        left_front_node_msg = left_front_node->string("left front node:\n");
+
+      std::string right_front_node_msg;
+      if (right_front_node)
+        right_front_node_msg = right_front_node->string("right front node:\n");
+
+      throw std::runtime_error(
+          error_msg + new_root->string() + front_node_msg +
+          left_front_node_msg + right_front_node_msg);
     }
   }
 
@@ -743,8 +758,8 @@ const double ConformalLatticePlanner::terminalDistanceCost(
   }
 
   static std::unordered_map<int, double> cost_map {
-    {0, 3.0}, {1, 3.0}, {2, 3.0}, {3, 3.0}, {4, 2.0},
-    {5, 2.0}, {6, 2.0}, {7, 1.0}, {8, 1.0}, {9, 1.0},
+    {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
+    {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
   };
 
   const double distance_ratio = station->node().lock()->distance() / spatial_horizon_;
