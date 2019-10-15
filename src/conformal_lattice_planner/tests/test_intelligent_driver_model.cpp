@@ -37,7 +37,6 @@ TEST(IntelligentDriverModel, accessors) {
   idm.comfortDecel() = 2.0;
   EXPECT_DOUBLE_EQ(idm.comfortDecel(), 2.0);
 
-  return;
 }
 
 TEST(IntelligentDriverModel, idm) {
@@ -52,9 +51,37 @@ TEST(IntelligentDriverModel, idm) {
   EXPECT_NEAR(free_accel, 0.3617, 1e-3);
 
   const double block_accel = idm.idm(ego_v, ego_v0, lead_v, s);
-  EXPECT_NEAR(block_accel, -11.2679, 1e-3);
+  EXPECT_NEAR(block_accel, -8, 1e-3);
 
-  return;
+}
+
+TEST(ImprovedIDM, idm) {
+    ImprovedIDM idm;
+
+    const double ego_v = 28.0;
+    const double ego_v0 = 30.0;
+    const double lead_v = 25.0;
+    const double s = 20;
+
+    const double free_accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(free_accel, 0.3617, 1e-3);
+}
+
+TEST(ACC, idm) {
+    ACC idm;
+
+    const double ego_v = 28.0;
+    const double ego_v0 = 30.0;
+    const double lead_v = 25.0;
+    const double lead_v_dot = -12.0; // This represents a sharp brake by the lead vehicle.
+    const double s = 20;
+
+    const double free_accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(free_accel, 0.3617, 1e-3);
+
+
+    const double block_accel = idm.idm(ego_v, ego_v0, lead_v, s, lead_v_dot);
+    EXPECT_NEAR(block_accel, -8, 1e-3);
 }
 
 int main(int argc, char** argv) {
