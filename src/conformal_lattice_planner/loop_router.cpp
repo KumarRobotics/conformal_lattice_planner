@@ -47,8 +47,9 @@ boost::optional<size_t> LoopRouter::nextRoad(const size_t road) const {
   std::vector<size_t>::const_iterator iter = std::find(
       road_sequence_.begin(), road_sequence_.end(), road);
   if (iter == road_sequence_.end())
-    throw std::runtime_error(
-        (boost::format("LoopRouter::nextRoad(): given road %1% is not on the route.\n") % road).str());
+    throw std::runtime_error((boost::format(
+            "LoopRouter::nextRoad(): "
+            "given road %1% is not on the route.\n") % road).str());
 
   if (iter != road_sequence_.end()-1) return *(++iter);
   else return road_sequence_.front();
@@ -58,8 +59,9 @@ boost::optional<size_t> LoopRouter::prevRoad(const size_t road) const {
   std::vector<size_t>::const_iterator iter = std::find(
       road_sequence_.begin(), road_sequence_.end(), road);
   if (iter == road_sequence_.end())
-    throw std::runtime_error(
-        (boost::format("LoopRouter::nextRoad(): given road %1% is not on the route.\n") % road).str());
+    throw std::runtime_error((boost::format(
+            "LoopRouter::nextRoad(): "
+            "given road %1% is not on the route.\n") % road).str());
 
   if (iter != road_sequence_.begin()) return *(--iter);
   else return road_sequence_.back();

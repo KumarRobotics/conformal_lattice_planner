@@ -77,46 +77,6 @@ std::pair<carla::geom::Transform, double> VehiclePath::interpolateTransform(
       ct2.rotation.yaw +
       w*utils::shortestAngle(ct1.rotation.yaw, ct2.rotation.yaw));
 
-  //if (std::fabs(shortestAngle(ct1.rotation.yaw, ct.rotation.yaw))>10.0 &&
-  //    std::fabs(shortestAngle(ct2.rotation.yaw, ct.rotation.yaw))>10.0) {
-  //  std::string error_msg(
-  //      "VehiclePath::interpolateTransform(): "
-  //      "Invalid yaw interpolation.\n");
-  //  boost::format transform_format("x:%1% y:%2% z:%3% r:%4% p:%5% y:%6% curvature:%7%\n");
-  //  std::string transform1_msg = std::string("transform 1: ") +
-  //    (transform_format
-  //      % ct1.location.x
-  //      % ct1.location.y
-  //      % ct1.location.z
-  //      % ct1.rotation.roll
-  //      % ct1.rotation.pitch
-  //      % ct1.rotation.yaw
-  //      % t1.second).str();
-  //  std::string transform2_msg = std::string("transform 2: ") +
-  //    (transform_format
-  //      % ct2.location.x
-  //      % ct2.location.y
-  //      % ct2.location.z
-  //      % ct2.rotation.roll
-  //      % ct2.rotation.pitch
-  //      % ct2.rotation.yaw
-  //      % t2.second).str();
-  //  std::string transform_msg = std::string("interpolated transform: ") +
-  //    (transform_format
-  //      % ct.location.x
-  //      % ct.location.y
-  //      % ct.location.z
-  //      % ct.rotation.roll
-  //      % ct.rotation.pitch
-  //      % ct.rotation.yaw
-  //      % (t1.second*w + t2.second*(1.0-w))).str();
-  //  std::string ratio_msg = (boost::format(
-  //        "t1 weight:%1% t2 weight:%2%\n") % w % (1.0-w)).str();
-  //  //std::printf("%s", (error_msg+transform1_msg+transform2_msg+ratio_msg+transform_msg).c_str());
-  //  throw std::runtime_error(
-  //      error_msg + transform1_msg + transform2_msg + ratio_msg + transform_msg);
-  //}
-
   const double c = t1.second*w + t2.second*(1.0-w);
 
   return std::make_pair(ct, c);
@@ -369,7 +329,8 @@ void DiscretePath::append(const DiscretePath& path) {
 
   if (gap > resolution_) {
     throw std::runtime_error((boost::format(
-            "The gap [%1%] between paths is greater than %2%.\n") % gap % resolution_).str());
+            "The gap [%1%] between paths is greater than %2%.\n")
+          % gap % resolution_).str());
   }
 
   // Append the samples in the input path to this path.
@@ -399,7 +360,8 @@ std::string DiscretePath::string(const std::string& prefix) const {
                               % end.first.rotation.yaw
                               % end.second).str();
 
-  output += (boost::format("path: range:%1% sample size:%2%\n") % range() % samples_.size()).str();
+  output += (boost::format("path: range:%1% sample size:%2%\n")
+      % range() % samples_.size()).str();
   return output;
 }
 
