@@ -198,8 +198,8 @@ void EgoConformalLatticePlanningNode::executeCallback(
   ros::Time end_time = ros::Time::now();
   ROS_INFO_NAMED("ego_planner", "planning time: %f",
       (end_time-start_time).toSec());
-  //if ((end_time-start_time).toSec() < 0.2) {
-  //  ros::Duration delay(0.2-(end_time-start_time).toSec());
+  //if ((end_time-start_time).toSec() < 0.25) {
+  //  ros::Duration delay(0.25-(end_time-start_time).toSec());
   //  delay.sleep();
   //}
 

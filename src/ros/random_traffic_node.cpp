@@ -119,7 +119,7 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
   // Get the blueprint of the ego vehicle.
   boost::shared_ptr<CarlaBlueprintLibrary> blueprint_library =
     world_->GetBlueprintLibrary()->Filter("vehicle");
-  auto blueprint = blueprint_library->at("vehicle.audi.tt");
+  auto blueprint = blueprint_library->at("vehicle.audi.etron");
 
   // Make sure the vehicle will fall onto the ground instead of fall endlessly.
   CarlaTransform transform = waypoint->GetTransform();
