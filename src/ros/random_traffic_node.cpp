@@ -160,6 +160,7 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed);
   }
 
+  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -196,7 +197,8 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
     // Cannot add this vehicle to the traffic lattice.
     // This is either because the vehicle already exists or it causes a collision on the lattice.
     vehicle->Destroy();
-    ROS_ERROR_NAMED("carla simulator", "Cannot add the agent vehicle to the traffic lattice.");
+    ROS_ERROR_NAMED("carla simulator",
+        "Cannot add the agent vehicle to the traffic lattice.");
     return boost::none;
   }
 
@@ -213,6 +215,7 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
     agent_speed_[vehicle->GetId()]    = policy_speed;
   }
 
+  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -247,11 +250,11 @@ void RandomTrafficNode::manageTraffic() {
 
     // Remove the vehicle from the carla server.
     boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(id);
-    while (!world_->GetActor(id)->Destroy()) {
-      static size_t destroy_counter = 0;
+    if (!world_->GetActor(id)->Destroy()) {
       ROS_WARN_NAMED("carla simulator",
-          "Cannot destroy an agent for the [%lu] time.", destroy_counter);
+          "Cannot destroy agent %lu.", id);
     }
+    world_->Tick();
 
     // Remove the vehicle from the object.
     agent_policies_.erase(id);
@@ -320,8 +323,6 @@ void RandomTrafficNode::tickWorld() {
 
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
-  ROS_INFO_NAMED("carla simulator", "tick 1 episode id: %lu",
-      world_->GetSnapshot().GetId());
   //while (world_->GetSnapshot().GetId() == episode_id)
   //  ros::Duration(0.01).sleep();
   //episode_id = world_->GetSnapshot().GetId();
@@ -332,9 +333,7 @@ void RandomTrafficNode::tickWorld() {
   // by the \c manageTraffic() function.
   // FIXME: Sometimes a new vehicle is not still added properly,
   //        but is left at the origin.
-  world_->Tick();
-  ROS_INFO_NAMED("carla simulator", "tick 2 episode id: %lu",
-      world_->GetSnapshot().GetId());
+  //world_->Tick();
   //while (world_->GetSnapshot().GetId() == episode_id)
   //  ros::Duration(0.01).sleep();
   //episode_id = world_->GetSnapshot().GetId();

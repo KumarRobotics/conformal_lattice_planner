@@ -148,6 +148,7 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
     ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed);
   }
 
+  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -192,6 +193,7 @@ boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
     agent_speed_[vehicle->GetId()]    = policy_speed;
   }
 
+  world_->Tick();
   return vehicle->GetId();
 }
 

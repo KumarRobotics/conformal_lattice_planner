@@ -99,9 +99,6 @@ void FixedScenarioNode::spawnVehicles() {
   //  }
   //}
 
-  // Let the server know about the vehicles.
-  world_->Tick();
-
   // Spawn the following camera of the ego vehicle.
   spawnCamera();
   return;

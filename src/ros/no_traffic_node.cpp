@@ -160,9 +160,6 @@ void NoTrafficNode::spawnVehicles() {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
-  // Let the server know about the vehicles.
-  world_->Tick();
-
   // Spawn the following camera of the ego vehicle.
   spawnCamera();
 
