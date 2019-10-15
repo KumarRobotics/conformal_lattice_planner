@@ -5,9 +5,10 @@ CWD=`pwd`
 cd ${Carla_DIST}
 
 # Start Carla server without display
-echo "Start CARLA server (-opengl -quality-level=low)."
+echo "Start CARLA server (-opengl -quality-level=Low)."
 DISPLAY=
-./CarlaUE4.sh -opengl -quality-level=low &
+./CarlaUE4.sh -opengl -quality-level=Low &
+#./CarlaUE4.sh -opengl -quality-level=Epic&
 SERVER_PID=$!
 
 sleep 5s
