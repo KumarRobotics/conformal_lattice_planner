@@ -219,12 +219,11 @@ protected:
 
   double freeAccel(const double ego_v, const double ego_v0) const {
     // There is no lead vehicle, thus we use the free acceleration model. Eq 11.22
-    const double v_ratio = ego_v / ego_v0;
     double accel{0.0};
     if (ego_v <= ego_v0) {
-      accel = comfort_accel_ * (1.0 - std::pow(v_ratio, accel_exp_));
+      accel = comfort_accel_ * (1.0 - std::pow(ego_v/ego_v0, accel_exp_));
     } else { // v > v0
-      accel = -comfort_decel_ * (1.0 - std::pow(v_ratio, comfort_accel_ * accel_exp_ / comfort_decel_));
+      accel = -comfort_decel_ * (1.0 - std::pow(ego_v0/ego_v, comfort_accel_ * accel_exp_ / comfort_decel_));
     }
     return accel;
   }
