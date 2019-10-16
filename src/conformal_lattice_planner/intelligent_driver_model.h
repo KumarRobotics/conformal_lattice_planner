@@ -271,20 +271,25 @@ public:
   double& coolnessFactor() { return coolness_factor_; }
 
 
-  virtual double idm(const double ego_v,
-                     const double ego_v0,
-                     const boost::optional<double> lead_v = boost::none,
-                     const boost::optional<double> s = boost::none) const override {
-    return idm(ego_v, ego_v0, 0.0, lead_v, s);
-  }
+  //virtual double idm(const double ego_v,
+  //                   const double ego_v0,
+  //                   const boost::optional<double> lead_v = boost::none,
+  //                   const boost::optional<double> s = boost::none) const override {
+  //  if ((!lead_v) || (!s)) {
+  //    std::printf("Without lead vehicle.\n");
+  //    return idm(ego_v, ego_v0, 0.0);
+  //  } else {
+  //    std::printf("With lead vehicle.\n");
+  //    return idm(ego_v, ego_v0, 0.0, *lead_v, *s);
+  //  }
+  //}
 
   double idm(const double ego_v,
              const double ego_v0,
-             const double lead_v_dot,
              const boost::optional<double> lead_v = boost::none,
              const boost::optional<double> s = boost::none) const {
 
-
+    double lead_v_dot = 0.0;
     double accel {0.0};
     double a_iidm = ImprovedIntelligentDriverModel::idm(ego_v, ego_v0, lead_v, s);
     if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
