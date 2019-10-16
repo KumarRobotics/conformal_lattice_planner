@@ -153,7 +153,7 @@ protected:
 
 
 /**
- * Improved IDM driver acceleration model.
+ * \brief ImprovedIntelligentDriverModel implements the IIDM.
  */
 class ImprovedIntelligentDriverModel : public BasicIntelligentDriverModel {
 
@@ -223,7 +223,7 @@ protected:
 }; // End Class ImprovedIntelligentDriverModel
 
 /**
- * Adaptive Cruise Control driver acceleration model.
+ * \brief AdaptiveCruiseControl implements the ACC model.
  */
 class AdaptiveCruiseControl : public ImprovedIntelligentDriverModel {
 
@@ -301,8 +301,8 @@ protected:
 
     double a_tilde = std::min(lead_v_dot, comfort_accel_);
     double acah {0.0};
-
-    auto heaviside = [](double x)->double{ return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
+    // Heaviside Lambda Function
+    auto heaviside = [](double x)->double{ return x>=0 ? 1.0 : 0.0;};
 
     // Implement Equation 11.25
     if (lead_v * (ego_v - lead_v) < -2 * s * a_tilde) { // First Case
