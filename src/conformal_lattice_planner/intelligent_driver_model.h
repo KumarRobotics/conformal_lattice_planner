@@ -187,30 +187,22 @@ public:
       const boost::optional<double> s = boost::none) const override {
 
     double accel = 0.0;
+    double accel_free = freeAccel(ego_v, ego_v0);
 
-    if (lead_v && s) {
-      // A lead vehicle is present.
+    if ((!lead_v) || (!s)) return saturateAccel(accel_free);
 
-      const double v_ratio = ego_v / ego_v0;
-      const double s_star = desiredDistance(ego_v, *lead_v);
-      const double s_ratio = s_star / *s;  // This is the same as Z.
-      if (ego_v <= ego_v0) { // Equation 11.23
-        if (s_ratio >= 1) {
-          accel = comfort_accel_ * (1 - std::pow(s_ratio, 2));
-        } else {
-          double a_free = freeAccel(ego_v, ego_v0);
-          accel = a_free * (1 - std::pow(s_ratio, (2 * comfort_accel_) / a_free));
-        }
-      } else { // v >= v0 Equation 11.24
-        accel = freeAccel(ego_v, ego_v0);
-        if (s_ratio >= 1) {
-          accel += comfort_accel_ * (1 - std::pow(s_ratio, 2));
-        }
-      }
-    } // End Lead Vehicle Present Case
-    else { // No Lead vehicle, so we may simply return the free acceleration.
-      accel = freeAccel(ego_v, ego_v0);
-    }
+    const double v_ratio = ego_v / ego_v0;
+    const double s_star = desiredDistance(ego_v, *lead_v);
+    const double s_ratio = s_star / *s;  // This is the same as Z.
+
+    if (ego_v <= ego_v0 && s_ratio >= 1.0)
+      accel = comfort_accel_ * (1 - std::pow(s_ratio, 2));
+    else if (ego_v <= ego_v0 && s_ratio < 1.0)
+      accel = accel_free * (1 - std::pow(s_ratio, (2 * comfort_accel_) / accel_free));
+    else if (ego_v > ego_v0 && s_ratio >= 1.0)
+      accel = accel_free + comfort_accel_ * (1 - std::pow(s_ratio, 2));
+    else
+      accel = accel_free;
 
     return saturateAccel(accel);
   }
@@ -270,20 +262,6 @@ public:
   double coolnessFactor() const { return coolness_factor_; }
   double& coolnessFactor() { return coolness_factor_; }
 
-
-  //virtual double idm(const double ego_v,
-  //                   const double ego_v0,
-  //                   const boost::optional<double> lead_v = boost::none,
-  //                   const boost::optional<double> s = boost::none) const override {
-  //  if ((!lead_v) || (!s)) {
-  //    std::printf("Without lead vehicle.\n");
-  //    return idm(ego_v, ego_v0, 0.0);
-  //  } else {
-  //    std::printf("With lead vehicle.\n");
-  //    return idm(ego_v, ego_v0, 0.0, *lead_v, *s);
-  //  }
-  //}
-
   double idm(const double ego_v,
              const double ego_v0,
              const boost::optional<double> lead_v = boost::none,
@@ -292,17 +270,15 @@ public:
     double lead_v_dot = 0.0;
     double accel {0.0};
     double a_iidm = ImprovedIntelligentDriverModel::idm(ego_v, ego_v0, lead_v, s);
-    if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
-      return a_iidm;
-    }
+
+    if ((!lead_v) || (!s)) return a_iidm;
+
     double acah = constAccelHeuristic(ego_v, ego_v0, *lead_v, lead_v_dot, *s);
-    //double c {.99}; // TODO Should this be customizable ??
 
     // Implement Equation 11.26
     if (a_iidm >= acah) {
       accel = a_iidm;
-    }
-    else {
+    } else {
       accel = (1-coolness_factor_) * a_iidm +
                coolness_factor_ * (acah + comfort_decel_ * std::tanh((a_iidm - acah)/comfort_decel_));
     }
@@ -326,13 +302,12 @@ protected:
     double a_tilde = std::min(lead_v_dot, comfort_accel_);
     double acah {0.0};
 
-    auto heaviside = [](double x) { return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
+    auto heaviside = [](double x)->double{ return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
 
     // Implement Equation 11.25
     if (lead_v * (ego_v - lead_v) < -2 * s * a_tilde) { // First Case
       acah = std::pow(ego_v, 2) * a_tilde / (std::pow(lead_v, 2) - 2 * s * a_tilde);
-    }
-    else {
+    } else {
       acah = a_tilde - std::pow(ego_v - lead_v, 2) * heaviside(ego_v - lead_v) / (2 * s);
     }
 
