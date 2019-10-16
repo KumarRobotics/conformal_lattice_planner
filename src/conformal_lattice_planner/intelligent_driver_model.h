@@ -329,7 +329,7 @@ protected:
     auto heaviside = [](double x) { return x>=0 ? 1.0 : 0.0;}; // Heaviside Lambda Function
 
     // Implement Equation 11.25
-    if (lead_v * (ego_v - lead_v) <= -2 * s * a_tilde) { // First Case
+    if (lead_v * (ego_v - lead_v) < -2 * s * a_tilde) { // First Case
       acah = std::pow(ego_v, 2) * a_tilde / (std::pow(lead_v, 2) - 2 * s * a_tilde);
     }
     else {
