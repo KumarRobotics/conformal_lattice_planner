@@ -19,7 +19,7 @@
 
 using namespace planner;
 
-TEST(IntelligentDriverModel, accessors) {
+TEST(BaseIntelligentDriverModel, accessors) {
   IntelligentDriverModel idm;
 
   idm.timeGap() = 2.0;
@@ -37,25 +37,143 @@ TEST(IntelligentDriverModel, accessors) {
   idm.comfortDecel() = 2.0;
   EXPECT_DOUBLE_EQ(idm.comfortDecel(), 2.0);
 
-  return;
 }
 
-TEST(IntelligentDriverModel, idm) {
-  IntelligentDriverModel idm;
+TEST(BasicIntelligentDriverModel, idm) {
+  BasicIntelligentDriverModel idm;
 
-  const double ego_v = 28.0;
-  const double ego_v0 = 30.0;
-  const double lead_v = 25.0;
-  const double s = 20;
+  {
+    const double ego_v = 10.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, 1.47879202184, 1e-3);
+  }
 
-  const double free_accel = idm.idm(ego_v, ego_v0);
-  EXPECT_NEAR(free_accel, 0.3617, 1e-3);
+  {
+    const double ego_v = 40.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, -3.9292424086, 1e-3);
+  }
 
-  const double block_accel = idm.idm(ego_v, ego_v0, lead_v, s);
-  EXPECT_NEAR(block_accel, -11.2679, 1e-3);
+  {
+    const double ego_v = 20.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 29.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, 1.13907234946, 1e-3);
+  }
 
-  return;
+  {
+    const double ego_v = 25.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 15.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -4.80628632147, 1e-3);
+  }
+
+  {
+    const double ego_v = 29.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 0.0;
+    const double s = 100.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -8.0, 1e-3);
+  }
 }
+
+TEST(ImprovedIntelligentDriverModel, idm) {
+  ImprovedIntelligentDriverModel idm;
+
+  {
+    const double ego_v = 10.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, 1.47879202184, 1e-3);
+  }
+
+  {
+    const double ego_v = 40.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, -1.34454982035, 1e-3);
+  }
+
+  {
+    const double ego_v = 20.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 29.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, 1.15583439997, 1e-3);
+  }
+
+  {
+    const double ego_v = 25.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 15.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -3.97784967465, 1e-3);
+  }
+
+  {
+    const double ego_v = 29.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 0.0;
+    const double s = 100.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -8.0, 1e-3);
+  }
+}
+
+TEST(AdaptiveCruiseControl, idm) {
+  AdaptiveCruiseControl idm;
+
+  {
+    const double ego_v = 10.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, 1.47879202184, 1e-3);
+  }
+
+  {
+    const double ego_v = 40.0;
+    const double ego_v0 = 29.0;
+    const double accel = idm.idm(ego_v, ego_v0);
+    EXPECT_NEAR(accel, -1.34454982035, 1e-3);
+  }
+
+  {
+    const double ego_v = 20.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 29.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, 1.15583439997, 1e-3);
+  }
+
+  {
+    const double ego_v = 25.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 15.0;
+    const double s = 50.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -3.16738208405, 1e-3);
+  }
+
+  {
+    const double ego_v = 29.0;
+    const double ego_v0 = 29.0;
+    const double lead_v = 0.0;
+    const double s = 100.0;
+    const double accel = idm.idm(ego_v, ego_v0, lead_v, s);
+    EXPECT_NEAR(accel, -6.62828409616, 1e-3);
+  }
+}
+
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
