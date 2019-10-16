@@ -280,7 +280,7 @@ public:
 
   double idm(const double ego_v,
              const double ego_v0,
-             const boost::optional<double> lead_v_dot = 0.0,
+             const double lead_v_dot,
              const boost::optional<double> lead_v = boost::none,
              const boost::optional<double> s = boost::none) const {
 
@@ -290,7 +290,7 @@ public:
     if ((!lead_v) || (!s)) { // If there is no Lead Vehicle, the rest does not apply.
       return a_iidm;
     }
-    double acah = constAccelHeuristic(ego_v, ego_v0, *lead_v, *lead_v_dot, *s);
+    double acah = constAccelHeuristic(ego_v, ego_v0, *lead_v, lead_v_dot, *s);
     //double c {.99}; // TODO Should this be customizable ??
 
     // Implement Equation 11.26
