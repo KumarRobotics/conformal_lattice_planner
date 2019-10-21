@@ -4,7 +4,6 @@
   <arg name="fixed_delta_seconds" default="0.05"/>
   <arg name="no_rendering_mode" default="true"/>
   <arg name="synchronous_mode" default="true"/>
-  <arg name="vehicle_name" default="vehicle.audi.tt"/>
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
@@ -18,8 +17,6 @@
       <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
       <param name="no_rendering_mode" value="$(arg no_rendering_mode)"/>
       <param name="synchronous_mode" value="$(arg synchronous_mode)"/>
-      <!-- ego vehicle -->
-      <param name="vehicle_name" value="$(arg vehicle_name)"/>
     </node>
   </group>
 </launch>

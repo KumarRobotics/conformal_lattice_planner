@@ -5,11 +5,10 @@
 
   <group ns="carla">
     <node pkg="conformal_lattice_planner"
-      type="ego_conformal_lattice_planning_node"
-      name="ego_conformal_lattice_planner"
+      type="ego_idm_lattice_planning_node"
+      name="ego_idm_lattice_planner"
       output="screen">
 
-      <env name="CPUPROFILE" value="conformal_lattice_planner.stat"/>
       <env name="CPUPROFILE_FREQUENCY" value="100"/>
 
       <param name="host" value="$(arg host)"/>
