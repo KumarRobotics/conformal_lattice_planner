@@ -21,7 +21,7 @@
 #include <node/common/convert_to_visualization_msgs.h>
 #include <node/simulator/simulator_node.h>
 
-namespace carla {
+namespace node {
 
 bool SimulatorNode::initialize() {
 
@@ -450,4 +450,4 @@ void SimulatorNode::agentsPlanDoneCallback(
   return;
 }
 
-} // End namespace carla.
+} // End namespace node.

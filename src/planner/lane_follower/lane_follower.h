@@ -23,6 +23,7 @@
 #include <planner/common/utils.h>
 
 namespace planner {
+namespace lane_follower {
 
 /**
  * \brief LaneFollower is supposed to control the target vehicle to follow a predefine route.
@@ -163,5 +164,6 @@ public:
   }
 };
 
+} // End namespace lane_follower.
 } // End namespace planner.
 

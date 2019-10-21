@@ -35,7 +35,7 @@ using namespace std;
 using namespace boost;
 using namespace router;
 using namespace planner;
-using namespace planner::conformal_lattice_idm_planner;
+using namespace planner::idm_lattice_planner;
 
 using CarlaVehicle         = carla::client::Vehicle;
 using CarlaMap             = carla::client::Map;
@@ -46,7 +46,7 @@ using CarlaLocation        = carla::geom::Location;
 using CarlaRoad            = carla::road::Road;
 using CarlaSensorDataImage = carla::sensor::data::Image;
 
-namespace carla {
+namespace node {
 
 sensor_msgs::ImagePtr createImageMsg(
     const boost::shared_ptr<const CarlaSensorDataImage>& img) {
@@ -588,7 +588,7 @@ visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
 }
 
 visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-    const boost::shared_ptr<const planner::ConformalLatticePlanner>& planner) {
+    const boost::shared_ptr<const planner::IDMLatticePlanner>& planner) {
 
   static size_t path_num = 0;
 
@@ -691,4 +691,4 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
   return planner_msg;
 }
 
-} // End namespace carla.
+} // End namespace node.

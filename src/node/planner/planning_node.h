@@ -37,7 +37,7 @@
 #include <planner/common/utils.h>
 #include <planner/common/fast_waypoint_map.h>
 
-namespace carla {
+namespace node {
 
 class PlanningNode : private boost::noncopyable {
 
@@ -191,5 +191,5 @@ protected:
   }
 }; // End class PlanningNode.
 
-} // End namespace carla.
+} // End namespace node.
 

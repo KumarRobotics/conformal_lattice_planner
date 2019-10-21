@@ -28,10 +28,11 @@
 #include <node/common/convert_to_visualization_msgs.h>
 #include <node/planner/ego_lane_following_node.h>
 
-using namespace planner;
 using namespace router;
+using namespace planner;
+using namespace planner::lane_follower;
 
-namespace carla {
+namespace node {
 
 bool EgoLaneFollowingNode::initialize() {
 
@@ -139,7 +140,7 @@ void EgoLaneFollowingNode::executeCallback(
   return;
 }
 
-} // End namespace carla.
+} // End namespace node.
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "~");
@@ -151,8 +152,8 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::EgoLaneFollowingNodePtr planner =
-    boost::make_shared<carla::EgoLaneFollowingNode>(nh);
+  node::EgoLaneFollowingNodePtr planner =
+    boost::make_shared<node::EgoLaneFollowingNode>(nh);
   if (!planner->initialize()) {
     ROS_ERROR("Cannot initialize the ego lane following planner.");
   }

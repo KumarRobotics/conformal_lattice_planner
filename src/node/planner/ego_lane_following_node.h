@@ -20,7 +20,7 @@
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <node/planner/planning_node.h>
 
-namespace carla {
+namespace node {
 
 class EgoLaneFollowingNode : public PlanningNode {
 
@@ -60,4 +60,4 @@ protected:
 using EgoLaneFollowingNodePtr = EgoLaneFollowingNode::Ptr;
 using EgoLaneFollowingNodeConstPtr = EgoLaneFollowingNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.

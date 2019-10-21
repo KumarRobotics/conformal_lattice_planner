@@ -19,7 +19,7 @@
 #include <router/loop_router/loop_router.h>
 #include <node/simulator/simulator_node.h>
 
-namespace carla {
+namespace node {
 
 class FixedScenarioNode : public SimulatorNode {
 
@@ -52,5 +52,5 @@ protected:
 using FixedScenarioNodePtr = FixedScenarioNode::Ptr;
 using FixedScenarioNodeConstPtr = FixedScenarioNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.
 

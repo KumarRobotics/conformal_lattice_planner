@@ -23,10 +23,10 @@
 #include <planner/common/waypoint_lattice.h>
 #include <node/simulator/fixed_scenario_node.h>
 
-using namespace planner;
 using namespace router;
+using namespace planner;
 
-namespace carla {
+namespace node {
 
 void FixedScenarioNode::spawnVehicles() {
 
@@ -107,7 +107,7 @@ void FixedScenarioNode::spawnVehicles() {
   return;
 }
 
-} // End namespace carla.
+} // End namespace node.
 
 int main(int argc, char** argv) {
 
@@ -120,8 +120,8 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::FixedScenarioNodePtr sim =
-    boost::make_shared<carla::FixedScenarioNode>(nh);
+  node::FixedScenarioNodePtr sim =
+    boost::make_shared<node::FixedScenarioNode>(nh);
   if (!sim->initialize()) {
     ROS_ERROR("Cannot initialize the CARLA simulator.");
   }

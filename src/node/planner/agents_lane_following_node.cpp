@@ -29,8 +29,9 @@
 
 using namespace router;
 using namespace planner;
+using namespace planner::lane_follower;
 
-namespace carla {
+namespace node {
 
 bool AgentsLaneFollowingNode::initialize() {
 
@@ -172,7 +173,7 @@ void AgentsLaneFollowingNode::executeCallback(
 
   return;
 }
-} // End namespace carla.
+} // End namespace node.
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "~");
@@ -184,8 +185,8 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::AgentsLaneFollowingNodePtr planner =
-    boost::make_shared<carla::AgentsLaneFollowingNode>(nh);
+  node::AgentsLaneFollowingNodePtr planner =
+    boost::make_shared<node::AgentsLaneFollowingNode>(nh);
   if (!planner->initialize()) {
     ROS_ERROR("Cannot initialize the agents lane following planner.");
   }

@@ -22,16 +22,17 @@
 
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <planner/common/vehicle_speed_planner.h>
-#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
+#include <planner/idm_lattice_planner/idm_lattice_planner.h>
 #include <node/planner/planning_node.h>
 
-namespace carla {
-class EgoConformalLatticePlanningNode : public PlanningNode {
+namespace node {
+
+class EgoIDMLatticePlanningNode : public PlanningNode {
 
 private:
 
   using Base = PlanningNode;
-  using This = EgoConformalLatticePlanningNode;
+  using This = EgoIDMLatticePlanningNode;
 
 public:
 
@@ -45,7 +46,7 @@ protected:
   // FIXME: The variable feels sketchy.
   boost::optional<double> ego_curvature = boost::none;
 
-  boost::shared_ptr<planner::ConformalLatticePlanner> path_planner_ = nullptr;
+  boost::shared_ptr<planner::IDMLatticePlanner> path_planner_ = nullptr;
   boost::shared_ptr<planner::VehicleSpeedPlanner> speed_planner_ = nullptr;
 
   mutable ros::Publisher path_pub_;
@@ -57,11 +58,11 @@ protected:
 
 public:
 
-  EgoConformalLatticePlanningNode(ros::NodeHandle& nh) :
+  EgoIDMLatticePlanningNode(ros::NodeHandle& nh) :
     Base(nh),
-    server_(nh, "ego_plan", boost::bind(&EgoConformalLatticePlanningNode::executeCallback, this, _1), false) {}
+    server_(nh, "ego_plan", boost::bind(&EgoIDMLatticePlanningNode::executeCallback, this, _1), false) {}
 
-  virtual ~EgoConformalLatticePlanningNode() {}
+  virtual ~EgoIDMLatticePlanningNode() {}
 
   virtual bool initialize() override;
 
@@ -76,9 +77,9 @@ protected:
   virtual void executeCallback(
       const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
 
-}; // End class EgoConformalLatticePlanningNode.
+}; // End class EgoIDMLatticePlanningNode.
 
-using EgoConformalLatticePlanningNodePtr = EgoConformalLatticePlanningNode::Ptr;
-using EgoConformalLatticePlanningNodeConstPtr = EgoConformalLatticePlanningNode::ConstPtr;
+using EgoIDMLatticePlanningNodePtr = EgoIDMLatticePlanningNode::Ptr;
+using EgoIDMLatticePlanningNodeConstPtr = EgoIDMLatticePlanningNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.

@@ -43,7 +43,7 @@
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 
-namespace carla {
+namespace node {
 
 class SimulatorNode : private boost::noncopyable {
 
@@ -258,4 +258,4 @@ protected:
 
 }; // End class SimulatorNode.
 
-} // End namespace carla.
+} // End namespace node.

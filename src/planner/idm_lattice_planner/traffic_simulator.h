@@ -29,7 +29,7 @@
 #include <planner/common/snapshot.h>
 
 namespace planner {
-namespace conformal_lattice_idm_planner {
+namespace idm_lattice_planner {
 
 class TrafficSimulator : private boost::noncopyable {
 
@@ -247,6 +247,6 @@ const bool TrafficSimulator::simulate(
   return true;
 }
 
-} // End namespace conformal_lattice_idm_planner.
+} // End namespace idm_lattice_planner.
 } // End namespace planner.
 

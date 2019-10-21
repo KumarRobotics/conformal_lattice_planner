@@ -39,11 +39,11 @@ add_dependencies(ego_lane_following_node
 )
 
 # Ego conformal lattice planning node
-add_executable(ego_conformal_lattice_planning_node
-  ego_conformal_lattice_planning_node.cpp
+add_executable(ego_idm_lattice_planning_node
+  ego_idm_lattice_planning_node.cpp
   ../common/convert_to_visualization_msgs.cpp
 )
-target_link_libraries(ego_conformal_lattice_planning_node
+target_link_libraries(ego_idm_lattice_planning_node
   routing_algos
   planning_algos
   ${Carla_LIBRARIES}
@@ -51,7 +51,7 @@ target_link_libraries(ego_conformal_lattice_planning_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
-add_dependencies(ego_conformal_lattice_planning_node
+add_dependencies(ego_idm_lattice_planning_node
   routing_algos
   planning_algos
   ${${PROJECT_NAME}_EXPORTED_TARGETS}

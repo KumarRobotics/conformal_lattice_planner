@@ -20,10 +20,10 @@
 #include <boost/format.hpp>
 
 #include <planner/common/utils.h>
-#include <planner/conformal_lattice_planner/traffic_simulator.h>
+#include <planner/idm_lattice_planner/traffic_simulator.h>
 
 namespace planner {
-namespace conformal_lattice_idm_planner {
+namespace idm_lattice_planner {
 
 const double TrafficSimulator::egoAcceleration() const {
 
@@ -260,5 +260,5 @@ const double TrafficSimulator::accelCost() const {
   return ego_brake_cost + 0.5*agent_brake_cost;
 }
 
-} // End namespace conformal_lattice_idm_planner.
+} // End namespace idm_lattice_planner.
 } // End namespace planner.

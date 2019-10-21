@@ -15,11 +15,11 @@
  */
 
 #include <list>
-#include <planner/conformal_lattice_planner/traffic_simulator.h>
-#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
+#include <planner/idm_lattice_planner/traffic_simulator.h>
+#include <planner/idm_lattice_planner/idm_lattice_planner.h>
 
 namespace planner {
-namespace conformal_lattice_idm_planner {
+namespace idm_lattice_planner {
 
 void Station::updateOptimalParent() {
 
@@ -160,7 +160,7 @@ std::string Station::string(const std::string& prefix) const {
 }
 
 std::vector<boost::shared_ptr<const Station>>
-  ConformalLatticePlanner::nodes() const {
+  IDMLatticePlanner::nodes() const {
 
   std::vector<boost::shared_ptr<const Station>> stations;
   for (const auto& item : node_to_station_table_)
@@ -169,7 +169,7 @@ std::vector<boost::shared_ptr<const Station>>
   return stations;
 }
 
-std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
+std::vector<ContinuousPath> IDMLatticePlanner::edges() const {
 
   std::vector<ContinuousPath> paths;
   for (const auto& item : node_to_station_table_) {
@@ -188,12 +188,12 @@ std::vector<ContinuousPath> ConformalLatticePlanner::edges() const {
   return paths;
 }
 
-DiscretePath ConformalLatticePlanner::plan(
+DiscretePath IDMLatticePlanner::plan(
     const size_t ego, const Snapshot& snapshot) {
 
   if (ego != snapshot.ego().id()) {
     std::string error_msg(
-        "ConformalLatticePlanner::plan(): "
+        "IDMLatticePlanner::plan(): "
         "The conformal lattice planner can only plan for the ego.\n");
     std::string id_msg = (boost::format(
           "Target vehicle ID:%1% "
@@ -222,7 +222,7 @@ DiscretePath ConformalLatticePlanner::plan(
   return optimal_path;
 }
 
-bool ConformalLatticePlanner::immediateNextStationReached(
+bool IDMLatticePlanner::immediateNextStationReached(
     const Snapshot& snapshot) const {
 
   //std::printf("immediateNextStationReached(): \n");
@@ -255,7 +255,7 @@ bool ConformalLatticePlanner::immediateNextStationReached(
   else return false;
 }
 
-void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
+void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 
   //std::printf("updateWaypointLattice(): \n");
 
@@ -290,7 +290,7 @@ void ConformalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 }
 
 std::queue<boost::shared_ptr<Station>>
-  ConformalLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
+  IDMLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
   //std::printf("pruneStationGraph(): \n");
 
@@ -374,7 +374,7 @@ std::queue<boost::shared_ptr<Station>>
     vehicle_node = vehicle_node->front();
     if (!vehicle_node) {
       std::string error_msg(
-          "ConformalLatticePlanner::pruneStationGraph(): "
+          "IDMLatticePlanner::pruneStationGraph(): "
           "Immediate next stations are missing.\n");
 
       std::string front_node_msg;
@@ -433,7 +433,7 @@ std::queue<boost::shared_ptr<Station>>
   return station_queue;
 }
 
-void ConformalLatticePlanner::constructStationGraph(
+void IDMLatticePlanner::constructStationGraph(
     std::queue<boost::shared_ptr<Station>>& station_queue) {
 
   //std::printf("constructStationGraph(): \n");
@@ -487,7 +487,7 @@ void ConformalLatticePlanner::constructStationGraph(
   return;
 }
 
-boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
+boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
@@ -547,7 +547,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToFrontNode(
   return next_station;
 }
 
-boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNode(
+boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
@@ -633,7 +633,7 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToLeftFrontNod
   return next_station;
 }
 
-boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNode(
+boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
@@ -719,12 +719,12 @@ boost::shared_ptr<Station> ConformalLatticePlanner::connectStationToRightFrontNo
   return next_station;
 }
 
-const double ConformalLatticePlanner::terminalSpeedCost(
+const double IDMLatticePlanner::terminalSpeedCost(
     const boost::shared_ptr<Station>& station) const {
 
   if (station->hasChild()) {
     std::string error_msg(
-        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::terminalSpeedCost(): "
         "The input station is not a terminal.\n");
     throw std::runtime_error(error_msg + station->string());
   }
@@ -738,7 +738,7 @@ const double ConformalLatticePlanner::terminalSpeedCost(
   const double ego_policy_speed = station->snapshot().ego().policySpeed();
   if (ego_speed < 0.0 || ego_policy_speed < 0.0) {
     std::string error_msg(
-        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::terminalSpeedCost(): "
         "ego speed<0.0 or ego policy speed<0.0.\n");
     std::string speed_msg = (boost::format(
           "ego speed:%1% ego policy speed:%2%\n")
@@ -759,12 +759,12 @@ const double ConformalLatticePlanner::terminalSpeedCost(
   else return cost_map[static_cast<int>(speed_ratio*10.0)];
 }
 
-const double ConformalLatticePlanner::terminalDistanceCost(
+const double IDMLatticePlanner::terminalDistanceCost(
     const boost::shared_ptr<Station>& station) const {
 
   if (station->hasChild()) {
     std::string error_msg(
-        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::terminalSpeedCost(): "
         "The input station is not a terminal.\n");
     throw std::runtime_error(error_msg + station->string());
   }
@@ -784,12 +784,12 @@ const double ConformalLatticePlanner::terminalDistanceCost(
   else return cost_map[static_cast<int>(distance_ratio*10.0)];
 }
 
-const double ConformalLatticePlanner::costFromRootToTerminal(
+const double IDMLatticePlanner::costFromRootToTerminal(
     const boost::shared_ptr<Station>& terminal) const {
 
   if (terminal->hasChild()) {
     std::string error_msg(
-        "ConformalLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::terminalSpeedCost(): "
         "The input station is not a terminal.\n");
     throw std::runtime_error(error_msg + terminal->string());
   }
@@ -802,7 +802,7 @@ const double ConformalLatticePlanner::costFromRootToTerminal(
   return path_cost + terminal_speed_cost + terminal_distance_cost;
 }
 
-std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
+std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
 
   //std::printf("selectOptimalPath():\n");
 
@@ -835,14 +835,14 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   // There should be at least one parent node.
   if (!optimal_station) {
     throw std::runtime_error(
-        "ConformalLatticePlanner::selectOptimalPath(): "
+        "IDMLatticePlanner::selectOptimalPath(): "
         "no terminal station in the graph.\n");
   }
 
   // There should always be parent stations for a terminal station.
   if (!optimal_station->hasParent()) {
     throw std::runtime_error(
-        "ConformalLatticePlanner::selectOptimalPath(): "
+        "IDMLatticePlanner::selectOptimalPath(): "
         "the graph only has root station.\n");
   }
 
@@ -873,7 +873,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
       std::get<2>((*(station->optimalParent()))).lock();
     if (!parent_station) {
       std::string error_msg(
-          "ConformalLatticePlanner::selectOptimalPath(): "
+          "IDMLatticePlanner::selectOptimalPath(): "
           "cannot find parent when tracing back optimal path from station.\n");
       throw std::runtime_error(error_msg + station->string());
     }
@@ -906,7 +906,7 @@ std::list<ContinuousPath> ConformalLatticePlanner::selectOptimalPath() const {
   return path_sequence;
 }
 
-DiscretePath ConformalLatticePlanner::mergePaths(
+DiscretePath IDMLatticePlanner::mergePaths(
     const std::list<ContinuousPath>& paths) const {
 
   //std::printf("mergePaths(): \n");
@@ -918,5 +918,5 @@ DiscretePath ConformalLatticePlanner::mergePaths(
   return path;
 }
 
-} // End namespace conformal_lattice_idm_planner
+} // End namespace idm_lattice_planner
 } // End namespace planner.

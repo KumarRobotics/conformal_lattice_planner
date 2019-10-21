@@ -28,10 +28,10 @@
 #include <node/common/convert_to_visualization_msgs.h>
 #include <node/simulator/random_traffic_node.h>
 
-using namespace planner;
 using namespace router;
+using namespace planner;
 
-namespace carla {
+namespace node {
 
 void RandomTrafficNode::spawnVehicles() {
 
@@ -396,7 +396,7 @@ void RandomTrafficNode::publishTraffic() const {
   return;
 }
 
-} // End namespace carla.
+} // End namespace node.
 
 int main(int argc, char** argv) {
 
@@ -409,8 +409,8 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::RandomTrafficNodePtr sim =
-    boost::make_shared<carla::RandomTrafficNode>(nh);
+  node::RandomTrafficNodePtr sim =
+    boost::make_shared<node::RandomTrafficNode>(nh);
   if (!sim->initialize()) {
     ROS_ERROR("Cannot initialize the CARLA simulator.");
   }

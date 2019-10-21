@@ -31,7 +31,7 @@
 #include <planner/common/vehicle_path_planner.h>
 
 namespace planner {
-namespace conformal_lattice_idm_planner {
+namespace idm_lattice_planner {
 
 /**
  * \brief Station stores the information of the end points on a path/trajectory.
@@ -213,15 +213,15 @@ protected:
 }; // End class Station.
 
 /**
- * \brief ConformalLatticePlanner implements the actual algorithm.
+ * \brief IDMLatticePlanner implements the actual algorithm.
  */
-class ConformalLatticePlanner : public VehiclePathPlanner,
-                                private boost::noncopyable{
+class IDMLatticePlanner : public VehiclePathPlanner,
+                          private boost::noncopyable{
 
 private:
 
   using Base = VehiclePathPlanner;
-  using This = ConformalLatticePlanner;
+  using This = IDMLatticePlanner;
 
 protected:
 
@@ -261,7 +261,7 @@ protected:
 public:
 
   /// Constructor of the class.
-  ConformalLatticePlanner(
+  IDMLatticePlanner(
       const double sim_time_step,
       const double spatial_horizon,
       const boost::shared_ptr<router::LoopRouter>& router,
@@ -273,7 +273,7 @@ public:
     router_(router) {}
 
   /// Destructor of the class.
-  virtual ~ConformalLatticePlanner() {}
+  virtual ~IDMLatticePlanner() {}
 
   /// Get the root station.
   boost::shared_ptr<const Station> rootStation() const { return root_.lock(); }
@@ -335,9 +335,9 @@ protected:
   /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
   DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
 
-}; // End class ConformalLatticePlanner.
+}; // End class IDMLatticePlanner.
 
 } // End namespace conformal_lattice_idm_planner.
 
-using ConformalLatticePlanner = conformal_lattice_idm_planner::ConformalLatticePlanner;
+using IDMLatticePlanner = idm_lattice_planner::IDMLatticePlanner;
 } // End namespace planner.

@@ -20,7 +20,7 @@
 #include <planner/common/traffic_manager.h>
 #include <node/simulator/simulator_node.h>
 
-namespace carla {
+namespace node {
 
 class RandomTrafficNode : public SimulatorNode {
 
@@ -80,4 +80,4 @@ protected:
 using RandomTrafficNodePtr = RandomTrafficNode::Ptr;
 using RandomTrafficNodeConstPtr = RandomTrafficNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.

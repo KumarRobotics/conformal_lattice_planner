@@ -38,9 +38,9 @@
 #include <planner/common/traffic_lattice.h>
 #include <planner/common/traffic_manager.h>
 #include <planner/common/utils.h>
-#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
+#include <planner/idm_lattice_planner/idm_lattice_planner.h>
 
-namespace carla {
+namespace node {
 
 sensor_msgs::ImagePtr createImageMsg(
     const boost::shared_ptr<const carla::sensor::data::Image>&);
@@ -122,6 +122,6 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
 }
 
 visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
-    const boost::shared_ptr<const planner::ConformalLatticePlanner>&);
+    const boost::shared_ptr<const planner::IDMLatticePlanner>&);
 
-} // End namespace carla.
+} // End namespace node.

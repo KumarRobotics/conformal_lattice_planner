@@ -24,14 +24,15 @@
 #include <ros/console.h>
 
 #include <node/common/convert_to_visualization_msgs.h>
-#include <node/planner/ego_conformal_lattice_planning_node.h>
+#include <node/planner/ego_idm_lattice_planning_node.h>
 
-using namespace planner;
 using namespace router;
+using namespace planner;
+using namespace planner::idm_lattice_planner;
 
-namespace carla {
+namespace node {
 
-bool EgoConformalLatticePlanningNode::initialize() {
+bool EgoIDMLatticePlanningNode::initialize() {
 
   // Create the publishers.
   path_pub_ = nh_.advertise<visualization_msgs::Marker>(
@@ -62,7 +63,7 @@ bool EgoConformalLatticePlanningNode::initialize() {
 
   // Initialize the path and speed planner.
   boost::shared_ptr<router::LoopRouter> router = boost::make_shared<router::LoopRouter>();
-  path_planner_ = boost::make_shared<planner::ConformalLatticePlanner>(0.1, 100.0, router, map_, fast_map_);
+  path_planner_ = boost::make_shared<planner::IDMLatticePlanner>(0.1, 100.0, router, map_, fast_map_);
   speed_planner_ = boost::make_shared<planner::VehicleSpeedPlanner>();
 
   // Start the action server.
@@ -73,7 +74,7 @@ bool EgoConformalLatticePlanningNode::initialize() {
   return all_param_exist;
 }
 
-boost::shared_ptr<planner::Snapshot> EgoConformalLatticePlanningNode::createSnapshot(
+boost::shared_ptr<planner::Snapshot> EgoIDMLatticePlanningNode::createSnapshot(
     const std::pair<size_t, double>& ego_policy,
     const std::pair<size_t, double>& ego_speed,
     const std::unordered_map<size_t, double>& agent_policies,
@@ -94,7 +95,7 @@ boost::shared_ptr<planner::Snapshot> EgoConformalLatticePlanningNode::createSnap
       ego_vehicle.transform().location.y==0.0 &&
       ego_vehicle.transform().location.z==0.0) {
     std::string error_msg(
-        "EgoConformalLatticePlanningNode::createSnapshot(): "
+        "EgoIDMLatticePlanningNode::createSnapshot(): "
         "ego vehicle is set back to origin.\n");
     std::string ego_msg = (
         boost::format("Ego ID: %lu\n") % ego_vehicle.id()).str();
@@ -119,7 +120,7 @@ boost::shared_ptr<planner::Snapshot> EgoConformalLatticePlanningNode::createSnap
         vehicle.transform().location.y==0.0 &&
         vehicle.transform().location.z==0.0) {
       std::string error_msg(
-          "EgoConformalLatticePlanningNode::createSnapshot(): "
+          "EgoIDMLatticePlanningNode::createSnapshot(): "
           "an agent vehicle is set back to origin.\n");
       std::string agent_msg = (
           boost::format("Agent ID: %lu\n") % vehicle.id()).str();
@@ -134,7 +135,7 @@ boost::shared_ptr<planner::Snapshot> EgoConformalLatticePlanningNode::createSnap
       ego_vehicle, agent_vehicles, router_, map_, fast_map_);
 }
 
-void EgoConformalLatticePlanningNode::executeCallback(
+void EgoIDMLatticePlanningNode::executeCallback(
     const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) {
 
   ROS_INFO_NAMED("ego_planner", "executeCallback()");
@@ -209,7 +210,7 @@ void EgoConformalLatticePlanningNode::executeCallback(
 
   return;
 }
-} // End namespace carla.
+} // End namespace node.
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "~");
@@ -221,10 +222,10 @@ int main(int argc, char** argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  carla::EgoConformalLatticePlanningNodePtr planner =
-    boost::make_shared<carla::EgoConformalLatticePlanningNode>(nh);
+  node::EgoIDMLatticePlanningNodePtr planner =
+    boost::make_shared<node::EgoIDMLatticePlanningNode>(nh);
   if (!planner->initialize()) {
-    ROS_ERROR("Cannot initialize the ego conformal lattice planner.");
+    ROS_ERROR("Cannot initialize the ego IDM lattice planner.");
   }
 
   //ProfilerStart("conformal_lattice_planner.stat");

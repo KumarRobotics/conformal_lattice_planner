@@ -20,7 +20,7 @@
 #include <conformal_lattice_planner/AgentPlanAction.h>
 #include <node/planner/planning_node.h>
 
-namespace carla {
+namespace node {
 
 class AgentsLaneFollowingNode : public PlanningNode {
 
@@ -59,5 +59,5 @@ protected:
 using AgentsLaneFollowingNodePtr = AgentsLaneFollowingNode::Ptr;
 using AgentsLaneFollowingNodeConstPtr = AgentsLaneFollowingNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.
 

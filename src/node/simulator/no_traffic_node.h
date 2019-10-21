@@ -19,7 +19,7 @@
 #include <router/loop_router/loop_router.h>
 #include <node/simulator/simulator_node.h>
 
-namespace carla {
+namespace node {
 
 class NoTrafficNode : public SimulatorNode {
 
@@ -62,5 +62,5 @@ protected:
 using NoTrafficNodePtr = NoTrafficNode::Ptr;
 using NoTrafficNodeConstPtr = NoTrafficNode::ConstPtr;
 
-} // End namespace carla.
+} // End namespace node.
 
