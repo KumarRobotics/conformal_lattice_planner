@@ -45,15 +45,15 @@ if(NOT "${PCL_LIBRARIES}" STREQUAL "")
     "vtkRenderingQt")
 endif()
 
-# Copied from pcl_ros package.
-if(NOT "${PCL_INCLUDE_DIRS}" STREQUAL "")
-  foreach(item ${PCL_INCLUDE_DIRS})
-    string(REGEX MATCH "/usr/include/.*-linux-gnu/freetype2" item ${item})
-    if(item)
-      list(REMOVE_ITEM PCL_INCLUDE_DIRS ${item})
-    endif()
-  endforeach()
-endif()
+## Copied from pcl_ros package.
+#if(NOT "${PCL_INCLUDE_DIRS}" STREQUAL "")
+#  foreach(item ${PCL_INCLUDE_DIRS})
+#    string(REGEX MATCH "/usr/include/.*-linux-gnu/freetype2" item ${item})
+#    if(item)
+#      list(REMOVE_ITEM PCL_INCLUDE_DIRS ${item})
+#    endif()
+#  endforeach()
+#endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
