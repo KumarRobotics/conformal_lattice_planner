@@ -18,3 +18,5 @@ target_link_libraries(planning_algos
 add_dependencies(planning_algos
   routing_algos
 )
+
+add_subdirectory(tests)

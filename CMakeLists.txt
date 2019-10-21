@@ -261,9 +261,6 @@ add_subdirectory(src/node)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
-#catkin_add_gtest(test_idm
-#  src/conformal_lattice_planner/tests/test_intelligent_driver_model.cpp
-#)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

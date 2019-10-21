@@ -15,7 +15,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <conformal_lattice_planner/intelligent_driver_model.h>
+#include <planner/common/intelligent_driver_model.h>
 
 using namespace planner;
 
