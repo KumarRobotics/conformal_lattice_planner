@@ -17,7 +17,7 @@
 #pragma once
 
 #include <vector>
-#include <conformal_lattice_planner/router.h>
+#include <router/common/router.h>
 
 namespace router {
 

@@ -27,9 +27,9 @@
 #include <carla/client/Vehicle.h>
 #include <carla/client/Map.h>
 
-#include <conformal_lattice_planner/utils.h>
-#include <conformal_lattice_planner/fast_waypoint_map.h>
-#include <conformal_lattice_planner/waypoint_lattice.h>
+#include <planner/common/utils.h>
+#include <planner/common/fast_waypoint_map.h>
+#include <planner/common/waypoint_lattice.h>
 
 namespace planner {
 
@@ -47,18 +47,10 @@ protected:
   using CarlaVehicle  = carla::client::Vehicle;
   using CarlaMap      = carla::client::Map;
 
+  using Base = LatticeNode<WaypointNodeWithVehicle>;
+  using This = WaypointNodeWithVehicle;
+
 protected:
-
-  /// Carla waypoint of this node.
-  boost::shared_ptr<const CarlaWaypoint> waypoint_ = nullptr;
-
-  /**
-   * The distance of this waypoint in the lattice.
-   *
-   * Note this is different than the \c s attribute of a carla waypoint,
-   * which is the distance of the waypoint on the road it belongs to.
-   */
-  double distance_ = 0.0;
 
   /// ID of the vehicle that occupies this node.
   boost::optional<size_t> vehicle_ = boost::none;
@@ -73,34 +65,7 @@ public:
    * \param[in] waypoint A carla waypoint at which a node should be created.
    */
   WaypointNodeWithVehicle(const boost::shared_ptr<const CarlaWaypoint>& waypoint) :
-    waypoint_(waypoint) {}
-
-  /// Get the ID of the underlying waypoint, which can also be used as the
-  /// hash tag for the node objects.
-  const size_t id() const {
-    return waypoint_->GetId();
-  }
-
-  /// Get or set the pointer to the carla waypoint of the node.
-  boost::shared_ptr<const CarlaWaypoint>& waypoint() {
-    return waypoint_;
-  }
-
-  /// Get the const pointer to the carla waypoint of the node.
-  boost::shared_ptr<const CarlaWaypoint> waypoint() const {
-    return boost::const_pointer_cast<const CarlaWaypoint>(waypoint_);
-  }
-
-  /// Get the curvature at the node.
-  const double curvature(const boost::shared_ptr<CarlaMap>& map) const {
-    return utils::curvatureAtWaypoint(waypoint_, map);
-  }
-
-  /// Get or set the distance of the node.
-  double& distance() { return distance_; }
-
-  // Get the distance of the node.
-  const double distance() const { return distance_; }
+    Base(waypoint) {}
 
   /// Get the vehicle ID registered at this node.
   boost::optional<size_t> vehicle() const { return vehicle_; }
@@ -113,17 +78,17 @@ public:
     boost::format waypoint_format(
         "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n");
     std::string waypoint_msg = (waypoint_format
-        % waypoint_->GetId()
-        % waypoint_->GetTransform().location.x
-        % waypoint_->GetTransform().location.y
-        % waypoint_->GetTransform().location.z
-        % waypoint_->GetTransform().rotation.roll
-        % waypoint_->GetTransform().rotation.pitch
-        % waypoint_->GetTransform().rotation.yaw
-        % waypoint_->GetRoadId()
-        % waypoint_->GetLaneId()).str();
+        % this->waypoint_->GetId()
+        % this->waypoint_->GetTransform().location.x
+        % this->waypoint_->GetTransform().location.y
+        % this->waypoint_->GetTransform().location.z
+        % this->waypoint_->GetTransform().rotation.roll
+        % this->waypoint_->GetTransform().rotation.pitch
+        % this->waypoint_->GetTransform().rotation.yaw
+        % this->waypoint_->GetRoadId()
+        % this->waypoint_->GetLaneId()).str();
 
-    std::string distance_msg = (boost::format("node distance: %1%\n") % distance_).str();
+    std::string distance_msg = (boost::format("node distance: %1%\n") % this->distance_).str();
 
     std::string vehicle_msg;
     if (!vehicle_)
@@ -559,4 +524,4 @@ protected:
 
 } // End namespace planner.
 
-#include <conformal_lattice_planner/traffic_lattice_inst.h>
+#include <planner/common/traffic_lattice_inst.h>

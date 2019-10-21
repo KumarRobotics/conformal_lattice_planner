@@ -18,7 +18,8 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <boost/format.hpp>
-#include <conformal_lattice_planner/snapshot.h>
+
+#include <planner/common/snapshot.h>
 
 namespace planner {
 

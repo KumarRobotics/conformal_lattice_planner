@@ -17,10 +17,10 @@
 #pragma once
 
 #include <boost/core/noncopyable.hpp>
-#include <conformal_lattice_planner/waypoint_lattice.h>
-#include <conformal_lattice_planner/vehicle_path.h>
-#include <conformal_lattice_planner/vehicle_path_planner.h>
-#include <conformal_lattice_planner/utils.h>
+#include <planner/common/waypoint_lattice.h>
+#include <planner/common/vehicle_path.h>
+#include <planner/common/vehicle_path_planner.h>
+#include <planner/common/utils.h>
 
 namespace planner {
 

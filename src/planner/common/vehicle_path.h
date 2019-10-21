@@ -20,7 +20,8 @@
 #include <map>
 #include <string>
 #include <carla/geom/Transform.h>
-#include <conformal_lattice_planner/kn_path_gen.h>
+
+#include <planner/common/kn_path_gen.h>
 
 namespace planner {
 

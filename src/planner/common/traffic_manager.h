@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <conformal_lattice_planner/traffic_lattice.h>
+#include <planner/common/traffic_lattice.h>
 
 namespace planner {
 
@@ -172,4 +172,4 @@ public:
 
 } // End namespace planner.
 
-#include <conformal_lattice_planner/traffic_manager_inst.h>
+#include <planner/common/traffic_manager_inst.h>

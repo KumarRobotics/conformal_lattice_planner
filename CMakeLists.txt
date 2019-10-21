@@ -176,6 +176,9 @@ set(Carla_LIBRARIES
   DetourTileCache
 )
 
+add_subdirectory(src/router)
+add_subdirectory(src/planner)
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/carla_ros_bridge.cpp
@@ -186,49 +189,49 @@ set(Carla_LIBRARIES
 ## either from message generation or dynamic reconfigure
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_library(all_planning
-  src/conformal_lattice_planner/utils.cpp
-  src/conformal_lattice_planner/loop_router.cpp
-  src/conformal_lattice_planner/vehicle_path.cpp
-  src/conformal_lattice_planner/snapshot.cpp
-  src/conformal_lattice_planner/traffic_simulator.cpp
-  src/conformal_lattice_planner/conformal_lattice_planner.cpp
-)
-target_link_libraries(all_planning
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-add_dependencies(all_planning
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_library(all_planning
+#  src/conformal_lattice_planner/utils.cpp
+#  src/conformal_lattice_planner/loop_router.cpp
+#  src/conformal_lattice_planner/vehicle_path.cpp
+#  src/conformal_lattice_planner/snapshot.cpp
+#  src/conformal_lattice_planner/traffic_simulator.cpp
+#  src/conformal_lattice_planner/conformal_lattice_planner.cpp
+#)
+#target_link_libraries(all_planning
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#  ${PCL_LIBRARIES}
+#)
+#add_dependencies(all_planning
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_library(all_ros_nodes
-  src/ros/simulator_node.cpp
-  src/ros/random_traffic_node.cpp
-  src/ros/no_traffic_node.cpp
-  src/ros/fixed_scenario_node.cpp
-
-  src/ros/ego_lane_following_node.cpp
-  src/ros/ego_conformal_lattice_planning_node.cpp
-  src/ros/agents_lane_following_node.cpp
-
-  src/ros/convert_to_visualization_msgs.cpp
-  src/conformal_lattice_planner/utils.cpp
-)
-target_link_libraries(all_ros_nodes
-  all_planning
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-add_dependencies(all_ros_nodes
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_library(all_ros_nodes
+#  src/ros/simulator_node.cpp
+#  src/ros/random_traffic_node.cpp
+#  src/ros/no_traffic_node.cpp
+#  src/ros/fixed_scenario_node.cpp
+#
+#  src/ros/ego_lane_following_node.cpp
+#  src/ros/ego_conformal_lattice_planning_node.cpp
+#  src/ros/agents_lane_following_node.cpp
+#
+#  src/ros/convert_to_visualization_msgs.cpp
+#  src/conformal_lattice_planner/utils.cpp
+#)
+#target_link_libraries(all_ros_nodes
+#  all_planning
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#  ${PCL_LIBRARIES}
+#)
+#add_dependencies(all_ros_nodes
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
@@ -250,96 +253,96 @@ add_dependencies(all_ros_nodes
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(random_traffic_node
-  src/ros/nodes/random_traffic_simulator.cpp
-)
-target_link_libraries(random_traffic_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-add_dependencies(random_traffic_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(random_traffic_node
+#  src/ros/nodes/random_traffic_simulator.cpp
+#)
+#target_link_libraries(random_traffic_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(random_traffic_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_executable(no_traffic_node
-  src/ros/nodes/no_traffic_simulator.cpp
-)
-target_link_libraries(no_traffic_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-add_dependencies(no_traffic_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(no_traffic_node
+#  src/ros/nodes/no_traffic_simulator.cpp
+#)
+#target_link_libraries(no_traffic_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(no_traffic_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_executable(fixed_scenario_node
-  src/ros/nodes/fixed_scenario_simulator.cpp
-)
-target_link_libraries(fixed_scenario_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-add_dependencies(fixed_scenario_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(fixed_scenario_node
+#  src/ros/nodes/fixed_scenario_simulator.cpp
+#)
+#target_link_libraries(fixed_scenario_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(fixed_scenario_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_executable(ego_lane_following_node
-  src/ros/nodes/ego_lane_follower.cpp
-)
-target_link_libraries(ego_lane_following_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-add_dependencies(ego_lane_following_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(ego_lane_following_node
+#  src/ros/nodes/ego_lane_follower.cpp
+#)
+#target_link_libraries(ego_lane_following_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(ego_lane_following_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_executable(ego_conformal_lattice_planning_node
-  src/ros/nodes/ego_conformal_lattice_planner.cpp
-)
-target_link_libraries(ego_conformal_lattice_planning_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-  ${PROFILER_LIBRARIES}
-)
-add_dependencies(ego_conformal_lattice_planning_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(ego_conformal_lattice_planning_node
+#  src/ros/nodes/ego_conformal_lattice_planner.cpp
+#)
+#target_link_libraries(ego_conformal_lattice_planning_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#  ${PROFILER_LIBRARIES}
+#)
+#add_dependencies(ego_conformal_lattice_planning_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
-add_executable(agents_lane_following_node
-  src/ros/nodes/agents_lane_follower.cpp
-)
-target_link_libraries(agents_lane_following_node
-  all_planning
-  all_ros_nodes
-  ${Carla_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
-add_dependencies(agents_lane_following_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
+#add_executable(agents_lane_following_node
+#  src/ros/nodes/agents_lane_follower.cpp
+#)
+#target_link_libraries(agents_lane_following_node
+#  all_planning
+#  all_ros_nodes
+#  ${Carla_LIBRARIES}
+#  ${Boost_LIBRARIES}
+#  ${catkin_LIBRARIES}
+#)
+#add_dependencies(agents_lane_following_node
+#  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+#  ${catkin_EXPORTED_TARGETS}
+#)
 
 
 #############
@@ -393,9 +396,9 @@ add_dependencies(agents_lane_following_node
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
-catkin_add_gtest(test_idm
-  src/conformal_lattice_planner/tests/test_intelligent_driver_model.cpp
-)
+#catkin_add_gtest(test_idm
+#  src/conformal_lattice_planner/tests/test_intelligent_driver_model.cpp
+#)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

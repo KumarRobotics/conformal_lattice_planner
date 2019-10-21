@@ -15,10 +15,11 @@
  */
 
 #include <list>
-#include <conformal_lattice_planner/traffic_simulator.h>
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <planner/conformal_lattice_planner/traffic_simulator.h>
+#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace planner {
+namespace conformal_lattice_planner {
 
 void Station::updateOptimalParent() {
 
@@ -917,4 +918,5 @@ DiscretePath ConformalLatticePlanner::mergePaths(
   return path;
 }
 
+} // End namespace conformal_lattice_planner
 } // End namespace planner.

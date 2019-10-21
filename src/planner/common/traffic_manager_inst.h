@@ -19,7 +19,8 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
-#include <conformal_lattice_planner/traffic_manager.h>
+
+#include <planner/common/traffic_manager.h>
 
 namespace planner {
 

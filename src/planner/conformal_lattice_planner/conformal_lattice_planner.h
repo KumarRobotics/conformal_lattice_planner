@@ -23,15 +23,15 @@
 #include <boost/optional.hpp>
 #include <boost/core/noncopyable.hpp>
 
-
-#include <conformal_lattice_planner/traffic_lattice.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/snapshot.h>
-#include <conformal_lattice_planner/vehicle_path.h>
-#include <conformal_lattice_planner/utils.h>
-#include <conformal_lattice_planner/vehicle_path_planner.h>
+#include <router/loop_router/loop_router.h>
+#include <planner/common/traffic_lattice.h>
+#include <planner/common/snapshot.h>
+#include <planner/common/vehicle_path.h>
+#include <planner/common/utils.h>
+#include <planner/common/vehicle_path_planner.h>
 
 namespace planner {
+namespace conformal_lattice_planner {
 
 /**
  * \brief Station stores the information of the end points on a path/trajectory.
@@ -337,4 +337,7 @@ protected:
 
 }; // End class ConformalLatticePlanner.
 
+} // End namespace conformal_lattice_planner.
+
+using ConformalLatticePlanner = conformal_lattice_planner::ConformalLatticePlanner;
 } // End namespace planner.

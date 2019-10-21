@@ -21,7 +21,8 @@
 #include <unordered_map>
 #include <algorithm>
 #include <stdexcept>
-#include <conformal_lattice_planner/traffic_lattice.h>
+
+#include <planner/common/traffic_lattice.h>
 
 namespace planner {
 

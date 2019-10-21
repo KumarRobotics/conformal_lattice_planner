@@ -18,8 +18,9 @@
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/smart_ptr.hpp>
-#include <conformal_lattice_planner/intelligent_driver_model.h>
-#include <conformal_lattice_planner/snapshot.h>
+
+#include <planner/common/intelligent_driver_model.h>
+#include <planner/common/snapshot.h>
 
 namespace planner {
 

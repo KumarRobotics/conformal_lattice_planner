@@ -1,0 +1,20 @@
+set(planner_srcs
+  common/snapshot.cpp
+  common/utils.cpp
+  common/vehicle_path.cpp
+  conformal_lattice_planner/traffic_simulator.cpp
+  conformal_lattice_planner/conformal_lattice_planner.cpp
+)
+
+add_library(planning_algos
+  ${planner_srcs}
+)
+target_link_libraries(planning_algos
+  routing_algos
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+add_dependencies(planning_algos
+  routing_algos
+)

@@ -20,7 +20,7 @@
 #include <stdexcept>
 #include <carla/road/Road.h>
 #include <carla/road/Lane.h>
-#include <conformal_lattice_planner/loop_router.h>
+#include <router/loop_router/loop_router.h>
 
 namespace router {
 

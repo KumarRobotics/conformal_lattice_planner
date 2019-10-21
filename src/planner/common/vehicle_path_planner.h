@@ -18,9 +18,10 @@
 
 #include <boost/smart_ptr.hpp>
 #include <carla/client/Map.h>
-#include <conformal_lattice_planner/snapshot.h>
-#include <conformal_lattice_planner/fast_waypoint_map.h>
-#include <conformal_lattice_planner/vehicle_path.h>
+
+#include <planner/common/snapshot.h>
+#include <planner/common/fast_waypoint_map.h>
+#include <planner/common/vehicle_path.h>
 
 namespace planner {
 

@@ -19,7 +19,8 @@
 #include <boost/format.hpp>
 #include <carla/road/Road.h>
 #include <carla/road/element/RoadInfoGeometry.h>
-#include <conformal_lattice_planner/utils.h>
+
+#include <planner/common/utils.h>
 
 namespace utils {
 

@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <vector>
 #include <queue>
 #include <unordered_map>
@@ -24,7 +23,6 @@
 
 #include <boost/smart_ptr.hpp>
 #include <boost/pointer_cast.hpp>
-#include <boost/format.hpp>
 
 #include <carla/client/World.h>
 #include <carla/client/Map.h>
@@ -32,27 +30,18 @@
 #include <carla/geom/Transform.h>
 #include <carla/road/Road.h>
 #include <carla/road/Lane.h>
-#include <carla/road/element/RoadInfoGeometry.h>
-
-#include <conformal_lattice_planner/utils.h>
-#include <conformal_lattice_planner/lattice_node.h>
 
 namespace planner {
 
 /**
- * \brief WaypointNode Keeps track of the waypoints on a lattice.
+ * \brief LatticeNode is supposed to be the base class of all nodes
+ *        to be used with the the Lattice class.
  *
- * WaypointNode is used together with Lattice class template to
- * form the WaypointLattice class template.
- *
- * \note The copy constructor of this class performs a shallow copy,
- *       i.e. only the shared and weak pointers are copied. This makes
- *       sense since the class copy constructor won't know which piece
- *       of memory the pointers should point to. In case one would like
- *       to redirect the pointers in the class to other objects, use
- *       the accessor interfaces.
+ * This class provides the interface for accessing and setting the
+ * nodes around a node object.
  */
-class WaypointNode : public LatticeNode<WaypointNode> {
+template<typename Derived>
+class LatticeNode {
 
 protected:
 
@@ -72,16 +61,28 @@ protected:
    */
   double distance_ = 0.0;
 
+  /// Front node.
+  boost::weak_ptr<Derived> front_;
+
+  /// Back node.
+  boost::weak_ptr<Derived> back_;
+
+  /// Left node.
+  boost::weak_ptr<Derived> left_;
+
+  /// Right node.
+  boost::weak_ptr<Derived> right_;
+
 public:
 
-  /// Default constructor.
-  WaypointNode() = default;
+  // Default constructor.
+  LatticeNode() = default;
 
   /**
    * \brief Construct a node with a carla waypoint.
    * \param[in] waypoint A carla waypoint at which a node should be created.
    */
-  WaypointNode(const boost::shared_ptr<const CarlaWaypoint>& waypoint) :
+  LatticeNode(const boost::shared_ptr<const CarlaWaypoint>& waypoint) :
     waypoint_(waypoint) {}
 
   /// Get the ID of the underlying waypoint, which can also be used as the
@@ -111,24 +112,57 @@ public:
   // Get the distance of the node.
   const double distance() const { return distance_; }
 
-  // Get the string describing the node.
-  std::string string(const std::string& prefix="") const {
-    boost::format waypoint_format(
-        "waypoint %1% x:%2% y:%3% z:%4% r:%5% p:%6% y:%7% road:%8% lane:%9%.\n");
-    std::string waypoint_msg = (waypoint_format
-        % waypoint_->GetId()
-        % waypoint_->GetTransform().location.x
-        % waypoint_->GetTransform().location.y
-        % waypoint_->GetTransform().location.z
-        % waypoint_->GetTransform().rotation.roll
-        % waypoint_->GetTransform().rotation.pitch
-        % waypoint_->GetTransform().rotation.yaw
-        % waypoint_->GetRoadId()
-        % waypoint_->GetLaneId()).str();
-    std::string distance_msg = (boost::format("node distance: %1%\n") % distance_).str();
-    return prefix + waypoint_msg + distance_msg;
-    // TODO: Add the info for neighbor waypoints as well.
+  /** @name Accessors
+   *
+   * front(), back(), left(), right() returns reference
+   * of the boost weak pointers stored in the object, so that one can
+   * update the weak pointers directly.
+   */
+  /// @{
+
+  boost::weak_ptr<Derived>& front() {
+    return front_;
   }
+
+  boost::weak_ptr<Derived>& back() {
+    return back_;
+  }
+
+  boost::weak_ptr<Derived>& left() {
+    return left_;
+  }
+
+  boost::weak_ptr<Derived>& right() {
+    return right_;
+  }
+
+  /// @}
+
+  /** @name const Accessors
+   *
+   * front(), back(), left(), right() returns boost shared pointers
+   * pointering to const LatticeNode objects.
+   */
+  /// @{
+
+  boost::shared_ptr<const Derived> front() const {
+    return boost::const_pointer_cast<const Derived>(front_.lock());
+  }
+
+  boost::shared_ptr<const Derived> back() const {
+    return boost::const_pointer_cast<const Derived>(back_.lock());
+  }
+
+  boost::shared_ptr<const Derived> left() const {
+    return boost::const_pointer_cast<const Derived>(left_.lock());
+  }
+
+  boost::shared_ptr<const Derived> right() const {
+    return boost::const_pointer_cast<const Derived>(right_.lock());
+  }
+
+  /// @}
+
 }; // End class WaypointNode.
 
 /**
@@ -520,13 +554,6 @@ protected:
   void updateNodeDistance();
 
 }; // End class Lattice.
-
-/**
- * \brief WaypointLattice is a helper class used to query
- *        the relative waypoints of the given waypoint.
- */
-template<typename Router>
-using WaypointLattice = Lattice<WaypointNode, Router>;
 } // End namespace planner.
 
-#include <conformal_lattice_planner/waypoint_lattice_inst.h>
+#include <planner/common/lattice_inst.h>

@@ -29,7 +29,7 @@
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 
-#include <conformal_lattice_planner/utils.h>
+#include <planner/common/utils.h>
 
 namespace utils {
 

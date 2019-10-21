@@ -24,7 +24,7 @@
 #include <string>
 #include <boost/format.hpp>
 
-#include <conformal_lattice_planner/waypoint_lattice.h>
+#include <planner/common/lattice.h>
 
 namespace planner {
 

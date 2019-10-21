@@ -20,9 +20,10 @@
 #include <carla/client/Map.h>
 #include <carla/client/Vehicle.h>
 #include <carla/geom/Transform.h>
-#include <conformal_lattice_planner/vehicle.h>
-#include <conformal_lattice_planner/traffic_lattice.h>
-#include <conformal_lattice_planner/loop_router.h>
+
+#include <router/loop_router/loop_router.h>
+#include <planner/common/vehicle.h>
+#include <planner/common/traffic_lattice.h>
 
 namespace planner {
 

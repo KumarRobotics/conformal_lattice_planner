@@ -23,12 +23,13 @@
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 
-#include <conformal_lattice_planner/intelligent_driver_model.h>
-#include <conformal_lattice_planner/vehicle_path.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/snapshot.h>
+#include <router/loop_router/loop_router.h>
+#include <planner/common/intelligent_driver_model.h>
+#include <planner/common/vehicle_path.h>
+#include <planner/common/snapshot.h>
 
 namespace planner {
+namespace conformal_lattice_planner {
 
 class TrafficSimulator : private boost::noncopyable {
 
@@ -246,5 +247,6 @@ const bool TrafficSimulator::simulate(
   return true;
 }
 
+} // End namespace conformal_lattice_planner.
 } // End namespace planner.
 

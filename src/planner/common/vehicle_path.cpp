@@ -19,8 +19,9 @@
 #include <stdexcept>
 #include <algorithm>
 #include <boost/format.hpp>
-#include <conformal_lattice_planner/vehicle_path.h>
-#include <conformal_lattice_planner/utils.h>
+
+#include <planner/common/vehicle_path.h>
+#include <planner/common/utils.h>
 
 namespace planner {
 
