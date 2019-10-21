@@ -17,8 +17,10 @@
 #include <array>
 #include <limits>
 #include <random>
-#include <conformal_lattice_planner/waypoint_lattice.h>
-#include <ros/no_traffic_node.h>
+
+#include <ros/console.h>
+#include <planner/common/waypoint_lattice.h>
+#include <node/simulator/no_traffic_node.h>
 
 using namespace planner;
 using namespace router;
@@ -167,3 +169,24 @@ void NoTrafficNode::spawnVehicles() {
 }
 
 } // End namespace carla.
+
+int main(int argc, char** argv) {
+
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Info)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
+
+  carla::NoTrafficNodePtr sim =
+    boost::make_shared<carla::NoTrafficNode>(nh);
+  if (!sim->initialize()) {
+    ROS_ERROR("Cannot initialize the CARLA simulator.");
+  }
+
+  ros::spin();
+  return 0;
+}

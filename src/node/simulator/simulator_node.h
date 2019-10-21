@@ -39,7 +39,7 @@
 #include <carla/client/Sensor.h>
 #include <carla/sensor/data/Image.h>
 
-#include <conformal_lattice_planner/fast_waypoint_map.h>
+#include <planner/common/fast_waypoint_map.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 

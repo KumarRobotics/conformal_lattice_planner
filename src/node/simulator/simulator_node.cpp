@@ -18,8 +18,8 @@
 #include <random>
 #include <chrono>
 
-#include <ros/simulator_node.h>
-#include <ros/convert_to_visualization_msgs.h>
+#include <node/common/convert_to_visualization_msgs.h>
+#include <node/simulator/simulator_node.h>
 
 namespace carla {
 

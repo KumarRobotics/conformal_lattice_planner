@@ -23,7 +23,7 @@
 #include <planner/conformal_lattice_planner/traffic_simulator.h>
 
 namespace planner {
-namespace conformal_lattice_planner {
+namespace conformal_lattice_idm_planner {
 
 const double TrafficSimulator::egoAcceleration() const {
 
@@ -260,5 +260,5 @@ const double TrafficSimulator::accelCost() const {
   return ego_brake_cost + 0.5*agent_brake_cost;
 }
 
-} // End namespace conformal_lattice_planner.
+} // End namespace conformal_lattice_idm_planner.
 } // End namespace planner.

@@ -178,6 +178,7 @@ set(Carla_LIBRARIES
 
 add_subdirectory(src/router)
 add_subdirectory(src/planner)
+add_subdirectory(src/node)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

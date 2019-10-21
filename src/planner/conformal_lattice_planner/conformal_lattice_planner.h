@@ -31,7 +31,7 @@
 #include <planner/common/vehicle_path_planner.h>
 
 namespace planner {
-namespace conformal_lattice_planner {
+namespace conformal_lattice_idm_planner {
 
 /**
  * \brief Station stores the information of the end points on a path/trajectory.
@@ -337,7 +337,7 @@ protected:
 
 }; // End class ConformalLatticePlanner.
 
-} // End namespace conformal_lattice_planner.
+} // End namespace conformal_lattice_idm_planner.
 
-using ConformalLatticePlanner = conformal_lattice_planner::ConformalLatticePlanner;
+using ConformalLatticePlanner = conformal_lattice_idm_planner::ConformalLatticePlanner;
 } // End namespace planner.

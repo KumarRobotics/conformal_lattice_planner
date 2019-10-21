@@ -33,12 +33,12 @@
 #include <carla/geom/Transform.h>
 #include <carla/sensor/data/Image.h>
 
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/waypoint_lattice.h>
-#include <conformal_lattice_planner/traffic_lattice.h>
-#include <conformal_lattice_planner/traffic_manager.h>
-#include <conformal_lattice_planner/utils.h>
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
+#include <router/loop_router/loop_router.h>
+#include <planner/common/waypoint_lattice.h>
+#include <planner/common/traffic_lattice.h>
+#include <planner/common/traffic_manager.h>
+#include <planner/common/utils.h>
+#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace carla {
 

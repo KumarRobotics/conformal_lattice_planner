@@ -17,17 +17,17 @@
 #pragma once
 
 #include <actionlib/server/simple_action_server.h>
-#include <ros/planning_node.h>
-#include <conformal_lattice_planner/EgoPlanAction.h>
+#include <conformal_lattice_planner/AgentPlanAction.h>
+#include <node/planner/planning_node.h>
 
 namespace carla {
 
-class EgoLaneFollowingNode : public PlanningNode {
+class AgentsLaneFollowingNode : public PlanningNode {
 
 private:
 
   using Base = PlanningNode;
-  using This = EgoLaneFollowingNode;
+  using This = AgentsLaneFollowingNode;
 
 public:
 
@@ -36,28 +36,28 @@ public:
 
 protected:
 
-  mutable ros::Publisher path_pub_;
   mutable actionlib::SimpleActionServer<
-    conformal_lattice_planner::EgoPlanAction> server_;
+    conformal_lattice_planner::AgentPlanAction> server_;
 
 public:
 
-  EgoLaneFollowingNode(ros::NodeHandle& nh) :
+  AgentsLaneFollowingNode(ros::NodeHandle& nh) :
     Base(nh),
-    server_(nh, "ego_plan", boost::bind(&EgoLaneFollowingNode::executeCallback, this, _1), false) {}
+    server_(nh, "agents_plan", boost::bind(&AgentsLaneFollowingNode::executeCallback, this, _1), false) {}
 
-  virtual ~EgoLaneFollowingNode() {}
+  virtual ~AgentsLaneFollowingNode() {}
 
   virtual bool initialize() override;
 
 protected:
 
   virtual void executeCallback(
-      const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
+      const conformal_lattice_planner::AgentPlanGoalConstPtr& goal);
 
-}; // End class EgoLaneFollowingNode.
+}; // End class AgentsLaneFollowingNode.
 
-using EgoLaneFollowingNodePtr = EgoLaneFollowingNode::Ptr;
-using EgoLaneFollowingNodeConstPtr = EgoLaneFollowingNode::ConstPtr;
+using AgentsLaneFollowingNodePtr = AgentsLaneFollowingNode::Ptr;
+using AgentsLaneFollowingNodeConstPtr = AgentsLaneFollowingNode::ConstPtr;
 
 } // End namespace carla.
+

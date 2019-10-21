@@ -18,12 +18,15 @@
 #include <chrono>
 #include <unordered_set>
 
-#include <conformal_lattice_planner/vehicle_path.h>
-#include <conformal_lattice_planner/vehicle_speed_planner.h>
-#include <conformal_lattice_planner/lane_follower.h>
-#include <conformal_lattice_planner/utils.h>
-#include <ros/ego_lane_following_node.h>
-#include <ros/convert_to_visualization_msgs.h>
+#include <ros/ros.h>
+#include <ros/console.h>
+
+#include <planner/common/vehicle_path.h>
+#include <planner/common/vehicle_speed_planner.h>
+#include <planner/common/utils.h>
+#include <planner/lane_follower/lane_follower.h>
+#include <node/common/convert_to_visualization_msgs.h>
+#include <node/planner/ego_lane_following_node.h>
 
 using namespace planner;
 using namespace router;
@@ -137,3 +140,23 @@ void EgoLaneFollowingNode::executeCallback(
 }
 
 } // End namespace carla.
+
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Info)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
+
+  carla::EgoLaneFollowingNodePtr planner =
+    boost::make_shared<carla::EgoLaneFollowingNode>(nh);
+  if (!planner->initialize()) {
+    ROS_ERROR("Cannot initialize the ego lane following planner.");
+  }
+
+  ros::spin();
+  return 0;
+}

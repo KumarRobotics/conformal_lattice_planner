@@ -19,7 +19,7 @@
 #include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
 
 namespace planner {
-namespace conformal_lattice_planner {
+namespace conformal_lattice_idm_planner {
 
 void Station::updateOptimalParent() {
 
@@ -918,5 +918,5 @@ DiscretePath ConformalLatticePlanner::mergePaths(
   return path;
 }
 
-} // End namespace conformal_lattice_planner
+} // End namespace conformal_lattice_idm_planner
 } // End namespace planner.

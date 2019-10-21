@@ -29,17 +29,13 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/waypoint_lattice.h>
-#include <conformal_lattice_planner/traffic_lattice.h>
-#include <conformal_lattice_planner/traffic_manager.h>
-#include <conformal_lattice_planner/utils.h>
-#include <ros/convert_to_visualization_msgs.h>
+#include <node/common/convert_to_visualization_msgs.h>
 
 using namespace std;
 using namespace boost;
-using namespace planner;
 using namespace router;
+using namespace planner;
+using namespace planner::conformal_lattice_idm_planner;
 
 using CarlaVehicle         = carla::client::Vehicle;
 using CarlaMap             = carla::client::Map;

@@ -20,10 +20,10 @@
 #include <boost/optional.hpp>
 #include <actionlib/server/simple_action_server.h>
 
-#include <conformal_lattice_planner/conformal_lattice_planner.h>
-#include <conformal_lattice_planner/vehicle_speed_planner.h>
-#include <ros/planning_node.h>
 #include <conformal_lattice_planner/EgoPlanAction.h>
+#include <planner/common/vehicle_speed_planner.h>
+#include <planner/conformal_lattice_planner/conformal_lattice_planner.h>
+#include <node/planner/planning_node.h>
 
 namespace carla {
 class EgoConformalLatticePlanningNode : public PlanningNode {

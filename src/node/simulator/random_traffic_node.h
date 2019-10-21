@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/traffic_manager.h>
-#include <ros/simulator_node.h>
+#include <router/loop_router/loop_router.h>
+#include <planner/common/traffic_manager.h>
+#include <node/simulator/simulator_node.h>
 
 namespace carla {
 

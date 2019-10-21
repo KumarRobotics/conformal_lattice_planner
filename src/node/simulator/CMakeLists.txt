@@ -1,0 +1,62 @@
+# No traffic simulator node
+add_executable(no_traffic_node
+  no_traffic_node.cpp
+  simulator_node.cpp
+  ../common/convert_to_visualization_msgs.cpp
+)
+target_link_libraries(no_traffic_node
+  routing_algos
+  planning_algos
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+add_dependencies(no_traffic_node
+  routing_algos
+  planning_algos
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+# Fixed scenario simulator node
+add_executable(fixed_scenario_node
+  fixed_scenario_node.cpp
+  simulator_node.cpp
+  ../common/convert_to_visualization_msgs.cpp
+)
+target_link_libraries(fixed_scenario_node
+  routing_algos
+  planning_algos
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+add_dependencies(fixed_scenario_node
+  routing_algos
+  planning_algos
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+
+# Random traffic simulator node
+add_executable(random_traffic_node
+  random_traffic_node.cpp
+  simulator_node.cpp
+  ../common/convert_to_visualization_msgs.cpp
+)
+target_link_libraries(random_traffic_node
+  routing_algos
+  planning_algos
+  ${Carla_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+add_dependencies(random_traffic_node
+  routing_algos
+  planning_algos
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)

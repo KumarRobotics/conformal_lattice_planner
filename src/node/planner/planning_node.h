@@ -32,10 +32,10 @@
 #include <carla/road/element/RoadInfoGeometry.h>
 
 #include <ros/ros.h>
-#include <conformal_lattice_planner/loop_router.h>
-#include <conformal_lattice_planner/snapshot.h>
-#include <conformal_lattice_planner/utils.h>
-#include <conformal_lattice_planner/fast_waypoint_map.h>
+#include <router/loop_router/loop_router.h>
+#include <planner/common/snapshot.h>
+#include <planner/common/utils.h>
+#include <planner/common/fast_waypoint_map.h>
 
 namespace carla {
 

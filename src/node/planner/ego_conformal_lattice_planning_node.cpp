@@ -18,9 +18,13 @@
 #include <chrono>
 #include <unordered_set>
 #include <boost/timer/timer.hpp>
+#include <gperftools/profiler.h>
 
-#include <ros/ego_conformal_lattice_planning_node.h>
-#include <ros/convert_to_visualization_msgs.h>
+#include <ros/ros.h>
+#include <ros/console.h>
+
+#include <node/common/convert_to_visualization_msgs.h>
+#include <node/planner/ego_conformal_lattice_planning_node.h>
 
 using namespace planner;
 using namespace router;
@@ -205,5 +209,26 @@ void EgoConformalLatticePlanningNode::executeCallback(
 
   return;
 }
-
 } // End namespace carla.
+
+int main(int argc, char** argv) {
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Info)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
+
+  carla::EgoConformalLatticePlanningNodePtr planner =
+    boost::make_shared<carla::EgoConformalLatticePlanningNode>(nh);
+  if (!planner->initialize()) {
+    ROS_ERROR("Cannot initialize the ego conformal lattice planner.");
+  }
+
+  //ProfilerStart("conformal_lattice_planner.stat");
+  ros::spin();
+  //ProfilerStop();
+  return 0;
+}

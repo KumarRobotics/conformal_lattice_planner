@@ -23,8 +23,10 @@
 #include <boost/timer/timer.hpp>
 #include <boost/format.hpp>
 
-#include <ros/convert_to_visualization_msgs.h>
-#include <ros/random_traffic_node.h>
+#include <ros/ros.h>
+#include <ros/console.h>
+#include <node/common/convert_to_visualization_msgs.h>
+#include <node/simulator/random_traffic_node.h>
 
 using namespace planner;
 using namespace router;
@@ -396,3 +398,23 @@ void RandomTrafficNode::publishTraffic() const {
 
 } // End namespace carla.
 
+int main(int argc, char** argv) {
+
+  ros::init(argc, argv, "~");
+  ros::NodeHandle nh("~");
+
+  if(ros::console::set_logger_level(
+        ROSCONSOLE_DEFAULT_NAME,
+        ros::console::levels::Info)) {
+    ros::console::notifyLoggerLevelsChanged();
+  }
+
+  carla::RandomTrafficNodePtr sim =
+    boost::make_shared<carla::RandomTrafficNode>(nh);
+  if (!sim->initialize()) {
+    ROS_ERROR("Cannot initialize the CARLA simulator.");
+  }
+
+  ros::spin();
+  return 0;
+}
