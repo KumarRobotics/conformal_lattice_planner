@@ -6,8 +6,6 @@ Panels:
       Expanded:
         - /Town Map1/Namespaces1
         - /Traffic Lattice1/Namespaces1
-        - /Station Lattice1
-        - /Waypoint Lattice1
       Splitter Ratio: 0.6117647290229797
     Tree Height: 611
   - Class: rviz/Selection
@@ -111,15 +109,15 @@ Visualization Manager:
       Marker Topic: /carla/ego_lane_following_planner/ego_path
       Name: Ego LF Path
       Namespaces:
-        ego_path: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /carla/ego_conformal_lattice_planner/ego_path
+      Marker Topic: /carla/ego_idm_lattice_planner/ego_path
       Name: Ego IDMLP Path
       Namespaces:
-        {}
+        ego_path: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
