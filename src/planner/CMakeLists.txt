@@ -2,7 +2,7 @@ set(planner_srcs
   common/snapshot.cpp
   common/utils.cpp
   common/vehicle_path.cpp
-  idm_lattice_planner/traffic_simulator.cpp
+  common/traffic_simulator.cpp
   idm_lattice_planner/idm_lattice_planner.cpp
 )
 

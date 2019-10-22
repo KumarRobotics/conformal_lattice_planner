@@ -15,11 +15,61 @@
  */
 
 #include <list>
-#include <planner/idm_lattice_planner/traffic_simulator.h>
 #include <planner/idm_lattice_planner/idm_lattice_planner.h>
 
 namespace planner {
 namespace idm_lattice_planner {
+
+const double IDMTrafficSimulator::egoAcceleration() const {
+
+  // The logic for computing the acceleration for the ego vehicle is simple.
+  // Regardless whether the ego vehicle is in the process of lane changing
+  // or not, we will only consider the front vehicle (if any) on the same
+  // lane with the head of the ego vehicle.
+  //
+  // TODO: Should we consider the front vehicle on two lanes, both the
+  //       old lane and the target lane?
+
+  double accel = 0.0;
+  boost::optional<std::pair<size_t, double>> lead =
+    snapshot_.trafficLattice()->front(snapshot_.ego().id());
+
+  if (lead) {
+    const double lead_speed = snapshot_.vehicle(lead->first).speed();
+    const double following_distance = lead->second;
+    accel = idm_->idm(snapshot_.ego().speed(),
+                      snapshot_.ego().policySpeed(),
+                      lead_speed,
+                      following_distance);
+  } else {
+    accel = idm_->idm(snapshot_.ego().speed(),
+                      snapshot_.ego().policySpeed());
+  }
+
+  return accel;
+}
+
+const double IDMTrafficSimulator::agentAcceleration(const size_t agent) const {
+
+  // We assume all agent vehicles are lane followers for now.
+  double accel = 0.0;
+  boost::optional<std::pair<size_t, double>> lead =
+    snapshot_.trafficLattice()->front(agent);
+
+  if (lead) {
+    const double lead_speed = snapshot_.vehicle(lead->first).speed();
+    const double following_distance = lead->second;
+    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
+                      snapshot_.vehicle(agent).policySpeed(),
+                      lead_speed,
+                      following_distance);
+  } else {
+    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
+                      snapshot_.vehicle(agent).policySpeed());
+  }
+
+  return accel;
+}
 
 void Station::updateOptimalParent() {
 
@@ -515,7 +565,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
 
   // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
+  IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -601,7 +651,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
 
   // Now, simulate the traffic forward with ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
+  IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -687,7 +737,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
 
   // Now, simulate the traffic forward with the ego following the created path.
   //std::printf("Simulate the traffic.\n");
-  TrafficSimulator simulator(station->snapshot(), map_, fast_map_);
+  IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
   const bool no_collision = simulator.simulate(
       *path, sim_time_step_, 5.0, simulation_time, stage_cost);

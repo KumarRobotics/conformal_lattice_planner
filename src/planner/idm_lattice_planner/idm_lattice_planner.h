@@ -29,9 +29,51 @@
 #include <planner/common/vehicle_path.h>
 #include <planner/common/utils.h>
 #include <planner/common/vehicle_path_planner.h>
+#include <planner/common/traffic_simulator.h>
+#include <planner/common/intelligent_driver_model.h>
 
 namespace planner {
 namespace idm_lattice_planner {
+
+/**
+ * \brief IDMTrafficSimulator simulates the traffic forward by a given
+ *        period of time.
+ *
+ * In contrast to TrafficSimulator, IDMTrafficSimulator assumes all vehicles
+ * (including the ego) follows the intelligent driver model, which adjust
+ * acceleration adaptively based on the current traffic scenario.
+ */
+class IDMTrafficSimulator : public TrafficSimulator {
+
+protected:
+
+  using Base = TrafficSimulator;
+  using This = IDMTrafficSimulator;
+
+protected:
+
+  /// Intelligent driver model.
+  boost::shared_ptr<IntelligentDriverModel> idm_ = nullptr;
+
+public:
+
+  IDMTrafficSimulator(
+      const Snapshot& snapshot,
+      const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    Base(snapshot, map, fast_map),
+    idm_(boost::make_shared<IntelligentDriverModel>()) {}
+
+  const boost::shared_ptr<const IntelligentDriverModel> idm() const { return idm_; }
+  boost::shared_ptr<IntelligentDriverModel>& idm() { return idm_; }
+
+protected:
+
+  virtual const double egoAcceleration() const override;
+
+  virtual const double agentAcceleration(const size_t agent) const override;
+
+}; // End class IDMTrafficSimulator.
 
 /**
  * \brief Station stores the information of the end points on a path/trajectory.

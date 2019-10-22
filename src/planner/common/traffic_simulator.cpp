@@ -20,61 +20,9 @@
 #include <boost/format.hpp>
 
 #include <planner/common/utils.h>
-#include <planner/idm_lattice_planner/traffic_simulator.h>
+#include <planner/common/traffic_simulator.h>
 
 namespace planner {
-namespace idm_lattice_planner {
-
-const double TrafficSimulator::egoAcceleration() const {
-
-  // The logic for computing the acceleration for the ego vehicle is simple.
-  // Regardless whether the ego vehicle is in the process of lane changing
-  // or not, we will only consider the front vehicle (if any) on the same
-  // lane with the head of the ego vehicle.
-  //
-  // TODO: Should we consider the front vehicle on two lanes, both the
-  //       old lane and the target lane?
-
-  double accel = 0.0;
-  boost::optional<std::pair<size_t, double>> lead =
-    snapshot_.trafficLattice()->front(snapshot_.ego().id());
-
-  if (lead) {
-    const double lead_speed = snapshot_.vehicle(lead->first).speed();
-    const double following_distance = lead->second;
-    accel = idm_->idm(snapshot_.ego().speed(),
-                      snapshot_.ego().policySpeed(),
-                      lead_speed,
-                      following_distance);
-  } else {
-    accel = idm_->idm(snapshot_.ego().speed(),
-                      snapshot_.ego().policySpeed());
-  }
-
-  return accel;
-}
-
-const double TrafficSimulator::agentAcceleration(const size_t agent) const {
-
-  // We assume all agent vehicles are lane followers for now.
-  double accel = 0.0;
-  boost::optional<std::pair<size_t, double>> lead =
-    snapshot_.trafficLattice()->front(agent);
-
-  if (lead) {
-    const double lead_speed = snapshot_.vehicle(lead->first).speed();
-    const double following_distance = lead->second;
-    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
-                      snapshot_.vehicle(agent).policySpeed(),
-                      lead_speed,
-                      following_distance);
-  } else {
-    accel = idm_->idm(snapshot_.vehicle(agent).speed(),
-                      snapshot_.vehicle(agent).policySpeed());
-  }
-
-  return accel;
-}
 
 const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, double, double>
   TrafficSimulator::updatedAgentTuple(
@@ -260,5 +208,106 @@ const double TrafficSimulator::accelCost() const {
   return ego_brake_cost + 0.5*agent_brake_cost;
 }
 
-} // End namespace idm_lattice_planner.
+const bool TrafficSimulator::simulate(
+    const ContinuousPath& path, const double default_dt, const double max_time,
+    double& time, double& cost) {
+
+  //std::printf("simulate(): \n");
+
+  // Reset the output to 0.
+  time = 0.0;
+  cost = 0.0;
+
+  // The actual simulation time step, which may vary for different iterations.
+  double dt = default_dt;
+  // The distance that ego has travelled on the input path.
+  double ego_distance = 0.0;
+
+  // FIXME: This is just a trial for defining the stage costs.
+  std::vector<double> ttc_cost;
+  std::vector<double> brake_cost;
+
+  while (time < max_time && dt >= default_dt) {
+
+    // Used to store the updated status of all vehicles.
+    std::vector<std::tuple<size_t, CarlaTransform, double, double, double>> updated_tuples;
+
+    // The acceleration to be applied by the ego vehicle.
+    const double ego_accel = egoAcceleration();
+
+    // Compute the actual time step.
+    const double remaining_time = remainingTime(
+        snapshot_.ego().speed(), ego_accel, path.range()-ego_distance);
+    dt = default_dt;
+    dt = dt <= remaining_time ? dt : remaining_time;
+    dt = dt <= max_time-time  ? dt : max_time-time;
+
+    //std::printf("============================================\n");
+    //std::cout << snapshot_.string("start snapshot:\n");
+    //std::printf("ego accel:%f\n", ego_accel);
+    //std::printf("default dt:%f max time:%f remaining time:%f\n",
+    //    default_dt, max_time, remaining_time);
+    //std::printf("time:%f dt:%f\n", time, dt);
+
+    // Update the distance of the ego on the path.
+    ego_distance += snapshot_.ego().speed()*dt + 0.5*ego_accel*dt*dt;
+    if (ego_distance > path.range()) ego_distance = path.range();
+    //std::printf("ego distance:%f path range:%f\n", ego_distance, path.range());
+
+    // Store the updated status of the ego.
+    std::pair<CarlaTransform, double> ego_transform = path.transformAt(ego_distance);
+    updated_tuples.push_back(std::make_tuple(
+          snapshot_.ego().id(),
+          ego_transform.first,
+          snapshot_.ego().speed()+ego_accel*dt,
+          ego_accel,
+          ego_transform.second));
+
+    // Take care of the agents.
+    for (const auto& item : snapshot_.agents()) {
+      const Vehicle& agent = item.second;
+      const double agent_accel = agentAcceleration(agent.id());
+      updated_tuples.push_back(updatedAgentTuple(agent.id(), agent_accel, dt));
+      //std::printf("agent %lu accel: %f\n", agent.id(), agent_accel);
+    }
+
+    // Update the snapshot.
+    if (!snapshot_.updateTraffic(updated_tuples)) {
+      //std::printf("Collision detected in the simulation.\n");
+      return false;
+    }
+
+    //std::cout << snapshot_.string("end simulation snapshot:\n");
+
+    // TODO: Accumulate the cost.
+    ttc_cost.push_back(ttcCost());
+    brake_cost.push_back(accelCost());
+
+    //std::printf("ttc cost: %f\n", ttcCost());
+    //std::printf("brake cost: %f\n", accelCost());
+
+    // Tick the time.
+    time += dt;
+  }
+
+  // TODO: Should I use mean or max?
+  double average_ttc_cost = 0.0;
+  for (const auto c : ttc_cost) average_ttc_cost += c;
+  average_ttc_cost /= ttc_cost.size();
+
+  double average_brake_cost = 0.0;
+  for (const auto c : brake_cost) average_brake_cost += c;
+  average_brake_cost /= brake_cost.size();
+
+  //std::printf("average ttc cost: %f\n", average_ttc_cost);
+  //std::printf("average brake cost: %f\n", average_brake_cost);
+  //std::printf("\n");
+
+  cost = average_ttc_cost + average_brake_cost;
+  if (path.laneChangeType() != VehiclePath::LaneChangeType::KeepLane)
+    cost += 1.0;
+
+  return true;
+}
+
 } // End namespace planner.
