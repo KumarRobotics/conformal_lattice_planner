@@ -17,7 +17,7 @@
 #pragma once
 
 #include <tuple>
-#include <queue>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <boost/optional.hpp>
@@ -348,10 +348,10 @@ protected:
   void updateWaypointLattice(const Snapshot& snapshot);
 
   /// Prune/update the station graph of last step.
-  std::queue<boost::shared_ptr<Station>> pruneStationGraph(const Snapshot& snapshot);
+  std::deque<boost::shared_ptr<Station>> pruneStationGraph(const Snapshot& snapshot);
 
   /// Construct the station graph.
-  void constructStationGraph(std::queue<boost::shared_ptr<Station>>& station_queue);
+  void constructStationGraph(std::deque<boost::shared_ptr<Station>>& station_queue);
 
   boost::shared_ptr<Station> connectStationToFrontNode(
       const boost::shared_ptr<Station>& station,

@@ -258,7 +258,7 @@ DiscretePath IDMLatticePlanner::plan(
   updateWaypointLattice(snapshot);
 
   // Prune the station graph.
-  std::queue<boost::shared_ptr<Station>> station_queue = pruneStationGraph(snapshot);
+  std::deque<boost::shared_ptr<Station>> station_queue = pruneStationGraph(snapshot);
 
   // Construct the station graph.
   constructStationGraph(station_queue);
@@ -339,13 +339,13 @@ void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
   return;
 }
 
-std::queue<boost::shared_ptr<Station>>
+std::deque<boost::shared_ptr<Station>>
   IDMLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
   //std::printf("pruneStationGraph(): \n");
 
   // Stores the stations to be explored.
-  std::queue<boost::shared_ptr<Station>> station_queue;
+  std::deque<boost::shared_ptr<Station>> station_queue;
 
   // There are two cases we can basically start fresh in constructing the station graph:
   // 1) This is the first time the plan() interface is called.
@@ -359,7 +359,7 @@ std::queue<boost::shared_ptr<Station>>
     node_to_station_table_[root->id()] = root;
     root_ = root;
 
-    station_queue.push(root);
+    station_queue.push_back(root);
     return station_queue;
   }
 
@@ -462,21 +462,21 @@ std::queue<boost::shared_ptr<Station>>
   if (front_station) {
     node_to_station_table_[front_station->id()] = front_station;
     if (front_station->id() == front_node->id())
-      station_queue.push(front_station);
+      station_queue.push_back(front_station);
     //std::printf("Add immediate front station to table.\n");
   }
 
   if (left_front_station) {
     node_to_station_table_[left_front_station->id()] = left_front_station;
     if (left_front_station->id() == left_front_node->id())
-      station_queue.push(left_front_station);
+      station_queue.push_back(left_front_station);
     //std::printf("Add immediate left front station to table.\n");
   }
 
   if (right_front_station) {
     node_to_station_table_[right_front_station->id()] = right_front_station;
     if (right_front_station->id() == right_front_node->id())
-      station_queue.push(right_front_station);
+      station_queue.push_back(right_front_station);
     //std::printf("Add immediate right front station to table.\n");
   }
 
@@ -484,23 +484,21 @@ std::queue<boost::shared_ptr<Station>>
 }
 
 void IDMLatticePlanner::constructStationGraph(
-    std::queue<boost::shared_ptr<Station>>& station_queue) {
+    std::deque<boost::shared_ptr<Station>>& station_queue) {
 
   //std::printf("constructStationGraph(): \n");
-  //std::queue<boost::shared_ptr<Station>> station_queue;
-  //station_queue.push(root_.lock());
 
   auto addStationToTableAndQueue = [this, &station_queue](
       const boost::shared_ptr<Station>& station,
       const boost::shared_ptr<const WaypointNode>& node)->void{
     if ((!station) || (!node)) return;
     node_to_station_table_[station->id()] = station;
-    if (station->id() == node->id()) station_queue.push(station);
+    if (station->id() == node->id()) station_queue.push_back(station);
   };
 
   while (!station_queue.empty()) {
     boost::shared_ptr<Station> station = station_queue.front();
-    station_queue.pop();
+    station_queue.pop_front();
 
     // Try to connect to the front node.
     boost::shared_ptr<const WaypointNode> front_node =
