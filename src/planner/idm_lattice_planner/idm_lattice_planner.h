@@ -45,7 +45,7 @@ namespace idm_lattice_planner {
  */
 class IDMTrafficSimulator : public TrafficSimulator {
 
-protected:
+private:
 
   using Base = TrafficSimulator;
   using This = IDMTrafficSimulator;
