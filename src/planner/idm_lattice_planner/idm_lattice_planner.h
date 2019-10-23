@@ -342,9 +342,10 @@ public:
 
 protected:
 
+  /// Check if the any of the child stations has been reached.
   bool immediateNextStationReached(const Snapshot& snapshot) const;
 
-  /// Initialize the waypoint lattice.
+  /// Update the waypoint lattice.
   void updateWaypointLattice(const Snapshot& snapshot);
 
   /// Prune/update the station graph of last step.
@@ -369,6 +370,7 @@ protected:
   /// Compute the distance cost for a terminal station.
   const double terminalDistanceCost(const boost::shared_ptr<Station>& station) const;
 
+  /// Compute the cost from root to this terminal, including the terminal costs.
   const double costFromRootToTerminal(const boost::shared_ptr<Station>& terminal) const;
 
   /// Select the optimal path sequence based on the constructed station graph.

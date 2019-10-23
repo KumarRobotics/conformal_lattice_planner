@@ -73,7 +73,7 @@ const double IDMTrafficSimulator::agentAcceleration(const size_t agent) const {
 
 void Station::updateOptimalParent() {
 
-  // Set the \c optimal_parent_ to a existing parent. It does not
+  // Set the \c optimal_parent_ to an existing parent. It does not
   // matter which parent is used for now.
   if (!optimal_parent_) {
     if (left_parent_) optimal_parent_ = left_parent_;
@@ -88,12 +88,12 @@ void Station::updateOptimalParent() {
 
   // Set the \c optimal_parent_ to the existing parent with the minimum cost-to-come.
   // With the same cost-to-come, the back parent is preferred.
-  if (back_parent_ && std::get<1>(*back_parent_) <= std::get<1>(*optimal_parent_))
-    optimal_parent_ = back_parent_;
   if (left_parent_ && std::get<1>(*left_parent_) <= std::get<1>(*optimal_parent_))
     optimal_parent_ = left_parent_;
   if (right_parent_ && std::get<1>(*right_parent_) <= std::get<1>(*optimal_parent_))
     optimal_parent_ = right_parent_;
+  if (back_parent_ && std::get<1>(*back_parent_) <= std::get<1>(*optimal_parent_))
+    optimal_parent_ = back_parent_;
 
   // Update the snapshot at this station.
   snapshot_ = std::get<0>(*optimal_parent_);
