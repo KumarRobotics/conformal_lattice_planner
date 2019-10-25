@@ -299,7 +299,7 @@ bool IDMLatticePlanner::immediateNextStationReached(
     target_distance = station->node().lock()->distance();
   }
 
-  // If the difference is less than 0.2, or the ego has travelled beyond the
+  // If the difference is less than 0.5, or the ego has travelled beyond the
   // the target distance, the immediate station is considered to be reached.
   if (target_distance-ego_distance < 0.5) return true;
   else return false;
@@ -553,7 +553,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
 
   //std::printf("connectStationToFrontNode(): \n");
 
-  // Return directly if the target node does not exisit.
+  // Return directly if the target node does not exist.
   if (!target_node) return nullptr;
 
   // Plan a path between the node at the current station to the target node.
