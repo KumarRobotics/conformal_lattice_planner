@@ -4,6 +4,7 @@ set(planner_srcs
   common/vehicle_path.cpp
   common/traffic_simulator.cpp
   idm_lattice_planner/idm_lattice_planner.cpp
+  spatiotemporal_lattice_planner/spatiotemporal_lattice_planner.cpp
 )
 
 add_library(planning_algos

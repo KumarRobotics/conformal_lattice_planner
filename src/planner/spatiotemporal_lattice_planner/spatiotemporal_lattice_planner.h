@@ -57,7 +57,7 @@ protected:
    * The tuple stores path to the child vertex, the constant acceleration over the path,
    * the stage cost, and the child vertex.
    */
-  using Child = std::tuple<ContinuousPath, double, double, boost::weak_ptr<Station>>;
+  using Child = std::tuple<ContinuousPath, double, double, boost::weak_ptr<Vertex>>;
 
 public:
 
@@ -79,7 +79,7 @@ public:
    * of the state vector.
    */
   static constexpr std::array<std::pair<double, double>, 3>
-    kVelocityIntervalsPerStation_ { {0.0, 15.0}, {15.0, 30.0}, {30.0, 45.0} };
+    kVelocityIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 45.0} }};
 
 protected:
 
@@ -194,10 +194,16 @@ public:
     return optimal_parent_;
   }
 
+  std::vector<Parent> validLeftParents() const { return validParents(left_parents_); }
+  std::vector<Parent> validBackParents() const { return validParents(back_parents_); }
+  std::vector<Parent> validRightParents() const { return validParents(right_parents_); };
+
   /// Check the number of parents.
-  const size_t leftParentsSize() const { return validElementsSize(left_parents_); }
-  const size_t backParentsSize() const { return validElementsSize(back_parents_); }
-  const size_t rightParentsSize() const { return validElementsSize(right_parents_); }
+  /// FIXME: There is some unnecessary copying (not much) going on here.
+  ///        Should be easy to get rid of this by counting the valid parents directly.
+  const size_t leftParentsSize() const { return validLeftParents().size(); }
+  const size_t backParentsSize() const { return validBackParents().size(); }
+  const size_t rightParentsSize() const { return validRightParents().size(); }
   const size_t parentsSize() const {
     return leftParentsSize() + backParentsSize() + rightParentsSize();
   }
@@ -218,10 +224,16 @@ public:
   const std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>&
     rightChildren() const { return right_children_; }
 
+  std::vector<Child> validLeftChildren() const { return validChildren(left_children_); }
+  std::vector<Child> validFrontChildren() const { return validChildren(front_children_); }
+  std::vector<Child> validRightChildren() const { return validChildren(right_children_); }
+
   /// Check the number of children.
-  const size_t leftChildrenSize() const { return validElementsSize(left_children_); }
-  const size_t frontChildrenSize() const { return validElementsSize(front_children_); }
-  const size_t rightChildrenSize() const { return validElementsSize(right_children_); }
+  /// FIXME: There is some unnecessary copying (not much) going on here.
+  ///        Should be easy to get rid of this by counting the valid parents directly.
+  const size_t leftChildrenSize() const { return validLeftChildren().size(); }
+  const size_t frontChildrenSize() const { return validFrontChildren().size(); }
+  const size_t rightChildrenSize() const { return validRightChildren().size(); }
   const size_t childrenSize() const {
     return leftChildrenSize() + frontChildrenSize() + rightChildrenSize();
   }
@@ -263,22 +275,44 @@ public:
 
   std::string string(const std::string& prefix = "") const;
 
+  /// Figure out the speed interval index for the given speed.
+  static boost::optional<size_t> speedIntervalIdx(const double speed) {
+    // Return \c boost::none if the input speed is less than 0.
+    if (speed < 0.0) return boost::none;
+
+    for (size_t i = 0; i < kVelocityIntervalsPerStation_.size(); ++i) {
+      if (speed < kVelocityIntervalsPerStation_[i].second) return i;
+    }
+
+    // Return \c boost::none if the speed is too large.
+    return boost::none;
+  }
+
 protected:
 
   /// Update the optimal parent vertex, which has the minimum cost-to-come.
   void updateOptimalParent();
 
-  /// Figure out the speed interval for the given speed.
-  boost::optional<size_t> speedIntervalIdx(const double speed) const;
-
-  /// Count the number of elements that is not \c boost::none.
-  template<typename Container>
-  size_t validElementsSize(const Container& container) const {
-    size_t counter = 0;
-    for (const auto& elem : container) {
-      if (elem) ++counter;
+  std::vector<Parent> validParents(
+      const std::array<boost::optional<Parent>,
+                       kVelocityIntervalsPerStation_.size()>& parents) const {
+    std::vector<Parent> valid_parents;
+    for (const auto& parent : parents) {
+      if (!parent) continue;
+      valid_parents.push_back(*parent);
     }
-    return counter;
+    return valid_parents;
+  }
+
+  std::vector<Child> validChildren(
+      const std::array<boost::optional<Child>,
+                       kVelocityIntervalsPerStation_.size()>& children) const {
+    std::vector<Child> valid_children;
+    for (const auto& child : children) {
+      if (!child) continue;
+      valid_children.push_back(*child);
+    }
+    return valid_children;
   }
 
 }; // End class Vertex.
@@ -298,6 +332,8 @@ protected:
   using CarlaBoundingBox = carla::geom::BoundingBox;
 
 protected:
+
+  static constexpr std::array<double, 7> kAccelerationOptions_ {-8.0, -4.0, -2.0, -1.0, 0.0, 1.0, 2.0};
 
   /// Simulation time step.
   double sim_time_step_;
@@ -374,19 +410,16 @@ protected:
   /// Construct the vertex graph.
   void constructVertexGraph(std::deque<boost::shared_ptr<Vertex>>& station_queue);
 
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
-    connectVertexToFrontNode(
+  std::vector<boost::shared_ptr<Vertex>> connectVertexToFrontNode(
         const boost::shared_ptr<Vertex>& vertex,
         const boost::shared_ptr<const WaypointNode>& target_node);
 
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
-    connectVertexToLeftFrontNode(
+  std::vector<boost::shared_ptr<Vertex>> connectVertexToLeftFrontNode(
       const boost::shared_ptr<Vertex>& vertex,
       const boost::shared_ptr<const WaypointNode>& target_node);
 
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
-    connectVertexToRightFrontNode(
-      const boost::shared_ptr<Station>& vertex,
+  std::vector<boost::shared_ptr<Vertex>> connectVertexToRightFrontNode(
+      const boost::shared_ptr<Vertex>& vertex,
       const boost::shared_ptr<const WaypointNode>& target_node);
 
   /// Compute the speed cost for a terminal vertex.
@@ -403,6 +436,21 @@ protected:
 
   /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
   DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
+
+  /**
+   * \brief Try to find a vertex in the table that shared the same station and
+   *        the same speed interval with the given vertex.
+   *
+   * The function throws runtime error if the ego speed within the input vertex
+   * is not within the valid range. The valid range is defined by
+   * \c Vertex::kVelocityIntervalsPerStation_.
+   *
+   * \param[in] vertex The query vertex.
+   * \return \c nullptr if no vertex satisfying the requirement is found. Otherwise,
+   *         the corresponding vertex in the table is returned.
+   */
+  boost::shared_ptr<Vertex> findVertexInTable(
+      const boost::shared_ptr<Vertex>& vertex);
 
 }; // End class SpatiotemporalLatticePlanner.
 
