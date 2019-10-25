@@ -380,6 +380,199 @@ std::vector<boost::shared_ptr<Vertex>>
   return front_vertices;
 }
 
+std::vector<boost::shared_ptr<Vertex>>
+  SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode(
+    const boost::shared_ptr<Vertex>& vertex,
+    const boost::shared_ptr<const WaypointNode>& target_node) {
+
+  std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode()\n");
+
+  // Return directly if the target node does not exist.
+  if (!target_node) return std::vector<boost::shared_ptr<Vertex>>();
+
+
+  // Return directly if the target node is already very close to the vertex.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
+  // Check the left front and left back vehicles.
+  //
+  // If there are vehicles at the left front or left back of the ego,
+  // meanwhile those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> left_front =
+    vertex->snapshot().trafficLattice()->leftFront(vertex->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> left_back =
+    vertex->snapshot().trafficLattice()->leftBack(vertex->snapshot().ego().id());
+
+  if (left_front && left_front->second <= 0.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+  if (left_back && left_back->second <= 0.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
+  // Plan a path between the node at the current vertex to the target node.
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        std::make_pair(vertex->snapshot().ego().transform(),
+                       vertex->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
+        ContinuousPath::LaneChangeType::KeepLane);
+  } catch (std::exception& e) {
+    // If for whatever reason, the path cannot be created, the front vertices
+    // cannot be created either.
+    std::printf("%s", e.what());
+    return std::vector<boost::shared_ptr<Vertex>>();
+  }
+
+  // Simulate the traffic forward with the ego applying different constant
+  // accelerations over the path created above.
+  for (const double accel : kAccelerationOptions_) {
+    // Prepare the start snapshot.
+    // The acceleration of the ego is set accordingly.
+    Snapshot snapshot = vertex->snapshot();
+    snapshot.ego().acceleration() = accel;
+
+    TrafficSimulator simulator(snapshot, map_, fast_map_);
+    double simulation_time = 0.0; double stage_cost = 0.0;
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+
+    // Continue if this acceleration option leads to collision.
+    if (!no_collision) continue;
+
+    // Create a new vertex using the end snapshot of the simulation.
+    boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
+        simulator.snapshot(), waypoint_lattice_, fast_map_);
+
+    // Check if a similar vertex (close in ego velocity) has already been created.
+    // If so, the \c next_vertex is replaced with the existing one in the table.
+    boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
+    if (similar_vertex) next_vertex = similar_vertex;
+
+    // Update the child of the parent vertex.
+    vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
+
+    // Update the parent vertex of the child.
+    if (vertex->hasParents()) {
+      next_vertex->updateBackParent(
+          simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
+    } else {
+      next_vertex->updateBackParent(
+          simulator.snapshot(), stage_cost, vertex);
+    }
+  } // End for loop for different acceleration options.
+
+  // Collect all the front child vertices of the input vertex.
+  auto left_children = vertex->validLeftChildren();
+  std::vector<boost::shared_ptr<Vertex>> left_vertices;
+  for (const auto& child : left_children) {
+    left_vertices.push_back(std::get<3>(child).lock());
+  }
+
+  return left_vertices;
+}
+
+std::vector<boost::shared_ptr<Vertex>>
+  SpatiotemporalLatticePlanner::connectVertexToRightFrontNode(
+    const boost::shared_ptr<Vertex>& vertex,
+    const boost::shared_ptr<const WaypointNode>& target_node) {
+
+  std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode()\n");
+
+  // Return directly if the target node does not exist.
+  if (!target_node) return std::vector<boost::shared_ptr<Vertex>>();
+
+  // Return directly if the target node is already very close to the vertex.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
+  // Check the right front and right back vehicles.
+  //
+  // If there are vehicles at the right front or right back of the ego,
+  // meanwhile those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> right_front =
+    vertex->snapshot().trafficLattice()->rightFront(vertex->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> right_back =
+    vertex->snapshot().trafficLattice()->rightBack(vertex->snapshot().ego().id());
+
+  if (right_front && right_front->second <= 0.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+  if (right_back && right_back->second <= 0.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
+  // Plan a path between the node at the current vertex to the target node.
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        std::make_pair(vertex->snapshot().ego().transform(),
+                       vertex->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
+        ContinuousPath::LaneChangeType::KeepLane);
+  } catch (std::exception& e) {
+    // If for whatever reason, the path cannot be created, the front vertices
+    // cannot be created either.
+    std::printf("%s", e.what());
+    return std::vector<boost::shared_ptr<Vertex>>();
+  }
+
+  // Simulate the traffic forward with the ego applying different constant
+  // accelerations over the path created above.
+  for (const double accel : kAccelerationOptions_) {
+    // Prepare the start snapshot.
+    // The acceleration of the ego is set accordingly.
+    Snapshot snapshot = vertex->snapshot();
+    snapshot.ego().acceleration() = accel;
+
+    TrafficSimulator simulator(snapshot, map_, fast_map_);
+    double simulation_time = 0.0; double stage_cost = 0.0;
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+
+    // Continue if this acceleration option leads to collision.
+    if (!no_collision) continue;
+
+    // Create a new vertex using the end snapshot of the simulation.
+    boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
+        simulator.snapshot(), waypoint_lattice_, fast_map_);
+
+    // Check if a similar vertex (close in ego velocity) has already been created.
+    // If so, the \c next_vertex is replaced with the existing one in the table.
+    boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
+    if (similar_vertex) next_vertex = similar_vertex;
+
+    // Update the child of the parent vertex.
+    vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
+
+    // Update the parent vertex of the child.
+    if (vertex->hasParents()) {
+      next_vertex->updateBackParent(
+          simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
+    } else {
+      next_vertex->updateBackParent(
+          simulator.snapshot(), stage_cost, vertex);
+    }
+  } // End for loop for different acceleration options.
+
+  // Collect all the front child vertices of the input vertex.
+  auto right_children = vertex->validRightChildren();
+  std::vector<boost::shared_ptr<Vertex>> right_vertices;
+  for (const auto& child : right_children) {
+    right_vertices.push_back(std::get<3>(child).lock());
+  }
+
+  return right_vertices;
+}
+
 boost::shared_ptr<Vertex> SpatiotemporalLatticePlanner::findVertexInTable(
     const boost::shared_ptr<Vertex>& vertex) {
   boost::optional<size_t> idx = Vertex::speedIntervalIdx(vertex->speed());
