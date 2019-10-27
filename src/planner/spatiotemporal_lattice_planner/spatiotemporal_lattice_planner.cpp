@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <list>
 #include <planner/spatiotemporal_lattice_planner/spatiotemporal_lattice_planner.h>
 
 namespace planner {
@@ -306,7 +305,8 @@ void SpatiotemporalLatticePlanner::updateWaypointLattice(const Snapshot& snapsho
   return;
 }
 
-DiscretePath SpatiotemporalLatticePlanner::planPath(
+std::list<std::pair<ContinuousPath, double>>
+  SpatiotemporalLatticePlanner::planTraj(
     const size_t ego, const Snapshot& snapshot) {
 
   if (ego != snapshot.ego().id()) {
@@ -331,6 +331,15 @@ DiscretePath SpatiotemporalLatticePlanner::planPath(
 
   // Select the optimal trajectory sequence from the graph.
   std::list<std::pair<ContinuousPath, double>> optimal_traj_seq = selectOptimalTraj();
+
+  return optimal_traj_seq;
+}
+
+DiscretePath SpatiotemporalLatticePlanner::planPath(
+    const size_t ego, const Snapshot& snapshot) {
+
+  std::list<std::pair<ContinuousPath, double>> optimal_traj_seq =
+    planTraj(ego, snapshot);
 
   // Merge the path sequence into one discrete path.
   std::list<ContinuousPath> optimal_path_seq;

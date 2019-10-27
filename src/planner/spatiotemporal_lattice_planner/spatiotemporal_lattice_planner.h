@@ -18,6 +18,7 @@
 
 #include <tuple>
 #include <deque>
+#include <list>
 #include <array>
 #include <string>
 #include <unordered_map>
@@ -393,8 +394,23 @@ public:
   /// Get the router used by the planner.
   boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
 
+  /// Get all vertices in the graph.
+  std::vector<boost::shared_ptr<const Vertex>> vertices() const {
+    std::vector<boost::shared_ptr<const Vertex>> valid_vertices;
+
+    for (const auto& item: node_to_vertices_table_) {
+      for (const auto& vertex : item.second) {
+        if (!vertex) continue;
+        valid_vertices.push_back(vertex);
+      }
+    }
+    return valid_vertices;
+  }
+
   // FIXME: How to get the acceleration out.
   virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
+
+  std::list<std::pair<ContinuousPath, double>> planTraj(const size_t ego, const Snapshot& snapshot);
 
 protected:
 
@@ -491,4 +507,6 @@ protected:
 }; // End class SpatiotemporalLatticePlanner.
 
 } // End namespace spatiotemporal_lattice_planner.
+
+using SpatiotemporalLatticePlanner = spatiotemporal_lattice_planner::SpatiotemporalLatticePlanner;
 } // End namespace planner.
