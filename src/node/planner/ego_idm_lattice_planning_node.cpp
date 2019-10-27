@@ -157,7 +157,7 @@ void EgoIDMLatticePlanningNode::executeCallback(
     createSnapshot(ego_policy, ego_speed, agent_policies, agent_speed);
 
   // Plan path.
-  const DiscretePath ego_path = path_planner_->plan(ego_policy.first, *snapshot);
+  const DiscretePath ego_path = path_planner_->planPath(ego_policy.first, *snapshot);
 
   // Publish the station graph.
   conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
@@ -165,7 +165,7 @@ void EgoIDMLatticePlanningNode::executeCallback(
   waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
   // Plan speed.
-  const double ego_accel = speed_planner_->plan(ego_policy.first, *snapshot);
+  const double ego_accel = speed_planner_->planSpeed(ego_policy.first, *snapshot);
 
   // Update the ego vehicle in the simulator.
   double dt = 0.05;

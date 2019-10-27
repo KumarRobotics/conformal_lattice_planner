@@ -62,7 +62,7 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \return The acceleration to be applied for the target vehicle.
    */
-  virtual const double plan(const size_t target, const Snapshot& snapshot) {
+  virtual const double planSpeed(const size_t target, const Snapshot& snapshot) {
     // Get the target vehicle.
     const Vehicle target_vehicle = snapshot.vehicle(target);
 
@@ -91,8 +91,8 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \param[out] The acceleration to be applied for the target vehicle.
    */
-  virtual void plan(const size_t target, const Snapshot& snapshot, double& accel) {
-    accel = plan(target, snapshot);
+  virtual void planSpeed(const size_t target, const Snapshot& snapshot, double& accel) {
+    accel = planSpeed(target, snapshot);
     return;
   }
 

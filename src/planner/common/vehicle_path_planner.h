@@ -77,7 +77,7 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \return The planned path.
    */
-  virtual DiscretePath plan(const size_t target, const Snapshot& snapshot) = 0;
+  virtual DiscretePath planPath(const size_t target, const Snapshot& snapshot) = 0;
 
   /**
    * \brief The main interface of the path planner.
@@ -86,8 +86,8 @@ public:
    * \param[in] snapshot Snapshot of the current traffic scenario.
    * \param[out] path The planned path.
    */
-  virtual void plan(const size_t target, const Snapshot& snapshot, DiscretePath& path) {
-    path = plan(target, snapshot);
+  virtual void planPath(const size_t target, const Snapshot& snapshot, DiscretePath& path) {
+    path = planPath(target, snapshot);
     return;
   }
 };

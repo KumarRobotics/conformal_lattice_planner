@@ -95,12 +95,12 @@ void EgoLaneFollowingNode::executeCallback(
       map_, fast_map_, carlaVehicleWaypoint(ego_policy.first), 55.0, router_);
 
   const DiscretePath ego_path =
-    path_planner->plan(ego_policy.first, *snapshot);
+    path_planner->planPath(ego_policy.first, *snapshot);
 
   // Plan speed.
   boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
     boost::make_shared<VehicleSpeedPlanner>();
-  const double ego_accel = speed_planner->plan(ego_policy.first, *snapshot);
+  const double ego_accel = speed_planner->planSpeed(ego_policy.first, *snapshot);
 
   // Compute the target speed and transform of the ego.
   double dt = 0.05;

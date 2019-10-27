@@ -394,7 +394,7 @@ public:
   boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
 
   // FIXME: How to get the acceleration out.
-  virtual DiscretePath plan(const size_t ego, const Snapshot& snapshot) override;
+  virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
 
 protected:
 

@@ -338,7 +338,7 @@ public:
   /// Get the edges on the lattice, corresponding to the path.
   std::vector<ContinuousPath> edges() const;
 
-  virtual DiscretePath plan(const size_t ego, const Snapshot& snapshot) override;
+  virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
 
 protected:
 

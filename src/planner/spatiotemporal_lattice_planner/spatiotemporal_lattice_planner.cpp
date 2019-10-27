@@ -306,7 +306,7 @@ void SpatiotemporalLatticePlanner::updateWaypointLattice(const Snapshot& snapsho
   return;
 }
 
-DiscretePath SpatiotemporalLatticePlanner::plan(
+DiscretePath SpatiotemporalLatticePlanner::planPath(
     const size_t ego, const Snapshot& snapshot) {
 
   if (ego != snapshot.ego().id()) {

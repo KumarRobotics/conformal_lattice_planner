@@ -238,7 +238,7 @@ std::vector<ContinuousPath> IDMLatticePlanner::edges() const {
   return paths;
 }
 
-DiscretePath IDMLatticePlanner::plan(
+DiscretePath IDMLatticePlanner::planPath(
     const size_t ego, const Snapshot& snapshot) {
 
   if (ego != snapshot.ego().id()) {

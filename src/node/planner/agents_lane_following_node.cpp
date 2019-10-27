@@ -117,8 +117,8 @@ void AgentsLaneFollowingNode::executeCallback(
     double updated_speed = agent.speed();
 
     try {
-      const DiscretePath path = path_planner->plan(agent.id(), *snapshot);
-      accel = speed_planner->plan(agent.id(), *snapshot);
+      const DiscretePath path = path_planner->planPath(agent.id(), *snapshot);
+      accel = speed_planner->planSpeed(agent.id(), *snapshot);
 
       movement = agent.speed()*dt + 0.5*accel*dt*dt;
       updated_transform = path.transformAt(movement).first;

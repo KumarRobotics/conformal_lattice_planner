@@ -79,7 +79,7 @@ public:
     return waypoint_lattice_;
   }
 
-  virtual DiscretePath plan(const size_t target, const Snapshot& snapshot) override {
+  virtual DiscretePath planPath(const size_t target, const Snapshot& snapshot) override {
 
     // Get the target vehicle and its waypoint.
     const Vehicle target_vehicle = snapshot.vehicle(target);
