@@ -22,17 +22,17 @@
 
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <planner/common/vehicle_speed_planner.h>
-#include <planner/idm_lattice_planner/idm_lattice_planner.h>
+#include <planner/spatiotemporal_lattice_planner/spatiotemporal_lattice_planner.h>
 #include <node/planner/planning_node.h>
 
 namespace node {
 
-class EgoIDMLatticePlanningNode : public PlanningNode {
+class EgoSpatiotemporalLatticePlanningNode : public PlanningNode {
 
 private:
 
   using Base = PlanningNode;
-  using This = EgoIDMLatticePlanningNode;
+  using This = EgoSpatiotemporalLatticePlanningNode;
 
 public:
 
@@ -46,8 +46,7 @@ protected:
   // FIXME: The variable feels sketchy.
   boost::optional<double> ego_curvature = boost::none;
 
-  boost::shared_ptr<planner::IDMLatticePlanner> path_planner_ = nullptr;
-  boost::shared_ptr<planner::VehicleSpeedPlanner> speed_planner_ = nullptr;
+  boost::shared_ptr<planner::SpatiotemporalLatticePlanner> traj_planner_ = nullptr;
 
   mutable ros::Publisher path_pub_;
   mutable ros::Publisher conformal_lattice_pub_;
@@ -58,15 +57,15 @@ protected:
 
 public:
 
-  EgoIDMLatticePlanningNode(ros::NodeHandle& nh) :
+  EgoSpatiotemporalLatticePlanningNode(ros::NodeHandle& nh) :
     Base(nh),
     server_(
         nh,
         "ego_plan",
-        boost::bind(&EgoIDMLatticePlanningNode::executeCallback, this, _1),
+        boost::bind(&EgoSpatiotemporalLatticePlanningNode::executeCallback, this, _1),
         false) {}
 
-  virtual ~EgoIDMLatticePlanningNode() {}
+  virtual ~EgoSpatiotemporalLatticePlanningNode() {}
 
   virtual bool initialize() override;
 
@@ -81,9 +80,10 @@ protected:
   virtual void executeCallback(
       const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
 
-}; // End class EgoIDMLatticePlanningNode.
+}; // End class EgoSpatiotemporalLatticePlanningNode.
 
-using EgoIDMLatticePlanningNodePtr = EgoIDMLatticePlanningNode::Ptr;
-using EgoIDMLatticePlanningNodeConstPtr = EgoIDMLatticePlanningNode::ConstPtr;
+using EgoSpatiotemporalLatticePlanningNodePtr = EgoSpatiotemporalLatticePlanningNode::Ptr;
+using EgoSpatiotemporalLatticePlanningNodeConstPtr = EgoSpatiotemporalLatticePlanningNode::ConstPtr;
 
 } // End namespace node.
+

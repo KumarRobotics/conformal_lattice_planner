@@ -643,7 +643,7 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
 
     path_msg->header.stamp = ros::Time::now();
     path_msg->header.frame_id = "map";
-    path_msg->ns = "conformal_lattice_paths";
+    path_msg->ns = "lattice_planner_paths";
     path_msg->id = i;
     path_msg->type = visualization_msgs::Marker::LINE_STRIP;
     path_msg->action = visualization_msgs::Marker::ADD;
@@ -664,7 +664,7 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
       visualization_msgs::MarkerPtr path_msg(new visualization_msgs::Marker);
       path_msg->header.stamp = ros::Time::now();
       path_msg->header.frame_id = "map";
-      path_msg->ns = "conformal_lattice_paths";
+      path_msg->ns = "lattice_planner_paths";
       path_msg->id = i;
       path_msg->type = visualization_msgs::Marker::LINE_STRIP;
       path_msg->action = visualization_msgs::Marker::DELETE;

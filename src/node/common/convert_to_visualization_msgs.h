@@ -39,6 +39,7 @@
 #include <planner/common/traffic_manager.h>
 #include <planner/common/utils.h>
 #include <planner/idm_lattice_planner/idm_lattice_planner.h>
+#include <planner/spatiotemporal_lattice_planner/spatiotemporal_lattice_planner.h>
 
 namespace node {
 
@@ -123,5 +124,8 @@ visualization_msgs::MarkerPtr createEgoPathMsg(const Path& path) {
 
 visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
     const boost::shared_ptr<const planner::IDMLatticePlanner>&);
+
+visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
+    const boost::shared_ptr<const planner::SpatiotemporalLatticePlanner>&);
 
 } // End namespace node.
