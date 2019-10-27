@@ -244,12 +244,10 @@ DiscretePath IDMLatticePlanner::plan(
   if (ego != snapshot.ego().id()) {
     std::string error_msg(
         "IDMLatticePlanner::plan(): "
-        "The conformal lattice planner can only plan for the ego.\n");
+        "The IDM lattice planner can only plan for the ego.\n");
     std::string id_msg = (boost::format(
-          "Target vehicle ID:%1% "
-          "Ego vehicle ID:%2%\n")
-        % ego
-        % snapshot.ego().id()).str();
+          "Target vehicle ID:%1% Ego vehicle ID:%2%\n")
+        % ego % snapshot.ego().id()).str();
 
     throw std::runtime_error(error_msg + id_msg);
   }
@@ -348,7 +346,7 @@ std::deque<boost::shared_ptr<Station>>
   std::deque<boost::shared_ptr<Station>> station_queue;
 
   // There are two cases we can basically start fresh in constructing the station graph:
-  // 1) This is the first time the plan() interface is called.
+  // 1) This is the first time the \c plan() interface is called.
   // 2) The ego reached one of the immediate child of the root station.
   if ((!root_.lock()) || immediateNextStationReached(snapshot)) {
     node_to_station_table_.clear();
@@ -364,7 +362,7 @@ std::deque<boost::shared_ptr<Station>>
   }
 
   // If the ego is in the progress of approaching one of the immedidate
-  // child of the root node, we have to keep these immediate child stations
+  // child of the root node, we have to keep these immediate child nodes
   // where they are.
 
   // Create the new root station.
@@ -892,7 +890,7 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
     }
   }
 
-  // There should be at least one parent node.
+  // The optimal station should be set no matter what.
   if (!optimal_station) {
     throw std::runtime_error(
         "IDMLatticePlanner::selectOptimalPath(): "
@@ -906,7 +904,7 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
         "the graph only has root station.\n");
   }
 
-  // Lambda function to get the child station IDs given a parent station.
+  // Lambda functions to get the child station IDs given a parent station.
   auto frontChildId = [this](const boost::shared_ptr<Station>& station)->boost::optional<size_t>{
     if (!(station->frontChild())) return boost::none;
     else return std::get<2>(*(station->frontChild())).lock()->id();
@@ -920,7 +918,7 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
     else return std::get<2>(*(station->rightChild())).lock()->id();
   };
 
-  // Track back from the terminal station to find all the paths.
+  // Trace back from the terminal station to find all the paths.
   std::list<ContinuousPath> path_sequence;
   boost::shared_ptr<Station> station = optimal_station;
 
@@ -934,7 +932,7 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
     if (!parent_station) {
       std::string error_msg(
           "IDMLatticePlanner::selectOptimalPath(): "
-          "cannot find parent when tracing back optimal path from station.\n");
+          "cannot find parent when tracing back optimal path from the station.\n");
       throw std::runtime_error(error_msg + station->string());
     }
 

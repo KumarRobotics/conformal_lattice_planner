@@ -408,7 +408,7 @@ protected:
   std::deque<boost::shared_ptr<Vertex>> pruneVertexGraph(const Snapshot& snapshot);
 
   /// Construct the vertex graph.
-  void constructVertexGraph(std::deque<boost::shared_ptr<Vertex>>& station_queue);
+  void constructVertexGraph(std::deque<boost::shared_ptr<Vertex>>& vertex_queue);
 
   std::vector<boost::shared_ptr<Vertex>> connectVertexToFrontNode(
         const boost::shared_ptr<Vertex>& vertex,
@@ -432,9 +432,9 @@ protected:
   const double costFromRootToTerminal(const boost::shared_ptr<Vertex>& terminal) const;
 
   /// Select the optimal path sequence based on the constructed vertex graph.
-  std::list<std::pair<ContinuousPath, double>> selectOptimalPath() const;
+  std::list<std::pair<ContinuousPath, double>> selectOptimalTraj() const;
 
-  /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
+  /// Merge the path segements from \c selectOptimalTraj() into a single discrete path.
   DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
 
   /**
@@ -451,6 +451,42 @@ protected:
    */
   boost::shared_ptr<Vertex> findVertexInTable(
       const boost::shared_ptr<Vertex>& vertex);
+
+  /**
+   * \brief Add a given vertex to the table.
+   *
+   * The function won't check wheter a similar vertex already exists in the table.
+   * If this is the case, the old vertex will just be replaced with the input
+   * new vertex.
+   *
+   * \param[in] vertex The vertex to be added to the table.
+   */
+  void addVertexToTable(const boost::shared_ptr<Vertex>& vertex) {
+    boost::optional<size_t> idx = Vertex::speedIntervalIdx(vertex->speed());
+    if (!idx) {
+      std::string error_msg(
+          "SpatiotemporalLatticePlanner::addVertexToTable(): ",
+          "The speed of the input vertex is invalid.\n");
+      error_msg += vertex->string();
+      throw std::runtime_error(error_msg);
+    }
+
+    node_to_vertices_table_[vertex->node().lock()->id()][*idx] = vertex;
+    return;
+  }
+
+  /**
+   * \brief Find the trajectory (path + acceleration) from a parent vertex
+   *        to a child vertex.
+   *
+   * \param[in] parent The parent vertex.
+   * \param[in] child The child vertex.
+   * \return \c boost::none if the given child vertex is not actually a child
+   *         of the given parent vertex.
+   */
+  boost::optional<std::pair<ContinuousPath, double>> findTrajFromParentToChild(
+      const boost::shared_ptr<Vertex>& parent,
+      const boost::shared_ptr<Vertex>& child) const;
 
 }; // End class SpatiotemporalLatticePlanner.
 
