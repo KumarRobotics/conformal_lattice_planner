@@ -130,8 +130,10 @@ const double TrafficSimulator::remainingTime(
   if (accel < 0.0) t = -speed / accel;
 
   if (speed*t+0.5*accel*t*t > distance) {
-    const double final_speed = std::sqrt(speed*speed + 2.0*accel*distance);
-    t = (final_speed - speed) / accel;
+    if (accel != 0.0) {
+      const double final_speed = std::sqrt(speed*speed + 2.0*accel*distance);
+      t = (final_speed - speed) / accel;
+    } else t = distance / speed;
   }
 
   return t;
