@@ -102,14 +102,10 @@ public:
 protected:
 
   /// Compute the acceleration of the ego vehicle given the current traffic scenario.
-  virtual const double egoAcceleration() const {
-    return snapshot_.ego().acceleration();
-  }
+  virtual const double egoAcceleration() const = 0;
 
   /// Compute the acceleration of the agent vehicle given the current traffic scenario.
-  virtual const double agentAcceleration(const size_t agent) const {
-    return snapshot_.agent(agent).acceleration();
-  }
+  virtual const double agentAcceleration(const size_t agent) const = 0;
 
   virtual const std::tuple<size_t, CarlaTransform, double, double, double>
     updatedAgentTuple(const size_t id, const double accel, const double dt) const;
