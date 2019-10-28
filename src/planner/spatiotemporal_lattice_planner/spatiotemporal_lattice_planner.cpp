@@ -20,7 +20,75 @@ namespace planner {
 namespace spatiotemporal_lattice_planner {
 
 constexpr std::array<std::pair<double, double>, 3> Vertex::kVelocityIntervalsPerStation_;
-constexpr std::array<double, 7> SpatiotemporalLatticePlanner::kAccelerationOptions_;
+constexpr std::array<double, 6> SpatiotemporalLatticePlanner::kAccelerationOptions_;
+
+const double ConstAccelTrafficSimulator::accelCost(
+    const double accel, const double speed, const double policy_speed) const {
+  // The cost map for brake.
+  // [0, 1) -> 0
+  // [1, 2) -> 1
+  // [2, 4) -> 2
+  // [4, 6) -> 4
+  // [6, 8) -> 8
+  // [8, +) -> 16
+  static std::unordered_map<int, double> cost_map {
+    {0, 0.0},
+    {1, 1.0},
+    {2, 2.0}, {3, 2.0},
+    {4, 4.0}, {5, 4.0},
+    {6, 8.0}, {7, 8.0},
+  };
+
+  // Crusing.
+  if (accel == 0.0) return 0.0;
+
+  // Accelerating.
+  if (accel > 0.0) {
+    if (speed < policy_speed) return -1.0;
+    else return 1.0;
+  }
+
+  // Braking.
+  const int brake_key = static_cast<int>(-accel);
+  if (brake_key < 8) return cost_map[brake_key];
+  else return 16.0;
+}
+
+const double ConstAccelTrafficSimulator::accelCost() const {
+  // We consider four vehicles in computing the accel cost.
+  // The ego and the followers of the ego vehicle.
+  boost::optional<std::pair<size_t, double>> back =
+    snapshot_.trafficLattice()->back(snapshot_.ego().id());
+  boost::optional<std::pair<size_t, double>> left_back =
+    snapshot_.trafficLattice()->leftBack(snapshot_.ego().id());
+  boost::optional<std::pair<size_t, double>> right_back =
+    snapshot_.trafficLattice()->rightBack(snapshot_.ego().id());
+
+  double ego_brake_cost = accelCost(
+      snapshot_.ego().acceleration(),
+      snapshot_.ego().speed(),
+      snapshot_.ego().policySpeed());
+
+  double agent_brake_cost = 0.0;
+  // We don't really care if other agents can accelerate or not.
+  if (back)
+    agent_brake_cost += accelCost(
+        snapshot_.vehicle(back->first).acceleration(),
+        snapshot_.vehicle(back->first).speed(),
+        snapshot_.vehicle(back->first).speed());
+  if (left_back)
+    agent_brake_cost += accelCost(
+        snapshot_.vehicle(left_back->first).acceleration(),
+        snapshot_.vehicle(left_back->first).speed(),
+        snapshot_.vehicle(left_back->first).speed());
+  if (right_back)
+    agent_brake_cost += accelCost(
+        snapshot_.vehicle(right_back->first).acceleration(),
+        snapshot_.vehicle(right_back->first).speed(),
+        snapshot_.vehicle(right_back->first).speed());
+
+  return ego_brake_cost + 0.5*agent_brake_cost;
+}
 
 void Vertex::updateOptimalParent() {
   // Set the \c optimal_parent_ to an existing parent vertex.
@@ -74,6 +142,10 @@ void Vertex::updateOptimalParent() {
     if (std::get<1>(*parent) <= std::get<1>(*optimal_parent_))
       optimal_parent_ = parent;
   }
+
+  // Update the snapshot at this vertex to the one reached
+  // from the optimal parent.
+  snapshot_ = std::get<0>(*optimal_parent_);
 
   return;
 }
@@ -171,6 +243,7 @@ std::string Vertex::string(const std::string& prefix) const {
   // Output the parents.
   boost::format parent_format("node id:%1% ego speed:%2% cost to come:%3%\n");
 
+  //std::printf("Get left parents.\n");
   output += std::string("left parents #: ") + std::to_string(leftParentsSize()) + "\n";
   for (const auto& parent : left_parents_) {
     if (!parent) continue;
@@ -179,6 +252,7 @@ std::string Vertex::string(const std::string& prefix) const {
                              % std::get<1>(*parent)).str();
   }
 
+  //std::printf("Get back parents.\n");
   output += std::string("back parents #: ") + std::to_string(backParentsSize()) + "\n";
   for (const auto& parent : back_parents_) {
     if (!parent) continue;
@@ -187,6 +261,7 @@ std::string Vertex::string(const std::string& prefix) const {
                              % std::get<1>(*parent)).str();
   }
 
+  //std::printf("Get right parents.\n");
   output += std::string("right parents #: ") + std::to_string(rightParentsSize()) + "\n";
   for (const auto& parent : right_parents_) {
     if (!parent) continue;
@@ -195,6 +270,7 @@ std::string Vertex::string(const std::string& prefix) const {
                              % std::get<1>(*parent)).str();
   }
 
+  //std::printf("Get the optimal parent.\n");
   output += "optimal parent: ";
   if (optimal_parent_)
     output += (parent_format % std::get<2>(*optimal_parent_).lock()->node().lock()->id()
@@ -206,30 +282,33 @@ std::string Vertex::string(const std::string& prefix) const {
   boost::format child_format(
       "node id:%1% ego speed:%2% acceleration:%3% path length:%4% stage cost:%5%\n");
 
+  //std::printf("Get left children.\n");
   output += std::string("left children #: ") + std::to_string(leftChildrenSize()) + "\n";
   for (const auto& child : left_children_) {
     if (!child) continue;
-    output = (child_format % std::get<3>(*child).lock()->node().lock()->id()
+    output += (child_format % std::get<3>(*child).lock()->node().lock()->id()
                            % std::get<3>(*child).lock()->speed()
                            % std::get<1>(*child)
                            % std::get<0>(*child).range()
                            % std::get<2>(*child)).str();
   }
 
+  //std::printf("Get front children.\n");
   output += std::string("front children #: ") + std::to_string(frontChildrenSize()) + "\n";
   for (const auto& child : front_children_) {
     if (!child) continue;
-    output = (child_format % std::get<3>(*child).lock()->node().lock()->id()
+    output += (child_format % std::get<3>(*child).lock()->node().lock()->id()
                            % std::get<3>(*child).lock()->speed()
                            % std::get<1>(*child)
                            % std::get<0>(*child).range()
                            % std::get<2>(*child)).str();
   }
 
+  //std::printf("Get right children.\n");
   output += std::string("right children #: ") + std::to_string(rightChildrenSize()) + "\n";
   for (const auto& child : right_children_) {
     if (!child) continue;
-    output = (child_format % std::get<3>(*child).lock()->node().lock()->id()
+    output += (child_format % std::get<3>(*child).lock()->node().lock()->id()
                            % std::get<3>(*child).lock()->speed()
                            % std::get<1>(*child)
                            % std::get<0>(*child).range()
@@ -242,7 +321,7 @@ std::string Vertex::string(const std::string& prefix) const {
 bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
     const Snapshot& snapshot) const {
 
-  //std::printf("immediateNextStationReached(): \n");
+  std::printf("SpatiotemporalLatticePlanner::immediateNextStationReached()\n");
 
   boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
     boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
@@ -273,7 +352,8 @@ bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
 }
 
 void SpatiotemporalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
-  //std::printf("updateWaypointLattice(): \n");
+
+  std::printf("SpatiotemporalLatticePlanner::updateWaypointLattice()\n");
 
   // If the waypoint lattice has not been initialized, a new one is created with
   // the start waypoint as where the ego currently is. Meanwhile, the range of
@@ -309,6 +389,8 @@ std::list<std::pair<ContinuousPath, double>>
   SpatiotemporalLatticePlanner::planTraj(
     const size_t ego, const Snapshot& snapshot) {
 
+  std::printf("SpatiotemporalLatticePlanner::planTraj()\n");
+
   if (ego != snapshot.ego().id()) {
     std::string error_msg(
         "SpatiotemporalLatticePlanner::plan(): "
@@ -337,6 +419,8 @@ std::list<std::pair<ContinuousPath, double>>
 
 DiscretePath SpatiotemporalLatticePlanner::planPath(
     const size_t ego, const Snapshot& snapshot) {
+
+  std::printf("SpatiotemporalLatticePlanner::planPath()\n");
 
   std::list<std::pair<ContinuousPath, double>> optimal_traj_seq =
     planTraj(ego, snapshot);
@@ -465,9 +549,9 @@ std::deque<boost::shared_ptr<Vertex>>
   std::vector<boost::shared_ptr<Vertex>> front_vertices =
     connectVertexToFrontNode(new_root, front_node);
   std::vector<boost::shared_ptr<Vertex>> left_front_vertices =
-    connectVertexToFrontNode(new_root, left_front_node);
+    connectVertexToLeftFrontNode(new_root, left_front_node);
   std::vector<boost::shared_ptr<Vertex>> right_front_vertices =
-    connectVertexToFrontNode(new_root, right_front_node);
+    connectVertexToRightFrontNode(new_root, right_front_node);
 
   // Save the new root to the table.
   root_ = new_root;
@@ -558,6 +642,12 @@ void SpatiotemporalLatticePlanner::constructVertexGraph(
     addVerticesToTableAndQueue(right_front_vertices, right_front_node);
   }
 
+  //std::printf("===========================================\n");
+  //for (const auto& vertex : this->vertices())
+  //  std::printf("%s\n", vertex->string().c_str());
+  //std::cin.get();
+  //std::printf("===========================================\n");
+
   return;
 }
 
@@ -567,6 +657,10 @@ std::vector<boost::shared_ptr<Vertex>>
       const boost::shared_ptr<const WaypointNode>& target_node) {
 
   std::printf("SpatiotemporalLatticePlanner::connectVertexToFrontNode()\n");
+
+  // Stores the expanded front children of the input vertex.
+  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+    front_children;
 
   // Return directly if the target node does not exist.
   if (!target_node) return std::vector<boost::shared_ptr<Vertex>>();
@@ -595,7 +689,7 @@ std::vector<boost::shared_ptr<Vertex>>
     Snapshot snapshot = vertex->snapshot();
     snapshot.ego().acceleration() = accel;
 
-    TrafficSimulator simulator(snapshot, map_, fast_map_);
+    ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
     const bool no_collision = simulator.simulate(
         *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -623,16 +717,31 @@ std::vector<boost::shared_ptr<Vertex>>
       next_vertex->updateBackParent(
           simulator.snapshot(), stage_cost, vertex);
     }
+
+    //std::printf("----------------------------------------------\n");
+    //std::printf("acceleration option: %f\n", accel);
+    //std::printf("%s", vertex->string("start vertex:\n").c_str());
+    //std::printf("%s", next_vertex->string("new vertex:\n").c_str());
+    //std::cin.get();
+    //std::printf("----------------------------------------------\n");
+
+    // Set the front vertices that are connected with this vertex.
+    auto children = vertex->frontChildren();
+    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+      if (!(children[i])) continue;
+      front_children[i] = std::get<3>(*(children[i])).lock();
+    }
+
   } // End for loop for different acceleration options.
 
   // Collect all the front child vertices of the input vertex.
-  auto front_children = vertex->validFrontChildren();
-  std::vector<boost::shared_ptr<Vertex>> front_vertices;
+  std::vector<boost::shared_ptr<Vertex>> output_vertices;
   for (const auto& child : front_children) {
-    front_vertices.push_back(std::get<3>(child).lock());
+    if (!child) continue;
+    output_vertices.push_back(child);
   }
 
-  return front_vertices;
+  return output_vertices;
 }
 
 std::vector<boost::shared_ptr<Vertex>>
@@ -642,9 +751,12 @@ std::vector<boost::shared_ptr<Vertex>>
 
   std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode()\n");
 
+  // Stores the expanded left front children of the input vertex.
+  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+    left_children;
+
   // Return directly if the target node does not exist.
   if (!target_node) return std::vector<boost::shared_ptr<Vertex>>();
-
 
   // Return directly if the target node is already very close to the vertex.
   // It is not reasonable to change lane with this short distance.
@@ -676,7 +788,7 @@ std::vector<boost::shared_ptr<Vertex>>
                        vertex->snapshot().ego().curvature()),
         std::make_pair(target_node->waypoint()->GetTransform(),
                        target_node->curvature(map_)),
-        ContinuousPath::LaneChangeType::KeepLane);
+        ContinuousPath::LaneChangeType::LeftLaneChange);
   } catch (std::exception& e) {
     // If for whatever reason, the path cannot be created, the front vertices
     // cannot be created either.
@@ -692,7 +804,7 @@ std::vector<boost::shared_ptr<Vertex>>
     Snapshot snapshot = vertex->snapshot();
     snapshot.ego().acceleration() = accel;
 
-    TrafficSimulator simulator(snapshot, map_, fast_map_);
+    ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
     const bool no_collision = simulator.simulate(
         *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -710,26 +822,33 @@ std::vector<boost::shared_ptr<Vertex>>
     if (similar_vertex) next_vertex = similar_vertex;
 
     // Update the child of the parent vertex.
-    vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
+    vertex->updateLeftChild(*path, accel, stage_cost, next_vertex);
 
     // Update the parent vertex of the child.
     if (vertex->hasParents()) {
-      next_vertex->updateBackParent(
+      next_vertex->updateRightParent(
           simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
     } else {
-      next_vertex->updateBackParent(
+      next_vertex->updateRightParent(
           simulator.snapshot(), stage_cost, vertex);
+    }
+
+    // Set the left front vertices that are connected with this vertex.
+    auto children = vertex->leftChildren();
+    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+      if (!(children[i])) continue;
+      left_children[i] = std::get<3>(*(children[i])).lock();
     }
   } // End for loop for different acceleration options.
 
-  // Collect all the front child vertices of the input vertex.
-  auto left_children = vertex->validLeftChildren();
-  std::vector<boost::shared_ptr<Vertex>> left_vertices;
+  // Collect all the left child vertices of the input vertex.
+  std::vector<boost::shared_ptr<Vertex>> output_vertices;
   for (const auto& child : left_children) {
-    left_vertices.push_back(std::get<3>(child).lock());
+    if (!child) continue;
+    output_vertices.push_back(child);
   }
 
-  return left_vertices;
+  return output_vertices;
 }
 
 std::vector<boost::shared_ptr<Vertex>>
@@ -738,6 +857,10 @@ std::vector<boost::shared_ptr<Vertex>>
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
   std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode()\n");
+
+  // Stores the expanded right front children of the input vertex.
+  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+    right_children;
 
   // Return directly if the target node does not exist.
   if (!target_node) return std::vector<boost::shared_ptr<Vertex>>();
@@ -772,7 +895,7 @@ std::vector<boost::shared_ptr<Vertex>>
                        vertex->snapshot().ego().curvature()),
         std::make_pair(target_node->waypoint()->GetTransform(),
                        target_node->curvature(map_)),
-        ContinuousPath::LaneChangeType::KeepLane);
+        ContinuousPath::LaneChangeType::RightLaneChange);
   } catch (std::exception& e) {
     // If for whatever reason, the path cannot be created, the front vertices
     // cannot be created either.
@@ -788,7 +911,7 @@ std::vector<boost::shared_ptr<Vertex>>
     Snapshot snapshot = vertex->snapshot();
     snapshot.ego().acceleration() = accel;
 
-    TrafficSimulator simulator(snapshot, map_, fast_map_);
+    ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
     const bool no_collision = simulator.simulate(
         *path, sim_time_step_, 5.0, simulation_time, stage_cost);
@@ -806,30 +929,40 @@ std::vector<boost::shared_ptr<Vertex>>
     if (similar_vertex) next_vertex = similar_vertex;
 
     // Update the child of the parent vertex.
-    vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
+    vertex->updateRightChild(*path, accel, stage_cost, next_vertex);
 
     // Update the parent vertex of the child.
     if (vertex->hasParents()) {
-      next_vertex->updateBackParent(
+      next_vertex->updateLeftParent(
           simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
     } else {
-      next_vertex->updateBackParent(
+      next_vertex->updateLeftParent(
           simulator.snapshot(), stage_cost, vertex);
+    }
+
+    // Set the right front vertices that are connected with this vertex.
+    auto children = vertex->rightChildren();
+    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+      if (!(children[i])) continue;
+      right_children[i] = std::get<3>(*(children[i])).lock();
     }
   } // End for loop for different acceleration options.
 
-  // Collect all the front child vertices of the input vertex.
-  auto right_children = vertex->validRightChildren();
-  std::vector<boost::shared_ptr<Vertex>> right_vertices;
+  // Collect all the right child vertices of the input vertex.
+  std::vector<boost::shared_ptr<Vertex>> output_vertices;
   for (const auto& child : right_children) {
-    right_vertices.push_back(std::get<3>(child).lock());
+    if (!child) continue;
+    output_vertices.push_back(child);
   }
 
-  return right_vertices;
+  return output_vertices;
 }
 
 boost::shared_ptr<Vertex> SpatiotemporalLatticePlanner::findVertexInTable(
     const boost::shared_ptr<Vertex>& vertex) {
+
+  //std::printf("SpatiotemporalLatticePlanner::findVertexInTable()\n");
+
   boost::optional<size_t> idx = Vertex::speedIntervalIdx(vertex->speed());
   if (!idx) {
     std::string error_msg(
@@ -930,7 +1063,7 @@ const double SpatiotemporalLatticePlanner::costFromRootToTerminal(
 std::list<std::pair<ContinuousPath, double>>
   SpatiotemporalLatticePlanner::selectOptimalTraj() const {
 
-  std::printf("SpatiotemporalLatticePlanner::selectOptimalTraj():\n");
+  std::printf("SpatiotemporalLatticePlanner::selectOptimalTraj()\n");
 
   //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Vertex> optimal_vertex = nullptr;
@@ -979,6 +1112,7 @@ std::list<std::pair<ContinuousPath, double>>
   boost::shared_ptr<Vertex> vertex = optimal_vertex;
 
   while (vertex->hasParents()) {
+    std::printf("%s", vertex->string().c_str());
 
     // Find the parent vertex of this one.
     boost::shared_ptr<Vertex> parent_vertex =
@@ -1005,12 +1139,14 @@ std::list<std::pair<ContinuousPath, double>>
     traj_sequence.push_front(*traj);
     vertex = parent_vertex;
   }
+  std::printf("%s", vertex->string().c_str());
 
   return traj_sequence;
 }
 
 DiscretePath SpatiotemporalLatticePlanner::mergePaths(
     const std::list<ContinuousPath>& paths) const {
+  std::printf("SpatiotemporalLatticePlanner::mergePaths()\n");
   DiscretePath path(paths.front());
   for (std::list<ContinuousPath>::const_iterator iter = ++(paths.begin());
        iter != paths.end(); ++iter) path.append(*iter);
@@ -1021,6 +1157,8 @@ boost::optional<std::pair<ContinuousPath, double>>
   SpatiotemporalLatticePlanner::findTrajFromParentToChild(
     const boost::shared_ptr<Vertex>& parent,
     const boost::shared_ptr<Vertex>& child) const {
+
+  std::printf("SpatiotemporalLatticePlanner::findTrajfromParentToChild()\n");
 
   // FIXME: The three blocks of code are very similar.
   //        Maybe consider merging them into one function call.
@@ -1049,7 +1187,7 @@ boost::optional<std::pair<ContinuousPath, double>>
   }
 
   // Check if the input child is a front child.
-  const auto& front_children = parent->leftChildren();
+  const auto& front_children = parent->frontChildren();
 
   for (const auto& candidate : front_children) {
     if (!candidate) continue;

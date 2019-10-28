@@ -37,6 +37,39 @@
 namespace planner {
 namespace spatiotemporal_lattice_planner {
 
+
+class ConstAccelTrafficSimulator : public TrafficSimulator {
+
+private:
+
+  using Base = TrafficSimulator;
+  using This = ConstAccelTrafficSimulator;
+
+public:
+
+  ConstAccelTrafficSimulator(
+      const Snapshot& snapshot,
+      const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    Base(snapshot, map, fast_map) {}
+
+protected:
+
+  virtual const double egoAcceleration() const override {
+    return snapshot_.ego().acceleration();
+  }
+
+  virtual const double agentAcceleration(const size_t agent) const override {
+    return snapshot_.agent(agent).acceleration();
+  }
+
+  const double accelCost(
+      const double accel, const double speed, const double policy_speed) const;
+
+  virtual const double accelCost() const override;
+
+}; // End ConstAccelTrafficSimulator.
+
 class Vertex {
 
 protected:
@@ -80,7 +113,7 @@ public:
    * of the state vector.
    */
   static constexpr std::array<std::pair<double, double>, 3>
-    kVelocityIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 45.0} }};
+    kVelocityIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 40.0} }};
 
 protected:
 
@@ -334,7 +367,7 @@ protected:
 
 protected:
 
-  static constexpr std::array<double, 7> kAccelerationOptions_ {-8.0, -4.0, -2.0, -1.0, 0.0, 1.0, 2.0};
+  static constexpr std::array<double, 6> kAccelerationOptions_ {-8.0, -4.0, -2.0, -1.0, 0.0, 1.0};
 
   /// Simulation time step.
   double sim_time_step_;
