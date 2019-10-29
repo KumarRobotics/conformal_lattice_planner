@@ -490,20 +490,11 @@ void IDMLatticePlanner::constructStationGraph(
       const boost::shared_ptr<Station>& station,
       const boost::shared_ptr<const WaypointNode>& node)->void{
     if ((!station) || (!node)) return;
-    // Add the station to the table.
-    // This should have no effect if the station already exists in the table.
-    node_to_station_table_[station->id()] = station;
 
-    // Check if the queue already has the station.
-    // If it does, we don't have to add the station to the queue again.
-    auto iter = find_if(station_queue.begin(), station_queue.end(),
-        [&station](const boost::shared_ptr<const Station>& elem)->bool{
-          return elem->id() == station->id();
-        });
-    if (iter != station_queue.end()) return;
-
-    // Add the new station to the queue
-    if (station->id() == node->id()) station_queue.push_back(station);
+    if (node_to_station_table_.count(station->id()) == 0) {
+      node_to_station_table_[station->id()] = station;
+      if (station->id() == node->id()) station_queue.push_back(station);
+    }
   };
 
   while (!station_queue.empty()) {
