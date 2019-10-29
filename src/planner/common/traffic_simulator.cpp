@@ -45,9 +45,13 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
 
     boost::shared_ptr<CarlaWaypoint> next_waypoint = nullptr;
 
+    //std::printf("agent:%lu speed:%f accel:%f dt:%f movement:%f\n",
+    //    agent.id(), agent.speed(), accel, dt, movement);
+
     try {
       // Prefer the next waypoint on the route.
-      next_waypoint = router_->frontWaypoint(waypoint, movement);
+      if (movement == 0.0) next_waypoint = waypoint;
+      else next_waypoint = router_->frontWaypoint(waypoint, movement);
       // It is normal that we cannot find the next waypoint on the route.
       // It is treated as an exception so that, all exceptions (together with
       // the ones thrown by \c frontWayoint) can be handed by the following
@@ -60,8 +64,10 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
     } catch (...) {
       // Otherwise, we have to settle with some waypoints outside the route.
       // Find the next waypoint candidates.
-      std::vector<boost::shared_ptr<CarlaWaypoint>> next_waypoints =
-        waypoint->GetNext(movement);
+      std::vector<boost::shared_ptr<CarlaWaypoint>> next_waypoints;
+
+      if (movement == 0.0) next_waypoints.push_back(waypoint);
+      else next_waypoints = waypoint->GetNext(movement);
 
       if (next_waypoints.size() == 0) {
         std::string error_msg(
