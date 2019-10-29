@@ -755,7 +755,7 @@ visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
     // The z-offset of the start and end point.
     const double start_z_offset = *(Vertex::speedIntervalIdx(parent->speed())) * 3.0;
     const double end_z_offset = *(Vertex::speedIntervalIdx(child->speed())) * 3.0;
-    const double z_inc = (start_z_offset-end_z_offset) / transforms.size();
+    const double z_inc = (end_z_offset-start_z_offset) / transforms.size();
 
     for (size_t i = 0; i < transforms.size(); ++i) {
       const double z_offset = start_z_offset + i*z_inc;
@@ -846,6 +846,8 @@ visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
     path_msg->frame_locked = false;
     paths_msg->markers.push_back(*path_msg);
   }
+
+  path_ids = current_path_ids;
 
   visualization_msgs::MarkerArrayPtr planner_msg(
       new visualization_msgs::MarkerArray);
