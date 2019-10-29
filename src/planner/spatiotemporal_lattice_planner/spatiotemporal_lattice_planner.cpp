@@ -564,25 +564,28 @@ std::deque<boost::shared_ptr<Vertex>>
   // if they are successfully created.
   if (front_vertices.size() > 0) {
     for (const auto& vertex : front_vertices) {
-      addVertexToTable(vertex);
-      if (vertex->node().lock()->id() == front_node->id())
+      if (vertex->node().lock()->id() == front_node->id()) {
+        addVertexToTable(vertex);
         vertex_queue.push_back(vertex);
+      }
     }
   }
 
   if (left_front_vertices.size() > 0) {
     for (const auto& vertex : left_front_vertices) {
-      addVertexToTable(vertex);
-      if (vertex->node().lock()->id() == left_front_node->id())
+      if (vertex->node().lock()->id() == left_front_node->id()) {
+        addVertexToTable(vertex);
         vertex_queue.push_back(vertex);
+      }
     }
   }
 
   if (right_front_vertices.size() > 0) {
     for (const auto& vertex : right_front_vertices) {
-      addVertexToTable(vertex);
-      if (vertex->node().lock()->id() == right_front_node->id())
+      if (vertex->node().lock()->id() == right_front_node->id()) {
+        addVertexToTable(vertex);
         vertex_queue.push_back(vertex);
+      }
     }
   }
 
@@ -606,12 +609,12 @@ void SpatiotemporalLatticePlanner::constructVertexGraph(
       // Therefore, we don't have to add it to the table or the queue.
       if(findVertexInTable(vertex)) continue;
 
-      // Add the vertex to the table.
-      addVertexToTable(vertex);
       // If the vertex reaches the target node,
-      // add the vertex to the queue in order to expand later.
-      if (vertex->node().lock()->id() == node->id())
+      // add the vertex to the queue and table in order to expand later.
+      if (vertex->node().lock()->id() == node->id()) {
+        addVertexToTable(vertex);
         vertex_queue.push_back(vertex);
+      }
     }
   };
 
@@ -709,10 +712,9 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // If the waypoint node of next vertex is at the node of the current vertex,
-    // this indicates the speed is close to 0.0. There is probably no need to
-    // expand the input vertex further.
-    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+    // Ignore this option if the target node is not reached under this
+    // acceleration option.
+    if (next_vertex->node().lock()->id() != target_node->id())
       continue;
 
     // Update the child of the parent vertex.
@@ -830,10 +832,9 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // If the waypoint node of next vertex is at the node of the current vertex,
-    // this indicates the speed is close to 0.0. There is probably no need to
-    // expand the input vertex further.
-    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+    // Ignore this option if the target node is not reached under this
+    // acceleration option.
+    if (next_vertex->node().lock()->id() != target_node->id())
       continue;
 
     // Update the child of the parent vertex.
@@ -943,10 +944,9 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // If the waypoint node of next vertex is at the node of the current vertex,
-    // this indicates the speed is close to 0.0. There is probably no need to
-    // expand the input vertex further.
-    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+    // Ignore this option if the target node is not reached under this
+    // acceleration option.
+    if (next_vertex->node().lock()->id() != target_node->id())
       continue;
 
     // Update the child of the parent vertex.
