@@ -164,7 +164,7 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
     ego_path.append(iter->first);
 
   // Publish the vertex graph.
-  //conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
+  conformal_lattice_pub_.publish(createSpatiotemporalLatticeMsg(traj_planner_));
   path_pub_.publish(createEgoPathMsg(ego_path));
   waypoint_lattice_pub_.publish(createWaypointLatticeMsg(traj_planner_->waypointLattice()));
 
@@ -207,6 +207,7 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
   ros::Time end_time = ros::Time::now();
   ROS_INFO_NAMED("ego_planner", "planning time: %f",
       (end_time-start_time).toSec());
+  //std::cin.get();
   //if ((end_time-start_time).toSec() < 0.25) {
   //  ros::Duration delay(0.25-(end_time-start_time).toSec());
   //  delay.sleep();
