@@ -414,6 +414,9 @@ std::list<std::pair<ContinuousPath, double>>
   // Select the optimal trajectory sequence from the graph.
   std::list<std::pair<ContinuousPath, double>> optimal_traj_seq = selectOptimalTraj();
 
+  //for (const auto& vertex : vertices())
+  //  std::printf("%s", vertex->string().c_str());
+
   return optimal_traj_seq;
 }
 
@@ -474,15 +477,15 @@ std::deque<boost::shared_ptr<Vertex>>
   // Find the immedidate waypoint nodes.
   boost::shared_ptr<const WaypointNode> front_node = nullptr;
   if (root_.lock()->hasFrontChildren())
-    front_node = std::get<3>(root_.lock()->validFrontChildren().front()).lock()->node().lock();
+    front_node = std::get<3>(root_.lock()->validFrontChildren().back()).lock()->node().lock();
 
   boost::shared_ptr<const WaypointNode> left_front_node = nullptr;
   if (root_.lock()->hasLeftChildren())
-    left_front_node = std::get<3>(root_.lock()->validLeftChildren().front()).lock()->node().lock();
+    left_front_node = std::get<3>(root_.lock()->validLeftChildren().back()).lock()->node().lock();
 
   boost::shared_ptr<const WaypointNode> right_front_node = nullptr;
   if (root_.lock()->hasRightChildren())
-    right_front_node = std::get<3>(root_.lock()->validRightChildren().front()).lock()->node().lock();
+    right_front_node = std::get<3>(root_.lock()->validRightChildren().back()).lock()->node().lock();
 
   // Clear all old vertices.
   // We are good with the above nodes already. All vertices will be newly created.
@@ -524,7 +527,7 @@ std::deque<boost::shared_ptr<Vertex>>
     vehicle_node = vehicle_node->front();
     if (!vehicle_node) {
       std::string error_msg(
-          "SpatiotemporalLatticePlanner::pruneStationGraph(): "
+          "SpatiotemporalLatticePlanner::pruneVertexGraph(): "
           "Immediate next stations are missing.\n");
 
       std::string front_node_msg;
@@ -706,6 +709,12 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
+    // If the waypoint node of next vertex is at the node of the current vertex,
+    // this indicates the speed is close to 0.0. There is probably no need to
+    // expand the input vertex further.
+    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+      continue;
+
     // Update the child of the parent vertex.
     vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
 
@@ -821,6 +830,12 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
+    // If the waypoint node of next vertex is at the node of the current vertex,
+    // this indicates the speed is close to 0.0. There is probably no need to
+    // expand the input vertex further.
+    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+      continue;
+
     // Update the child of the parent vertex.
     vertex->updateLeftChild(*path, accel, stage_cost, next_vertex);
 
@@ -927,6 +942,12 @@ std::vector<boost::shared_ptr<Vertex>>
     // If so, the \c next_vertex is replaced with the existing one in the table.
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
+
+    // If the waypoint node of next vertex is at the node of the current vertex,
+    // this indicates the speed is close to 0.0. There is probably no need to
+    // expand the input vertex further.
+    if (next_vertex->node().lock()->id() == vertex->node().lock()->id())
+      continue;
 
     // Update the child of the parent vertex.
     vertex->updateRightChild(*path, accel, stage_cost, next_vertex);
@@ -1112,7 +1133,7 @@ std::list<std::pair<ContinuousPath, double>>
   boost::shared_ptr<Vertex> vertex = optimal_vertex;
 
   while (vertex->hasParents()) {
-    std::printf("%s", vertex->string().c_str());
+    //std::printf("%s", vertex->string().c_str());
 
     // Find the parent vertex of this one.
     boost::shared_ptr<Vertex> parent_vertex =
@@ -1139,7 +1160,7 @@ std::list<std::pair<ContinuousPath, double>>
     traj_sequence.push_front(*traj);
     vertex = parent_vertex;
   }
-  std::printf("%s", vertex->string().c_str());
+  //std::printf("%s", vertex->string().c_str());
 
   return traj_sequence;
 }
@@ -1170,7 +1191,7 @@ boost::optional<std::pair<ContinuousPath, double>>
     if (!candidate) continue;
     // Stop if the left children does not share the same node with the input child.
     boost::shared_ptr<const Vertex> candidate_vertex = std::get<3>(*candidate).lock();
-    if (candidate_vertex->node()->id() != child->node().lock()->id()) break;
+    if (candidate_vertex->node()->id() != child->node().lock()->id()) continue;
 
     // Figure out the which child the input child actually is.
     boost::optional<size_t> idx = Vertex::speedIntervalIdx(child->speed());
@@ -1193,7 +1214,7 @@ boost::optional<std::pair<ContinuousPath, double>>
     if (!candidate) continue;
     // Stop if the left children does not share the same node with the input child.
     boost::shared_ptr<const Vertex> candidate_vertex = std::get<3>(*candidate).lock();
-    if (candidate_vertex->node()->id() != child->node().lock()->id()) break;
+    if (candidate_vertex->node()->id() != child->node().lock()->id()) continue;
 
     // Figure out the which child the input child actually is.
     boost::optional<size_t> idx = Vertex::speedIntervalIdx(child->speed());
@@ -1216,7 +1237,7 @@ boost::optional<std::pair<ContinuousPath, double>>
     if (!candidate) continue;
     // Stop if the left children does not share the same node with the input child.
     boost::shared_ptr<const Vertex> candidate_vertex = std::get<3>(*candidate).lock();
-    if (candidate_vertex->node()->id() != child->node().lock()->id()) break;
+    if (candidate_vertex->node()->id() != child->node().lock()->id()) continue;
 
     // Figure out the which child the input child actually is.
     boost::optional<size_t> idx = Vertex::speedIntervalIdx(child->speed());
