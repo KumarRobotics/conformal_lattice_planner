@@ -113,7 +113,10 @@ public:
    * of the state vector.
    */
   static constexpr std::array<std::pair<double, double>, 3>
-    kSpeedIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 40.0} }};
+    kSpeedIntervalsPerStation_ {{
+      {0.0, 13.4112},
+      {13.4112, 26.8224},
+      {26.8224, 40.2336} }};
 
 protected:
 
