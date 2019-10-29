@@ -113,7 +113,7 @@ public:
    * of the state vector.
    */
   static constexpr std::array<std::pair<double, double>, 3>
-    kVelocityIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 40.0} }};
+    kSpeedIntervalsPerStation_ {{ {0.0, 15.0}, {15.0, 30.0}, {30.0, 40.0} }};
 
 protected:
 
@@ -128,20 +128,20 @@ protected:
    *
    * Each vertex may have more than one parents from the same lane, left lane,
    * or the right lane. The maximum number of parents from each lane depends on
-   * the size of \c kVelocityIntervalsPerStation_.
+   * the size of \c kSpeedIntervalsPerStation_.
    *
    * The \c optimal_parent is a copy of the parent which has the
    * minimum cost-to-come. This is mainly used to backtrace the optimal
    * path/trajectory.
    */
   /// @{
-  std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
     left_parents_ {boost::none, boost::none, boost::none};
 
-  std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
     back_parents_ {boost::none, boost::none, boost::none};
 
-  std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
     right_parents_ {boost::none, boost::none, boost::none};
 
   boost::optional<Parent> optimal_parent_ = boost::none;
@@ -152,16 +152,16 @@ protected:
    *
    * Each vertex may have more than one child vertices from the same lane, left lane,
    * or the right lane. The maximum number of children from each lane depends on the
-   * size of \c kVelocityIntervalsPerStation_.
+   * size of \c kSpeedIntervalsPerStation_.
    */
   /// @{
-  std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
     left_children_ {boost::none, boost::none, boost::none};
 
-  std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
     front_children_ {boost::none, boost::none, boost::none};
 
-  std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>
+  std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
     right_children_ {boost::none, boost::none, boost::none};
   /// @}
 
@@ -215,13 +215,13 @@ public:
   }
 
   /// Accessors for the parent vertices.
-  const std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>&
     leftParents() const { return left_parents_; }
 
-  const std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>&
     backParents() const { return back_parents_; }
 
-  const std::array<boost::optional<Parent>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>&
     rightParents() const { return right_parents_; }
 
   const boost::optional<Parent>& optimalParent() const {
@@ -249,13 +249,13 @@ public:
   const bool hasParents() const { return parentsSize() > 0; }
 
   /// Accessors for the child vertices.
-  const std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>&
     leftChildren() const { return left_children_; }
 
-  const std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>&
     frontChildren() const { return front_children_; }
 
-  const std::array<boost::optional<Child>, kVelocityIntervalsPerStation_.size()>&
+  const std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>&
     rightChildren() const { return right_children_; }
 
   std::vector<Child> validLeftChildren() const { return validChildren(left_children_); }
@@ -314,8 +314,8 @@ public:
     // Return \c boost::none if the input speed is less than 0.
     if (speed < 0.0) return boost::none;
 
-    for (size_t i = 0; i < kVelocityIntervalsPerStation_.size(); ++i) {
-      if (speed < kVelocityIntervalsPerStation_[i].second) return i;
+    for (size_t i = 0; i < kSpeedIntervalsPerStation_.size(); ++i) {
+      if (speed < kSpeedIntervalsPerStation_[i].second) return i;
     }
 
     // Return \c boost::none if the speed is too large.
@@ -329,7 +329,7 @@ protected:
 
   std::vector<Parent> validParents(
       const std::array<boost::optional<Parent>,
-                       kVelocityIntervalsPerStation_.size()>& parents) const {
+                       kSpeedIntervalsPerStation_.size()>& parents) const {
     std::vector<Parent> valid_parents;
     for (const auto& parent : parents) {
       if (!parent) continue;
@@ -340,7 +340,7 @@ protected:
 
   std::vector<Child> validChildren(
       const std::array<boost::optional<Child>,
-                       kVelocityIntervalsPerStation_.size()>& children) const {
+                       kSpeedIntervalsPerStation_.size()>& children) const {
     std::vector<Child> valid_children;
     for (const auto& child : children) {
       if (!child) continue;
@@ -387,7 +387,7 @@ protected:
   /// The vetices are indexed by the node ID. Each node may link upto three vertices.
   std::unordered_map<
     size_t,
-    std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>>
+    std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>>
       node_to_vertices_table_;
 
   /**
@@ -492,7 +492,7 @@ protected:
    *
    * The function throws runtime error if the ego speed within the input vertex
    * is not within the valid range. The valid range is defined by
-   * \c Vertex::kVelocityIntervalsPerStation_.
+   * \c Vertex::kSpeedIntervalsPerStation_.
    *
    * \param[in] vertex The query vertex.
    * \return \c nullptr if no vertex satisfying the requirement is found. Otherwise,

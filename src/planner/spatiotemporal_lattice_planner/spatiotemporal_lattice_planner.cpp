@@ -19,7 +19,7 @@
 namespace planner {
 namespace spatiotemporal_lattice_planner {
 
-constexpr std::array<std::pair<double, double>, 3> Vertex::kVelocityIntervalsPerStation_;
+constexpr std::array<std::pair<double, double>, 3> Vertex::kSpeedIntervalsPerStation_;
 constexpr std::array<double, 6> SpatiotemporalLatticePlanner::kAccelerationOptions_;
 
 const double ConstAccelTrafficSimulator::accelCost(
@@ -659,7 +659,7 @@ std::vector<boost::shared_ptr<Vertex>>
   std::printf("SpatiotemporalLatticePlanner::connectVertexToFrontNode()\n");
 
   // Stores the expanded front children of the input vertex.
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+  std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
     front_children;
 
   // Return directly if the target node does not exist.
@@ -727,7 +727,7 @@ std::vector<boost::shared_ptr<Vertex>>
 
     // Set the front vertices that are connected with this vertex.
     auto children = vertex->frontChildren();
-    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+    for (size_t i = 0; i < Vertex::kSpeedIntervalsPerStation_.size(); ++i) {
       if (!(children[i])) continue;
       front_children[i] = std::get<3>(*(children[i])).lock();
     }
@@ -752,7 +752,7 @@ std::vector<boost::shared_ptr<Vertex>>
   std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode()\n");
 
   // Stores the expanded left front children of the input vertex.
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+  std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
     left_children;
 
   // Return directly if the target node does not exist.
@@ -835,7 +835,7 @@ std::vector<boost::shared_ptr<Vertex>>
 
     // Set the left front vertices that are connected with this vertex.
     auto children = vertex->leftChildren();
-    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+    for (size_t i = 0; i < Vertex::kSpeedIntervalsPerStation_.size(); ++i) {
       if (!(children[i])) continue;
       left_children[i] = std::get<3>(*(children[i])).lock();
     }
@@ -859,7 +859,7 @@ std::vector<boost::shared_ptr<Vertex>>
   std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode()\n");
 
   // Stores the expanded right front children of the input vertex.
-  std::array<boost::shared_ptr<Vertex>, Vertex::kVelocityIntervalsPerStation_.size()>
+  std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
     right_children;
 
   // Return directly if the target node does not exist.
@@ -942,7 +942,7 @@ std::vector<boost::shared_ptr<Vertex>>
 
     // Set the right front vertices that are connected with this vertex.
     auto children = vertex->rightChildren();
-    for (size_t i = 0; i < Vertex::kVelocityIntervalsPerStation_.size(); ++i) {
+    for (size_t i = 0; i < Vertex::kSpeedIntervalsPerStation_.size(); ++i) {
       if (!(children[i])) continue;
       right_children[i] = std::get<3>(*(children[i])).lock();
     }
