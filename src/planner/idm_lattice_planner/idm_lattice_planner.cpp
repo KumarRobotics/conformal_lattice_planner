@@ -395,12 +395,10 @@ std::deque<boost::shared_ptr<Station>>
     if (front_node &&
         vehicle_node->id()==front_node->id()) break;
 
-    if (left_front_node &&
-        vehicle_node->left() &&
+    if (left_front_node && vehicle_node->left() &&
         vehicle_node->left()->id()==left_front_node->id()) break;
 
-    if (right_front_node &&
-        vehicle_node->right() &&
+    if (right_front_node && vehicle_node->right() &&
         vehicle_node->right()->id()==right_front_node->id()) break;
 
     // The ego has moved to the left lane.
@@ -411,8 +409,24 @@ std::deque<boost::shared_ptr<Station>>
       break;
     }
 
+    if (front_node && vehicle_node->right() &&
+        vehicle_node->right()->id()==front_node->id()) {
+      right_front_node = front_node;
+      front_node = left_front_node;
+      left_front_node = nullptr;
+      break;
+    }
+
     // The ego has moved to the right lane.
     if (right_front_node && vehicle_node->id()==right_front_node->id()) {
+      left_front_node = front_node;
+      front_node = right_front_node;
+      right_front_node = nullptr;
+      break;
+    }
+
+    if (front_node && vehicle_node->left() &&
+        vehicle_node->left()->id()==front_node->id()) {
       left_front_node = front_node;
       front_node = right_front_node;
       right_front_node = nullptr;

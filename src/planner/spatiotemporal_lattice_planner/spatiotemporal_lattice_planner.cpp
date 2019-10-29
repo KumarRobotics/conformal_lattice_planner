@@ -516,8 +516,24 @@ std::deque<boost::shared_ptr<Vertex>>
       break;
     }
 
+    if (front_node && vehicle_node->right() &&
+        vehicle_node->right()->id()==front_node->id()) {
+      right_front_node = front_node;
+      front_node = left_front_node;
+      left_front_node = nullptr;
+      break;
+    }
+
     // The ego has moved to the right lane.
     if (right_front_node && vehicle_node->id()==right_front_node->id()) {
+      left_front_node = front_node;
+      front_node = right_front_node;
+      right_front_node = nullptr;
+      break;
+    }
+
+    if (front_node && vehicle_node->left() &&
+        vehicle_node->left()->id()==front_node->id()) {
       left_front_node = front_node;
       front_node = right_front_node;
       right_front_node = nullptr;
