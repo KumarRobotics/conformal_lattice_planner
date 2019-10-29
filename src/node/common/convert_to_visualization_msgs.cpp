@@ -36,6 +36,7 @@ using namespace boost;
 using namespace router;
 using namespace planner;
 using namespace planner::idm_lattice_planner;
+using namespace planner::spatiotemporal_lattice_planner;
 
 using CarlaVehicle         = carla::client::Vehicle;
 using CarlaMap             = carla::client::Map;
@@ -684,6 +685,171 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
   visualization_msgs::MarkerArrayPtr planner_msg(
       new visualization_msgs::MarkerArray);
   planner_msg->markers.push_back(*station_msg);
+  planner_msg->markers.insert(planner_msg->markers.end(),
+                              paths_msg->markers.begin(),
+                              paths_msg->markers.end());
+
+  return planner_msg;
+}
+
+visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
+    const boost::shared_ptr<const planner::SpatiotemporalLatticePlanner>& planner) {
+
+  static std::set<size_t> path_ids;
+
+  std_msgs::ColorRGBA vertex_color;
+  vertex_color.r = 0.8;
+  vertex_color.g = 0.9;
+  vertex_color.b = 1.0;
+  vertex_color.a = 1.0;
+
+  std_msgs::ColorRGBA path_color;
+  path_color.r = 0.3;
+  path_color.g = 0.6;
+  path_color.b = 1.0;
+  path_color.a = 1.0;
+
+  const std::vector<boost::shared_ptr<const Vertex>> vertices = planner->vertices();
+
+  visualization_msgs::MarkerPtr vertex_msg(new visualization_msgs::Marker);
+
+  vertex_msg->header.stamp = ros::Time::now();
+  vertex_msg->header.frame_id = "map";
+  vertex_msg->ns = "lattice_planner_vertices";
+  vertex_msg->id = 0;
+  vertex_msg->type = visualization_msgs::Marker::SPHERE_LIST;
+  vertex_msg->action = visualization_msgs::Marker::ADD;
+  vertex_msg->lifetime = ros::Duration(0.0);
+  vertex_msg->frame_locked = false;
+  vertex_msg->pose.orientation.w = 1.0;
+  vertex_msg->scale.x = 2.0;
+  vertex_msg->scale.y = 2.0;
+  vertex_msg->scale.z = 2.0;
+  vertex_msg->color = vertex_color;
+
+  for (const auto& vertex : vertices) {
+    CarlaTransform transform = utils::convertTransform(vertex->transform());
+    const double z_offset = *(Vertex::speedIntervalIdx(vertex->speed())) * 3.0;
+
+    geometry_msgs::Point pt;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z + z_offset;
+
+    vertex_msg->points.push_back(pt);
+    vertex_msg->colors.push_back(vertex_color);
+  }
+
+  auto populatePathBetweenVertices = [](
+      const boost::shared_ptr<const Vertex>& parent,
+      const boost::shared_ptr<const Vertex>& child,
+      const ContinuousPath& path,
+      const visualization_msgs::MarkerPtr& path_msg)->void {
+
+    // Get transforms on the path.
+    std::vector<std::pair<carla::geom::Transform, double>>
+      transforms = path.samples();
+    for (auto& transform : transforms)
+      utils::convertTransformInPlace(transform.first);
+
+    // The z-offset of the start and end point.
+    const double start_z_offset = *(Vertex::speedIntervalIdx(parent->speed())) * 3.0;
+    const double end_z_offset = *(Vertex::speedIntervalIdx(child->speed())) * 3.0;
+    const double z_inc = (start_z_offset-end_z_offset) / transforms.size();
+
+    for (size_t i = 0; i < transforms.size(); ++i) {
+      const double z_offset = start_z_offset + i*z_inc;
+      geometry_msgs::Point pt;
+      pt.x = transforms[i].first.location.x;
+      pt.y = transforms[i].first.location.y;
+      pt.z = transforms[i].first.location.z + z_offset;
+
+      path_msg->points.push_back(pt);
+      path_msg->colors.push_back(path_msg->color);
+    }
+
+    return;
+  };
+
+  auto initializePathMsgHeader = [&path_color](const size_t id)->visualization_msgs::MarkerPtr {
+    visualization_msgs::MarkerPtr path_msg(new visualization_msgs::Marker);
+    path_msg->header.stamp = ros::Time::now();
+    path_msg->header.frame_id = "map";
+    path_msg->ns = "lattice_planner_paths";
+    path_msg->id = id;
+    path_msg->type = visualization_msgs::Marker::LINE_STRIP;
+    path_msg->action = visualization_msgs::Marker::ADD;
+    path_msg->lifetime = ros::Duration(0.0);
+    path_msg->frame_locked = false;
+    path_msg->pose.orientation.w = 1.0;
+    path_msg->scale.x = 0.5;
+    path_msg->scale.y = 0.5;
+    path_msg->scale.z = 0.5;
+    path_msg->color = path_color;
+    return path_msg;
+  };
+
+  visualization_msgs::MarkerArrayPtr paths_msg(new visualization_msgs::MarkerArray);
+  std::set<size_t> current_path_ids;
+
+  for (size_t i = 0; i < vertices.size(); ++i) {
+    const boost::shared_ptr<const Vertex> vertex = vertices[i];
+
+    const auto front_children = vertex->validFrontChildren();
+    const auto left_children = vertex->validLeftChildren();
+    const auto right_children = vertex->validRightChildren();
+
+    size_t child_counter = 0;
+
+    for (const auto& child : front_children) {
+      const ContinuousPath& path = std::get<0>(child);
+      const size_t id = i*100 + child_counter++;
+
+      visualization_msgs::MarkerPtr path_msg = initializePathMsgHeader(id);
+      populatePathBetweenVertices(vertex, std::get<3>(child).lock(), path, path_msg);
+      paths_msg->markers.push_back(*path_msg);
+      current_path_ids.insert(id);
+    }
+
+    for (const auto& child : left_children) {
+      const ContinuousPath& path = std::get<0>(child);
+      const size_t id = i*100 + child_counter++;
+
+      visualization_msgs::MarkerPtr path_msg = initializePathMsgHeader(id);
+      populatePathBetweenVertices(vertex, std::get<3>(child).lock(), path, path_msg);
+      paths_msg->markers.push_back(*path_msg);
+      current_path_ids.insert(id);
+    }
+
+    for (const auto& child : right_children) {
+      const ContinuousPath& path = std::get<0>(child);
+      const size_t id = i*100 + child_counter++;
+
+      visualization_msgs::MarkerPtr path_msg = initializePathMsgHeader(id);
+      populatePathBetweenVertices(vertex, std::get<3>(child).lock(), path, path_msg);
+      paths_msg->markers.push_back(*path_msg);
+      current_path_ids.insert(id);
+    }
+  }
+
+  for (const size_t id : path_ids) {
+    if (current_path_ids.count(id) != 0) continue;
+
+    visualization_msgs::MarkerPtr path_msg(new visualization_msgs::Marker);
+    path_msg->header.stamp = ros::Time::now();
+    path_msg->header.frame_id = "map";
+    path_msg->ns = "lattice_planner_paths";
+    path_msg->id = id;
+    path_msg->type = visualization_msgs::Marker::LINE_STRIP;
+    path_msg->action = visualization_msgs::Marker::DELETE;
+    path_msg->lifetime = ros::Duration(0.0);
+    path_msg->frame_locked = false;
+    paths_msg->markers.push_back(*path_msg);
+  }
+
+  visualization_msgs::MarkerArrayPtr planner_msg(
+      new visualization_msgs::MarkerArray);
+  planner_msg->markers.push_back(*vertex_msg);
   planner_msg->markers.insert(planner_msg->markers.end(),
                               paths_msg->markers.begin(),
                               paths_msg->markers.end());

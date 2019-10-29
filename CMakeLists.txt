@@ -3,7 +3,7 @@ project(conformal_lattice_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 #add_compile_options(-std=c++14 -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-cpp)
-add_compile_options(-std=c++14 -Wall -fmax-errors=3 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-cpp)
+add_compile_options(-std=c++14 -Wall -fmax-errors=1 -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 ## Find catkin macros and libraries
