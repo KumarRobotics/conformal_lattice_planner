@@ -164,9 +164,9 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
     ego_path.append(iter->first);
 
   // Publish the vertex graph.
-  conformal_lattice_pub_.publish(createSpatiotemporalLatticeMsg(traj_planner_));
+  //conformal_lattice_pub_.publish(createSpatiotemporalLatticeMsg(traj_planner_));
   path_pub_.publish(createEgoPathMsg(ego_path));
-  waypoint_lattice_pub_.publish(createWaypointLatticeMsg(traj_planner_->waypointLattice()));
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(traj_planner_->waypointLattice()));
 
   // Plan speed.
   const double ego_accel = ego_traj.front().second;

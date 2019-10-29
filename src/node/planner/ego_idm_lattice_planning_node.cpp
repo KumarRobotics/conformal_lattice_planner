@@ -160,9 +160,9 @@ void EgoIDMLatticePlanningNode::executeCallback(
   const DiscretePath ego_path = path_planner_->planPath(ego_policy.first, *snapshot);
 
   // Publish the station graph.
-  conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
+  //conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
   path_pub_.publish(createEgoPathMsg(ego_path));
-  waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
+  //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
   // Plan speed.
   const double ego_accel = speed_planner_->planSpeed(ego_policy.first, *snapshot);

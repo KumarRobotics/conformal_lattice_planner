@@ -340,7 +340,7 @@ void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 std::deque<boost::shared_ptr<Station>>
   IDMLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
-  //std::printf("pruneStationGraph(): \n");
+  std::printf("pruneStationGraph(): \n");
 
   // Stores the stations to be explored.
   std::deque<boost::shared_ptr<Station>> station_queue;
@@ -498,7 +498,7 @@ std::deque<boost::shared_ptr<Station>>
 void IDMLatticePlanner::constructStationGraph(
     std::deque<boost::shared_ptr<Station>>& station_queue) {
 
-  //std::printf("constructStationGraph(): \n");
+  std::printf("constructStationGraph(): \n");
 
   auto addStationToTableAndQueue = [this, &station_queue](
       const boost::shared_ptr<Station>& station,
@@ -554,7 +554,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  //std::printf("connectStationToFrontNode(): \n");
+  std::printf("connectStationToFrontNode(): \n");
 
   // Return directly if the target node does not exist.
   if (!target_node) return nullptr;
@@ -614,7 +614,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  //std::printf("connectStationToLeftFrontNode(): \n");
+  std::printf("connectStationToLeftFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -700,7 +700,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  //std::printf("connectStationToRightFrontNode(): \n");
+  std::printf("connectStationToRightFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -867,7 +867,7 @@ const double IDMLatticePlanner::costFromRootToTerminal(
 
 std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
 
-  //std::printf("selectOptimalPath():\n");
+  std::printf("selectOptimalPath():\n");
 
   //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Station> optimal_station = nullptr;
