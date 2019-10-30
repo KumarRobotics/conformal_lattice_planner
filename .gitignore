@@ -1,6 +1,7 @@
-scripts/
 doc/
 backup/
+*.pyc
+scripts/path_generation
 
 # Prerequisites
 *.d
