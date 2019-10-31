@@ -151,7 +151,7 @@ bool Snapshot::updateTraffic(
   // Remove the \c disappear_vehicles from the snapshot.
   if (disappear_vehicles.count(ego_.id()) != 0) {
     std::string error_msg(
-        "Snapshot::Snapshot(): "
+        "Snapshot::UpdateTraffic(): "
         "the ego vehicle is removed from the snapshot.\n");
     std::string snapshot_msg = this->string();
     throw std::runtime_error(error_msg + snapshot_msg);

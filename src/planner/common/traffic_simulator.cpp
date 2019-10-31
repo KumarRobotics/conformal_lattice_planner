@@ -58,7 +58,7 @@ const std::tuple<size_t, typename TrafficSimulator::CarlaTransform, double, doub
       // \c catch.
       if (!next_waypoint) {
         throw std::runtime_error(
-          "TrafficSimulator::updateAgentTupel"
+          "TrafficSimulator::updateAgentTupel(): "
           "next waypoint is not available.\n");
       }
     } catch (...) {
