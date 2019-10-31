@@ -63,7 +63,7 @@ bool EgoIDMLatticePlanningNode::initialize() {
 
   // Initialize the path and speed planner.
   boost::shared_ptr<router::LoopRouter> router = boost::make_shared<router::LoopRouter>();
-  path_planner_ = boost::make_shared<planner::IDMLatticePlanner>(0.1, 100.0, router, map_, fast_map_);
+  path_planner_ = boost::make_shared<planner::IDMLatticePlanner>(0.1, 150.0, router, map_, fast_map_);
   speed_planner_ = boost::make_shared<planner::VehicleSpeedPlanner>();
 
   // Start the action server.

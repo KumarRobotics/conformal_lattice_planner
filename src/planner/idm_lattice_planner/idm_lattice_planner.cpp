@@ -389,17 +389,19 @@ std::deque<boost::shared_ptr<Station>>
   // Now we have to spend some time figuring out which node is the front, left front,
   // and right front node relative to the new root node.
   boost::shared_ptr<const WaypointNode> vehicle_node = new_root->node().lock();
+  boost::shared_ptr<const WaypointNode> vehicle_left_node = vehicle_node->left();
+  boost::shared_ptr<const WaypointNode> vehicle_right_node = vehicle_node->right();
 
   while (true) {
     // The ego is still on the same lane.
     if (front_node &&
         vehicle_node->id()==front_node->id()) break;
 
-    if (left_front_node && vehicle_node->left() &&
-        vehicle_node->left()->id()==left_front_node->id()) break;
+    if (left_front_node && vehicle_left_node &&
+        vehicle_left_node->id()==left_front_node->id()) break;
 
-    if (right_front_node && vehicle_node->right() &&
-        vehicle_node->right()->id()==right_front_node->id()) break;
+    if (right_front_node && vehicle_right_node &&
+        vehicle_right_node->id()==right_front_node->id()) break;
 
     // The ego has moved to the left lane.
     if (left_front_node && vehicle_node->id()==left_front_node->id()) {
@@ -409,8 +411,8 @@ std::deque<boost::shared_ptr<Station>>
       break;
     }
 
-    if (front_node && vehicle_node->right() &&
-        vehicle_node->right()->id()==front_node->id()) {
+    if (front_node && vehicle_right_node &&
+        vehicle_right_node->id()==front_node->id()) {
       right_front_node = front_node;
       front_node = left_front_node;
       left_front_node = nullptr;
@@ -425,8 +427,8 @@ std::deque<boost::shared_ptr<Station>>
       break;
     }
 
-    if (front_node && vehicle_node->left() &&
-        vehicle_node->left()->id()==front_node->id()) {
+    if (front_node && vehicle_left_node &&
+        vehicle_left_node->id()==front_node->id()) {
       left_front_node = front_node;
       front_node = right_front_node;
       right_front_node = nullptr;
@@ -434,7 +436,10 @@ std::deque<boost::shared_ptr<Station>>
     }
 
     vehicle_node = vehicle_node->front();
-    if (!vehicle_node) {
+    if (vehicle_left_node) vehicle_left_node = vehicle_left_node->front();
+    if (vehicle_right_node) vehicle_right_node = vehicle_right_node->front();
+
+    if ((!vehicle_node) && (!vehicle_left_node) && (!vehicle_right_node)) {
       std::string error_msg(
           "IDMLatticePlanner::pruneStationGraph(): "
           "Immediate next stations are missing.\n");
@@ -832,16 +837,20 @@ const double IDMLatticePlanner::terminalDistanceCost(
     throw std::runtime_error(error_msg + station->string());
   }
 
-  //static std::unordered_map<int, double> cost_map {
-  //  {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
-  //  {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
-  //};
   static std::unordered_map<int, double> cost_map {
-    {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
-    {5, 3.0}, {6, 2.0}, {7, 2.0}, {8, 1.0}, {9, 1.0},
+    {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
+    {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
   };
+  //static std::unordered_map<int, double> cost_map {
+  //  {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
+  //  {5, 3.0}, {6, 2.0}, {7, 2.0}, {8, 1.0}, {9, 1.0},
+  //};
 
-  const double distance_ratio = station->node().lock()->distance() / spatial_horizon_;
+  const double distance = station->node().lock()->distance() -
+                          root_.lock()->node().lock()->distance();
+  const double distance_ratio = distance / spatial_horizon_;
+  //std::printf("station distance:%f spatio horizon:%f distance ratio: %f\n",
+  //    distance, spatial_horizon_, distance_ratio);
 
   if (distance_ratio >= 1.0) return 0.0;
   else return cost_map[static_cast<int>(distance_ratio*10.0)];
@@ -860,6 +869,8 @@ const double IDMLatticePlanner::costFromRootToTerminal(
   const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
   const double terminal_distance_cost = terminalDistanceCost(terminal);
+  //std::printf("path cost: %f speed cost: %f distance cost:%f\n",
+  //    path_cost, terminal_speed_cost, terminal_distance_cost);
 
   // TODO: Weight the cost properly.
   return path_cost + terminal_speed_cost + terminal_distance_cost;
