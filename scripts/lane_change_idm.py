@@ -76,7 +76,7 @@ def check_collision(snapshot):
 
     return False
 
-def vehicle_accels(snapshot, ego_path, ego_distance_on_path):
+def vehicle_accels1(snapshot, ego_path, ego_distance_on_path):
     # Initial traffic setup.
     # --v3---------------------------------v2---------
     # --------ego-------------v1----------------------
@@ -105,7 +105,52 @@ def vehicle_accels(snapshot, ego_path, ego_distance_on_path):
         accels[0] = idm(snapshot[0]['speed'], snapshot[0]['policy'],
                         snapshot[1]['speed'], snapshot[1]['x']-snapshot[0]['x'])
 
-    print(accels)
+    return accels
+
+def vehicle_accels2(snapshot, ego_path, ego_distance_on_path):
+    # Initial traffic setup.
+    # --v3---------------------------------v2---------
+    # --------ego-------------v1----------------------
+
+    accels = np.zeros(4)
+
+    # Acceleration for v1.
+    accels[1] = idm(snapshot[1]['speed'], snapshot[1]['policy'])
+    # Acceleration for v2.
+    accels[2] = idm(snapshot[2]['speed'], snapshot[2]['policy'])
+
+    # Compute the acceleration for v3 depending whether the lead
+    # is the ego or v2.
+    accel3_from_ego = idm(snapshot[3]['speed'], snapshot[3]['policy'],
+                          snapshot[0]['speed'], snapshot[0]['x']-snapshot[3]['x'])
+    accel3_from_v2  = idm(snapshot[3]['speed'], snapshot[3]['policy'],
+                          snapshot[2]['speed'], snapshot[2]['x']-snapshot[3]['x'])
+
+    # Acceleration for v3, which is set depending on whether the ego
+    # is on the target lane or not.
+    if snapshot[0]['y'] > 3.7/2.0:
+        accels[3] = accel3_from_ego
+    else:
+        accels[3] = accel3_from_v2
+
+    # Acceleration for the ego.
+    # There are three sources of accelerations for the ego.
+    # 1. From the lead on the same lane.
+    # 2. From the lead on the target lane.
+    # 3. From the follower on the target lane.
+    accele_from_v1 = idm(snapshot[0]['speed'], snapshot[0]['policy'],
+                         snapshot[1]['speed'], snapshot[1]['x']-snapshot[0]['x'])
+    accele_from_v2 = idm(snapshot[0]['speed'], snapshot[0]['policy'],
+                         snapshot[2]['speed'], snapshot[2]['x']-snapshot[0]['x'])
+    accele_from_v3 = accel3_from_ego - accel3_from_v2
+
+    r = ego_distance_on_path / ego_path[-1]['s']
+    w1 = (1-r)   / (1+r-r*r)
+    w3 = r*(1-r) / (1+r-r*r)
+    w2 = r       / (1+r-r*r)
+    accels[0] = w1*accele_from_v1 + w2*accele_from_v2 + w3*accele_from_v3
+
+    print(w1, w2, w3)
 
     return accels
 
@@ -153,9 +198,7 @@ def simulate_traffic(initial_snapshot, ego_path, controller):
 
     return snapshots
 
-def draw(snapshots):
-
-    # Separete the data based on the vehicles.
+def parse_snapshots(snapshots):
     t   = np.zeros(len(snapshots))
     ego = np.zeros(len(snapshots), dtype=vehicle_dtype)
     v1  = np.zeros(len(snapshots), dtype=vehicle_dtype)
@@ -169,21 +212,36 @@ def draw(snapshots):
         v2[i]  = snapshots[i][1][2]
         v3[i]  = snapshots[i][1][3]
 
-    # Plot Ego data.
-    fige, axe = plt.subplots()
-    axe.plot(t, ego['accel'])
-    axe.set_xlabel('t(s)')
-    axe.set_ylabel('a(m/s/s)')
-    axe.set_title('Ego Accel')
-    axe.grid()
+    return t, ego, v1, v2, v3
 
-    # Plot v3 data.
-    fig3, ax3 = plt.subplots()
-    ax3.plot(t, v3['accel'])
-    ax3.set_xlabel('t(s)')
-    ax3.set_ylabel('a(m/s/s)')
-    ax3.set_title('Vehicle3 Accel')
-    ax3.grid()
+def draw(snapshots1, snapshots2):
+
+    s1_t, s1_ego, s1_v1, s1_v2, s1_v3 = parse_snapshots(snapshots1)
+    s2_t, s2_ego, s2_v1, s2_v2, s2_v3 = parse_snapshots(snapshots2)
+
+    # Plot ego acceleration.
+    fige_accel, axe_accel = plt.subplots()
+    axe_accel.plot(s1_t, s1_ego['accel'], label='naive-IDM')
+    axe_accel.plot(s2_t, s2_ego['accel'], label='LC-IDM')
+    axe_accel.set_xlabel('t(s)')
+    axe_accel.set_ylabel('a(m/s/s)')
+    axe_accel.set_title('Ego Acceleration')
+    axe_accel.legend()
+    axe_accel.grid()
+
+    # Plot the ego following distance.
+
+    # Plot v3 acceleration.
+    fig3_accel, ax3_accel = plt.subplots()
+    ax3_accel.plot(s1_t, s1_v3['accel'], label='naive-IDM')
+    ax3_accel.plot(s2_t, s2_v3['accel'], label='LC-IDM')
+    ax3_accel.set_xlabel('t(s)')
+    ax3_accel.set_ylabel('a(m/s/s)')
+    ax3_accel.set_title('Vehicle3 Acceleration')
+    ax3_accel.legend()
+    ax3_accel.grid()
+
+    # Plot Ego following distance
 
     return
 
@@ -208,10 +266,11 @@ def main():
         (-15.0, 3.7, 0.0, 24.0, 0.0, 25.0, 4.7) ], dtype=vehicle_dtype)
 
     # Simulate the traffic.
-    snapshots = simulate_traffic(snapshot, ego_path, vehicle_accels)
+    snapshots1 = simulate_traffic(np.copy(snapshot), ego_path, vehicle_accels1)
+    snapshots2 = simulate_traffic(np.copy(snapshot), ego_path, vehicle_accels2)
 
     # Plots.
-    draw(snapshots)
+    draw(snapshots1, snapshots2)
     plt.show()
 
 
