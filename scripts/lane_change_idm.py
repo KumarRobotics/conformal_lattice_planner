@@ -6,8 +6,9 @@ from __future__ import division
 from math import sqrt
 from math import tanh
 import numpy as np
+import matplotlib.pyplot as plt
 
-from intelligent_driver_model import intelligent_driver_model as idm
+from intelligent_driver_model import adaptive_cruise_control as idm
 
 # Data for a vehicle.
 vehicle_dtype = np.dtype([
@@ -48,11 +49,6 @@ def interpolate_path(path, distance):
     # Compute the target waypoint.
     # FIXME: Is there a easier way to do this?
     target_waypoint = np.zeros(1, dtype=waypoint_dtype)
-    #target_waypoint[0]['s'] = path[lidx]['s']*lw + path[ridx]['s']*rw
-    #target_waypoint[0]['x'] = path[lidx]['x']*lw + path[ridx]['x']*rw
-    #target_waypoint[0]['y'] = path[lidx]['y']*lw + path[ridx]['y']*rw
-    #target_waypoint[0]['theta'] = path[lidx]['theta']*lw + path[ridx]['theta']*rw
-    #target_waypoint[0]['kappa'] = path[lidx]['kappa']*lw + path[ridx]['kappa']*rw
     target_waypoint[0] = path[lidx]['s']*lw + path[ridx]['s']*rw,\
                          path[lidx]['x']*lw + path[ridx]['x']*rw,\
                          path[lidx]['y']*lw + path[ridx]['y']*rw,\
@@ -109,44 +105,24 @@ def vehicle_accels(snapshot, ego_path, ego_distance_on_path):
         accels[0] = idm(snapshot[0]['speed'], snapshot[0]['policy'],
                         snapshot[1]['speed'], snapshot[1]['x']-snapshot[0]['x'])
 
+    print(accels)
+
     return accels
 
-def main():
-
-    #================ Configuration ======================
-    # Load the lane chaning path of the ego vehicle.
-    ego_path = np.loadtxt('left_lane_change_path', waypoint_dtype)
-
-    # Initialize the micro-traffic.
-    # The setup of the vehicles is the following:
-    # --v3---------------------------------v2---------
-    # --------ego-------------v1----------------------
-    # +x: right; +y: up
-    # v0: the ego vehicle
-    # v1: lead on the current lane
-    # v2: lead on the target lane
-    # v3: follower on the target lane
-    snapshot = np.array([
-        (  0.0, 0.0, 0.0, 20.0, 0.0, 25.0, 4.7),
-        ( 20.0, 0.0, 0.0, 20.0, 0.0, 20.0, 4.7),
-        ( 40.0, 3.7, 0.0, 20.0, 0.0, 20.0, 4.7),
-        (-15.0, 3.7, 0.0, 20.0, 0.0, 20.0, 4.7) ], dtype=vehicle_dtype)
-
-    #=============== Simulation ==========================
+def simulate_traffic(initial_snapshot, ego_path, controller):
     # The ego starts from the beginning of the path.
     ego_distance_on_path = 0.0
-
     # Resolution of the time in the simulation.
-    time_res = 0.1
+    time_res = 0.05
 
+    # Stores the snapshot at each time instance.
     snapshots = []
+    snapshot = initial_snapshot
 
     for t in np.arange(0.0, 20.0, time_res):
-        accels = vehicle_accels(snapshot, ego_path, ego_distance_on_path)
+        accels = controller(snapshot, ego_path, ego_distance_on_path)
         snapshot['accel'] = accels
-        snapshots.append(snapshot)
-
-        print('t = {}\n'.format(t), snapshot, '\n')
+        snapshots.append((t, np.copy(snapshot)))
 
         # Update the position and speed of all agents.
         for i in range(1, 3):
@@ -174,6 +150,70 @@ def main():
         if check_collision(snapshot):
             print('Collision snapshot: \n', snapshot)
             raise RuntimeError('Collision detected during the simulation.')
+
+    return snapshots
+
+def draw(snapshots):
+
+    # Separete the data based on the vehicles.
+    t   = np.zeros(len(snapshots))
+    ego = np.zeros(len(snapshots), dtype=vehicle_dtype)
+    v1  = np.zeros(len(snapshots), dtype=vehicle_dtype)
+    v2  = np.zeros(len(snapshots), dtype=vehicle_dtype)
+    v3  = np.zeros(len(snapshots), dtype=vehicle_dtype)
+
+    for i in range(0, len(snapshots)):
+        t[i]   = snapshots[i][0]
+        ego[i] = snapshots[i][1][0]
+        v1[i]  = snapshots[i][1][1]
+        v2[i]  = snapshots[i][1][2]
+        v3[i]  = snapshots[i][1][3]
+
+    # Plot Ego data.
+    fige, axe = plt.subplots()
+    axe.plot(t, ego['accel'])
+    axe.set_xlabel('t(s)')
+    axe.set_ylabel('a(m/s/s)')
+    axe.set_title('Ego Accel')
+    axe.grid()
+
+    # Plot v3 data.
+    fig3, ax3 = plt.subplots()
+    ax3.plot(t, v3['accel'])
+    ax3.set_xlabel('t(s)')
+    ax3.set_ylabel('a(m/s/s)')
+    ax3.set_title('Vehicle3 Accel')
+    ax3.grid()
+
+    return
+
+def main():
+
+    # Load the lane chaning path of the ego vehicle.
+    ego_path = np.loadtxt('left_lane_change_path', waypoint_dtype)
+
+    # Initialize the micro-traffic.
+    # The setup of the vehicles is the following:
+    # --v3---------------------------------v2---------
+    # --------ego-------------v1----------------------
+    # +x: right; +y: up
+    # v0: the ego vehicle
+    # v1: lead on the current lane
+    # v2: lead on the target lane
+    # v3: follower on the target lane
+    snapshot = np.array([
+        (  0.0, 0.0, 0.0, 23.0, 0.0, 25.0, 4.7),
+        ( 20.0, 0.0, 0.0, 20.0, 0.0, 20.0, 4.7),
+        ( 40.0, 3.7, 0.0, 20.0, 0.0, 20.0, 4.7),
+        (-15.0, 3.7, 0.0, 24.0, 0.0, 25.0, 4.7) ], dtype=vehicle_dtype)
+
+    # Simulate the traffic.
+    snapshots = simulate_traffic(snapshot, ego_path, vehicle_accels)
+
+    # Plots.
+    draw(snapshots)
+    plt.show()
+
 
 if __name__ == '__main__':
     main()
