@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
-from __future__ import print_function
-from __future__ import division
+#from __future__ import print_function
+#from __future__ import division
 from math import sqrt
 from math import tanh
 

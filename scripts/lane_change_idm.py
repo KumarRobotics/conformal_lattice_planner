@@ -1,10 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
-from __future__ import print_function
-from __future__ import division
+#from __future__ import print_function
+#from __future__ import division
 
-from math import sqrt
-from math import tanh
+from math import exp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -142,15 +141,20 @@ def vehicle_accels2(snapshot, ego_path, ego_distance_on_path):
                          snapshot[1]['speed'], snapshot[1]['x']-snapshot[0]['x'])
     accele_from_v2 = idm(snapshot[0]['speed'], snapshot[0]['policy'],
                          snapshot[2]['speed'], snapshot[2]['x']-snapshot[0]['x'])
-    accele_from_v3 = accel3_from_ego - accel3_from_v2
+    accele_from_v3 = accel3_from_v2 - accel3_from_ego
 
-    r = ego_distance_on_path / ego_path[-1]['s']
-    w1 = (1-r)   / (1+r-r*r)
-    w3 = r*(1-r) / (1+r-r*r)
-    w2 = r       / (1+r-r*r)
-    accels[0] = w1*accele_from_v1 + w2*accele_from_v2 + w3*accele_from_v3
+    sigmoid = lambda x : 1.0-exp(-5.0*x)
+    progress = ego_distance_on_path / ego_path[-1]['s']
 
-    print(w1, w2, w3)
+    raw_weight = np.array([
+        (1.0-sigmoid(progress))*(1.0-progress+progress*progress),
+        sigmoid(progress),
+        (1.0-sigmoid(progress))*progress*(1.0-progress)])
+    weight = raw_weight / np.sum(raw_weight)
+
+    #print(progress, raw_weight, accele_from_v1, accele_from_v2, accele_from_v3)
+
+    accels[0] = weight[0]*accele_from_v1 + weight[1]*accele_from_v2 + weight[2]*accele_from_v3
 
     return accels
 
@@ -170,7 +174,7 @@ def simulate_traffic(initial_snapshot, ego_path, controller):
         snapshots.append((t, np.copy(snapshot)))
 
         # Update the position and speed of all agents.
-        for i in range(1, 3):
+        for i in range(1, 4):
             snapshot[i]['x'] = snapshot[i]['x'] +\
                                snapshot[i]['speed']*time_res +\
                                snapshot[i]['accel']*time_res*time_res*0.5
@@ -219,29 +223,57 @@ def draw(snapshots1, snapshots2):
     s1_t, s1_ego, s1_v1, s1_v2, s1_v3 = parse_snapshots(snapshots1)
     s2_t, s2_ego, s2_v1, s2_v2, s2_v3 = parse_snapshots(snapshots2)
 
-    # Plot ego acceleration.
-    fige_accel, axe_accel = plt.subplots()
-    axe_accel.plot(s1_t, s1_ego['accel'], label='naive-IDM')
-    axe_accel.plot(s2_t, s2_ego['accel'], label='LC-IDM')
-    axe_accel.set_xlabel('t(s)')
-    axe_accel.set_ylabel('a(m/s/s)')
-    axe_accel.set_title('Ego Acceleration')
-    axe_accel.legend()
-    axe_accel.grid()
+    fige, axe = plt.subplots(nrows=1, ncols=3)
 
-    # Plot the ego following distance.
+    # Plot ego acceleration.
+    axe[0].plot(s1_t, s1_ego['accel'], label='naive-IDM')
+    axe[0].plot(s2_t, s2_ego['accel'], label='LC-IDM')
+    axe[0].set_xlabel('t(s)')
+    axe[0].set_ylabel('a(m/s/s)')
+    axe[0].set_title('Ego Acceleration')
+    axe[0].grid()
+
+    # Plot the ego speed.
+    axe[2].plot(s1_t, s1_ego['speed'], label='naive-IDM')
+    axe[2].plot(s2_t, s2_ego['speed'], label='LC-IDM')
+    axe[2].set_xlabel('t(s)')
+    axe[2].set_ylabel('v(m/s)')
+    axe[2].set_title('Ego Speed')
+    axe[2].grid()
+
+    # Plot the ego distance.
+    axe[1].plot(s1_t, s1_ego['x'], label='naive-IDM')
+    axe[1].plot(s2_t, s2_ego['x'], label='LC-IDM')
+    axe[1].set_xlabel('t(s)')
+    axe[1].set_ylabel('s(m)')
+    axe[1].set_title('Ego Distance')
+    axe[1].grid()
+
+    fig3, ax3 = plt.subplots(nrows=1, ncols=3)
 
     # Plot v3 acceleration.
-    fig3_accel, ax3_accel = plt.subplots()
-    ax3_accel.plot(s1_t, s1_v3['accel'], label='naive-IDM')
-    ax3_accel.plot(s2_t, s2_v3['accel'], label='LC-IDM')
-    ax3_accel.set_xlabel('t(s)')
-    ax3_accel.set_ylabel('a(m/s/s)')
-    ax3_accel.set_title('Vehicle3 Acceleration')
-    ax3_accel.legend()
-    ax3_accel.grid()
+    ax3[0].plot(s1_t, s1_v3['accel'], label='naive-IDM')
+    ax3[0].plot(s2_t, s2_v3['accel'], label='LC-IDM')
+    ax3[0].set_xlabel('t(s)')
+    ax3[0].set_ylabel('a(m/s/s)')
+    ax3[0].set_title('Vehicle3 Acceleration')
+    ax3[0].grid()
 
-    # Plot Ego following distance
+    # Plot v3 speed.
+    ax3[1].plot(s1_t, s1_v3['speed'], label='naive-IDM')
+    ax3[1].plot(s2_t, s2_v3['speed'], label='LC-IDM')
+    ax3[1].set_xlabel('t(s)')
+    ax3[1].set_ylabel('v(m/s)')
+    ax3[1].set_title('Vehicle3 Speed')
+    ax3[1].grid()
+
+    # Plot v3 distance.
+    ax3[2].plot(s1_t, s1_v3['x'], label='naive-IDM')
+    ax3[2].plot(s2_t, s2_v3['x'], label='LC-IDM')
+    ax3[2].set_xlabel('t(s)')
+    ax3[2].set_ylabel('s(m)')
+    ax3[2].set_title('Vehicle3 Distance')
+    ax3[2].grid()
 
     return
 
