@@ -195,11 +195,11 @@ public:
     const double s_star = desiredDistance(ego_v, *lead_v);
     const double s_ratio = s_star / *s;  // This is the same as Z.
 
-    if (ego_v <= ego_v0 && s_ratio >= 1.0)
+    if (ego_v < ego_v0 && s_ratio >= 1.0)
       accel = comfort_accel_ * (1 - std::pow(s_ratio, 2));
-    else if (ego_v <= ego_v0 && s_ratio < 1.0)
+    else if (ego_v < ego_v0 && s_ratio < 1.0)
       accel = accel_free * (1 - std::pow(s_ratio, (2 * comfort_accel_) / accel_free));
-    else if (ego_v > ego_v0 && s_ratio >= 1.0)
+    else if (ego_v >= ego_v0 && s_ratio >= 1.0)
       accel = accel_free + comfort_accel_ * (1 - std::pow(s_ratio, 2));
     else
       accel = accel_free;

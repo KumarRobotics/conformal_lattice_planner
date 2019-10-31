@@ -62,11 +62,11 @@ def improved_intelligent_driver_model(ego_v, ego_v0, lead_v=None, s=None):
 
     z = desired_distance(ego_v, lead_v) / s
 
-    if ego_v<=ego_v0 and z>=1:
+    if ego_v<ego_v0 and z>=1:
         accel_out = comfort_accel * (1.0-z**2)
-    elif ego_v<=ego_v0 and z<1:
+    elif ego_v<ego_v0 and z<1:
         accel_out = accel_free * (1.0-z**(2.0*comfort_accel/accel_free))
-    elif ego_v>ego_v0 and z>=1:
+    elif ego_v>=ego_v0 and z>=1:
         accel_out = accel_free + comfort_accel*(1-z**2.0)
     else:
         accel_out = accel_free
@@ -84,8 +84,9 @@ def const_accel_heuristic(ego_v, lead_v, lead_v_dot, s):
         Theta = lambda x : 1 if x>=0 else 0
         return accel_tilde - (ego_v-lead_v)**2.0*Theta(ego_v-lead_v) / (2.0*s)
 
-def adaptive_cruise_control(ego_v, ego_v0, lead_v_dot=0.0, lead_v=None, s=None):
+def adaptive_cruise_control(ego_v, ego_v0, lead_v=None, s=None):
 
+    lead_v_dot = 0.0
     accel_iidm = improved_intelligent_driver_model(ego_v, ego_v0, lead_v, s)
 
     if (lead_v is None) or (s is None):
@@ -127,7 +128,7 @@ def main():
     print("ego v: ", ego_v, "ego v0: ", ego_v0, "lead v: ", lead_v, "s: ", s)
     print("IDM: ", intelligent_driver_model(ego_v, ego_v0, lead_v, s))
     print("IIDM: ", improved_intelligent_driver_model(ego_v, ego_v0, lead_v, s))
-    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, 0.0, lead_v, s))
+    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, lead_v, s))
     print("")
 
     ego_v = 25
@@ -137,7 +138,7 @@ def main():
     print("ego v: ", ego_v, "ego v0: ", ego_v0, "lead v: ", lead_v, "s: ", s)
     print("IDM: ", intelligent_driver_model(ego_v, ego_v0, lead_v, s))
     print("IIDM: ", improved_intelligent_driver_model(ego_v, ego_v0, lead_v, s))
-    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, 0.0, lead_v, s))
+    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, lead_v, s))
     print("")
 
     ego_v = 29
@@ -147,7 +148,7 @@ def main():
     print("ego v: ", ego_v, "ego v0: ", ego_v0, "lead v: ", lead_v, "s: ", s)
     print("IDM: ", intelligent_driver_model(ego_v, ego_v0, lead_v, s))
     print("IIDM: ", improved_intelligent_driver_model(ego_v, ego_v0, lead_v, s))
-    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, 0.0, lead_v, s))
+    print("ACC: ", adaptive_cruise_control(ego_v, ego_v0, lead_v, s))
     print("")
 
 if __name__ == '__main__':
