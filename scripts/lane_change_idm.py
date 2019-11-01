@@ -293,9 +293,9 @@ def main():
     # v3: follower on the target lane
     snapshot = np.array([
         (  0.0, 0.0, 0.0, 23.0, 0.0, 25.0, 4.7),
-        ( 20.0, 0.0, 0.0, 20.0, 0.0, 20.0, 4.7),
-        ( 40.0, 3.7, 0.0, 20.0, 0.0, 20.0, 4.7),
-        (-15.0, 3.7, 0.0, 24.0, 0.0, 25.0, 4.7) ], dtype=vehicle_dtype)
+        ( 30.0, 0.0, 0.0, 20.0, 0.0, 20.0, 4.7),
+        ( 60.0, 3.7, 0.0, 20.0, 0.0, 20.0, 4.7),
+        (-20.0, 3.7, 0.0, 24.0, 0.0, 25.0, 4.7) ], dtype=vehicle_dtype)
 
     # Simulate the traffic.
     snapshots1 = simulate_traffic(np.copy(snapshot), ego_path, vehicle_accels1)
