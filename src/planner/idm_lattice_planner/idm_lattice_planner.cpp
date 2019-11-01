@@ -546,7 +546,7 @@ void IDMLatticePlanner::constructStationGraph(
 
     // Try to connect to the left front node.
     boost::shared_ptr<const WaypointNode> left_front_node =
-      waypoint_lattice_->leftFront(station->node().lock()->waypoint(), 50.0);
+      waypoint_lattice_->frontLeft(station->node().lock()->waypoint(), 50.0);
     boost::shared_ptr<Station> left_front_station =
       connectStationToLeftFrontNode(station, left_front_node);
 
@@ -554,7 +554,7 @@ void IDMLatticePlanner::constructStationGraph(
 
     // Try to connect to the right front node.
     boost::shared_ptr<const WaypointNode> right_front_node =
-      waypoint_lattice_->rightFront(station->node().lock()->waypoint(), 50.0);
+      waypoint_lattice_->frontRight(station->node().lock()->waypoint(), 50.0);
     boost::shared_ptr<Station> right_front_station =
       connectStationToRightFrontNode(station, right_front_node);
 
