@@ -187,14 +187,14 @@ const double TrafficSimulator::accelCost(const double accel) const {
     {1, 1.0},
     {2, 2.0}, {3, 2.0},
     {4, 4.0}, {5, 4.0},
-    {6, 8.0}, {7, 8.0},
+    {6, 6.0}, {7, 6.0},
   };
 
   if (accel >= 0.0) return 0.0;
 
   const int brake_key = static_cast<int>(-accel);
   if (brake_key < 8) return cost_map[brake_key];
-  else return 16.0;
+  else return 6.0;
 }
 
 const double TrafficSimulator::accelCost() const {

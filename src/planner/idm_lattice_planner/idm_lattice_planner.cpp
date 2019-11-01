@@ -263,10 +263,10 @@ DiscretePath IDMLatticePlanner::planPath(
   if (station_queue.size() == 0) {
     std::string warning_msg;
     warning_msg += snapshot.string("Input snapshot:\n");
-    warning_msg += root_.lock()->string("Previous root status:\n");
     std::printf("IDMLatticePlanner::planPath(): WARNING\n"
                 "The ego cannot reach any immediate next nodes. Restart fresh.\n"
                 "%s", warning_msg.c_str());
+
     waypoint_lattice_ = nullptr;
     node_to_station_table_.clear();
 
@@ -857,8 +857,8 @@ const double IDMLatticePlanner::terminalDistanceCost(
   }
 
   static std::unordered_map<int, double> cost_map {
-    {0, 10.0}, {1, 10.0}, {2, 10.0}, {3, 10.0}, {4, 10.0},
-    {5,  8.0}, {6,  8.0}, {7, 8.0}, {8, 2.0}, {9, 1.0},
+    {0, 20.0}, {1, 20.0}, {2, 20.0}, {3, 20.0}, {4, 20.0},
+    {5, 20.0}, {6, 20.0}, {7, 20.0}, {8, 10.0},  {9, 5.0},
   };
   //static std::unordered_map<int, double> cost_map {
   //  {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
