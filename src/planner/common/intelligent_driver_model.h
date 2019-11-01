@@ -316,7 +316,8 @@ protected:
 
 };
 
-using IntelligentDriverModel = BasicIntelligentDriverModel;
+//using IntelligentDriverModel = BasicIntelligentDriverModel;
+using IntelligentDriverModel = AdaptiveCruiseControl;
 
 } // End namespace planner
 
