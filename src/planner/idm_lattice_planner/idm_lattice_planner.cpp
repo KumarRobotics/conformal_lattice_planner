@@ -356,7 +356,7 @@ void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 std::deque<boost::shared_ptr<Station>>
   IDMLatticePlanner::pruneStationGraph(const Snapshot& snapshot) {
 
-  std::printf("pruneStationGraph(): \n");
+  //std::printf("pruneStationGraph(): \n");
 
   // Stores the stations to be explored.
   std::deque<boost::shared_ptr<Station>> station_queue;
@@ -519,7 +519,7 @@ std::deque<boost::shared_ptr<Station>>
 void IDMLatticePlanner::constructStationGraph(
     std::deque<boost::shared_ptr<Station>>& station_queue) {
 
-  std::printf("constructStationGraph(): \n");
+  //std::printf("constructStationGraph(): \n");
 
   auto addStationToTableAndQueue = [this, &station_queue](
       const boost::shared_ptr<Station>& station,
@@ -575,7 +575,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToFrontNode(): \n");
+  //std::printf("connectStationToFrontNode(): \n");
 
   // Return directly if the target node does not exist.
   if (!target_node) return nullptr;
@@ -640,7 +640,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToLeftFrontNode(): \n");
+  //std::printf("connectStationToLeftFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -725,7 +725,7 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
     const boost::shared_ptr<Station>& station,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("connectStationToRightFrontNode(): \n");
+  //std::printf("connectStationToRightFrontNode(): \n");
 
   // Return directly if the target node does not exisit.
   if (!target_node) return nullptr;
@@ -857,19 +857,34 @@ const double IDMLatticePlanner::terminalDistanceCost(
   }
 
   static std::unordered_map<int, double> cost_map {
-    {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
-    {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
+    {0, 10.0}, {1, 10.0}, {2, 10.0}, {3, 10.0}, {4, 10.0},
+    {5,  8.0}, {6,  8.0}, {7, 8.0}, {8, 2.0}, {9, 1.0},
   };
   //static std::unordered_map<int, double> cost_map {
   //  {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
   //  {5, 3.0}, {6, 2.0}, {7, 2.0}, {8, 1.0}, {9, 1.0},
   //};
 
+  // Find the current spatial planning horizon.
+  boost::shared_ptr<const Station> root_child;
+  if (root_.lock()->hasFrontChild())
+    root_child = std::get<2>(*(root_.lock()->frontChild())).lock();
+  else if (root_.lock()->hasLeftChild())
+    root_child = std::get<2>(*(root_.lock()->leftChild())).lock();
+  else if (root_.lock()->hasRightChild())
+    root_child = std::get<2>(*(root_.lock()->rightChild())).lock();
+
+  const double spatial_horizon =
+    spatial_horizon_ - 50.0 +
+    root_child->node()->distance() -
+    root_.lock()->node().lock()->distance();
+
   const double distance = station->node().lock()->distance() -
                           root_.lock()->node().lock()->distance();
-  const double distance_ratio = distance / spatial_horizon_;
-  //std::printf("station distance:%f spatio horizon:%f distance ratio: %f\n",
-  //    distance, spatial_horizon_, distance_ratio);
+
+  const double distance_ratio = distance / spatial_horizon;
+  std::printf("station distance:%f spatial horizon:%f distance ratio: %f\n",
+      distance, spatial_horizon, distance_ratio);
 
   if (distance_ratio >= 1.0) return 0.0;
   else return cost_map[static_cast<int>(distance_ratio*10.0)];
@@ -888,8 +903,8 @@ const double IDMLatticePlanner::costFromRootToTerminal(
   const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
   const double terminal_distance_cost = terminalDistanceCost(terminal);
-  //std::printf("path cost: %f speed cost: %f distance cost:%f\n",
-  //    path_cost, terminal_speed_cost, terminal_distance_cost);
+  std::printf("path cost: %f speed cost: %f distance cost:%f\n",
+      path_cost, terminal_speed_cost, terminal_distance_cost);
 
   // TODO: Weight the cost properly.
   return path_cost + terminal_speed_cost + terminal_distance_cost;
@@ -897,7 +912,7 @@ const double IDMLatticePlanner::costFromRootToTerminal(
 
 std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
 
-  std::printf("selectOptimalPath():\n");
+  //std::printf("selectOptimalPath():\n");
 
   //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Station> optimal_station = nullptr;
