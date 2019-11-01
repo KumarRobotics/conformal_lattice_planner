@@ -258,6 +258,22 @@ DiscretePath IDMLatticePlanner::planPath(
   // Prune the station graph.
   std::deque<boost::shared_ptr<Station>> station_queue = pruneStationGraph(snapshot);
 
+  // In the case that no immedinate front nodes can be connected.
+  // We have to start fresh.
+  if (station_queue.size() == 0) {
+    std::string warning_msg;
+    warning_msg += snapshot.string("Input snapshot:\n");
+    warning_msg += root_.lock()->string("Previous root status:\n");
+    std::printf("IDMLatticePlanner::planPath(): WARNING\n"
+                "The ego cannot reach any immediate next nodes. Restart fresh.\n"
+                "%s", warning_msg.c_str());
+    waypoint_lattice_ = nullptr;
+    node_to_station_table_.clear();
+
+    updateWaypointLattice(snapshot);
+    station_queue = pruneStationGraph(snapshot);
+  }
+
   // Construct the station graph.
   constructStationGraph(station_queue);
 
@@ -646,14 +662,8 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
   boost::optional<std::pair<size_t, double>> left_back =
     station->snapshot().trafficLattice()->leftBack(station->snapshot().ego().id());
 
-  if (left_front && left_front->second <= 0.0) {
-    //std::printf("Close left front vehicle.\n");
-    return nullptr;
-  }
-  if (left_back  && left_back->second  <= 0.0) {
-    //std::printf("Close left back vehicle.\n");
-    return nullptr;
-  }
+  if (left_front && left_front->second <= 0.0) return nullptr;
+  if (left_back  && left_back->second  <= 0.0) return nullptr;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
@@ -737,14 +747,8 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
   boost::optional<std::pair<size_t, double>> right_back =
     station->snapshot().trafficLattice()->rightBack(station->snapshot().ego().id());
 
-  if (right_front && right_front->second <= 0.0) {
-    //std::printf("Close right front vehicle.\n");
-    return nullptr;
-  }
-  if (right_back  && right_back->second  <= 0.0) {
-    //std::printf("Close right back vehicle. \n");
-    return nullptr;
-  }
+  if (right_front && right_front->second <= 0.0) return nullptr;
+  if (right_back  && right_back->second  <= 0.0) return nullptr;
 
   // Plan a path between the node at the current station to the target node.
   //std::printf("Compute Kelly-Nagy path.\n");
