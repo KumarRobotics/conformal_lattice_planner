@@ -125,7 +125,10 @@ void AgentsLaneFollowingNode::executeCallback(
       updated_speed = agent.speed() + accel*dt;
 
     } catch(...) {
-      movement = agent.speed() * dt;
+      //movement = agent.speed() * dt;
+      // FIXME: It seems sometimes the speed is set back to 0.
+      //        Not sure what causes this.
+      movement = 1.0;
       // If we fail to plan a path for an agent vehicle,
       // we assume it moves with constant speed and get to the next accessible waypoint.
       boost::shared_ptr<CarlaWaypoint> agent_waypoint =
