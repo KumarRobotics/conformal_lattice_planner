@@ -585,11 +585,16 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToFrontNode(
   //std::printf("Simulate the traffic.\n");
   IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
-  const bool no_collision = simulator.simulate(
-      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
-
-  // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return nullptr;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch(std::exception& e) {
+    std::printf("IDMLatticePlanner::connectStationToFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
 
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
@@ -671,11 +676,16 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
   //std::printf("Simulate the traffic.\n");
   IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
-  const bool no_collision = simulator.simulate(
-      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
-
-  // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return nullptr;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch (std::exception& e) {
+    std::printf("IDMLatticePlanner::connectStationToLeftFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
 
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
@@ -757,11 +767,16 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
   //std::printf("Simulate the traffic.\n");
   IDMTrafficSimulator simulator(station->snapshot(), map_, fast_map_);
   double simulation_time = 0.0; double stage_cost = 0.0;
-  const bool no_collision = simulator.simulate(
-      *path, sim_time_step_, 5.0, simulation_time, stage_cost);
-
-  // There a collision is detected in the simulation, this option is ignored.
-  if (!no_collision) return nullptr;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch (std::exception& e) {
+    std::printf("IDMLatticePlanner::connectStationToRightFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
 
   // Either create a new station or used the one has been already created.
   //std::printf("Create child station.\n");
