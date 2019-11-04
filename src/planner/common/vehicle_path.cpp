@@ -111,19 +111,21 @@ ContinuousPath::ContinuousPath(
 
   if (!success) {
     std::string error_msg("ContinuousPath::ContinuousPath(): path optimization diverges.\n");
-    std::string start_msg = (boost::format(
-        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
-        % start.first.location.x
-        % start.first.location.y
-        % start.first.rotation.yaw
-        % start.second).str();
-    std::string end_msg = (boost::format(
-        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
-        % end.first.location.x
-        % end.first.location.y
-        % end.first.rotation.yaw
-        % end.second).str();
-    throw std::runtime_error(error_msg + start_msg + end_msg);
+    std::string start_transform_msg = (boost::format(
+        "start transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % start_.first.location.x
+        % start_.first.location.y
+        % start_.first.rotation.yaw
+        % start_.second).str();
+    std::string end_transform_msg = (boost::format(
+        "end transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
+        % end_.first.location.x
+        % end_.first.location.y
+        % end_.first.rotation.yaw
+        % end_.second).str();
+    throw std::runtime_error(error_msg +
+        start_transform_msg + start_state.string("start state ") +
+        end_transform_msg + end_state.string("end state "));
   }
   return;
 }
@@ -140,19 +142,21 @@ ContinuousPath::ContinuousPath(const DiscretePath& discrete_path) :
 
   if (!success) {
     std::string error_msg("ContinuousPath::ContinuousPath(): path optimization diverges.\n");
-    std::string start_msg = (boost::format(
-        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
+    std::string start_transform_msg = (boost::format(
+        "start transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
         % start_.first.location.x
         % start_.first.location.y
         % start_.first.rotation.yaw
         % start_.second).str();
-    std::string end_msg = (boost::format(
-        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
+    std::string end_transform_msg = (boost::format(
+        "end transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
         % end_.first.location.x
         % end_.first.location.y
         % end_.first.rotation.yaw
         % end_.second).str();
-    throw std::runtime_error(error_msg + start_msg + end_msg);
+    throw std::runtime_error(error_msg +
+        start_transform_msg + start_state.string("start state ") +
+        end_transform_msg + end_state.string("end state "));
   }
   return;
 }
@@ -219,19 +223,21 @@ DiscretePath::DiscretePath(
     std::string error_msg(
         "DiscretePath::DiscretePath(): "
         "path optimization diverges.\n");
-    std::string start_msg = (boost::format(
-        "start x:%1% y:%2% yaw:%3% curvature:%4%\n")
+    std::string start_transform_msg = (boost::format(
+        "start transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
         % start.first.location.x
         % start.first.location.y
         % start.first.rotation.yaw
         % start.second).str();
-    std::string end_msg = (boost::format(
-        "end x:%1% y:%2% yaw:%3% curvature:%4%\n")
+    std::string end_transform_msg = (boost::format(
+        "end transform x:%1% y:%2% yaw:%3% curvature:%4%\n")
         % end.first.location.x
         % end.first.location.y
         % end.first.rotation.yaw
         % end.second).str();
-    throw std::runtime_error(error_msg + start_msg + end_msg);
+    throw std::runtime_error(error_msg +
+        start_transform_msg + start_state.string("start state ") +
+        end_transform_msg + end_state.string("end state "));
   }
 
   // Sample the path with pre-determined resolution.
