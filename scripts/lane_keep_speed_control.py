@@ -31,7 +31,7 @@ waypoint_dtype = np.dtype([
 # The LQR speed control policy.
 # The first element is the control policy for lane keep free run,
 # while the second is for lane keep with a lead vehicle.
-lqr_policies = [np.zeros(11), np.zeros(11)]
+lqr_policies = [np.zeros(13), np.zeros(13)]
 
 def solve_are(A, B, Q, R, K0, N):
     K = K0
@@ -48,60 +48,66 @@ def solve_lqr(q, r, T, dt):
     # x' = Ax + Bu + Fy
     # where y is the exogeneous disturbance.
     A = np.array([
-        [1.0, 0.0, 0.0, -dt],
-        [0.0, 1.0, 0.0, -dt],
-        [0.0, 0.0, 1.0,  dt],
-        [0.0, 0.0, 0.0, 1.0]])
+        [1.0, 0.0, 0.0, -dt, 0.0],
+        [0.0, 1.0, 0.0, -dt, 0.0],
+        [0.0, 0.0, 1.0,  dt, 0.0],
+        [0.0, 0.0, 0.0, 1.0,  dt],
+        [0.0, 0.0, 0.0, 0.0, 1.0]])
     B = np.array(
-        [0.0, 0.0, 0.0, 1.0])
+        [0.0, 0.0, 0.0, 0.0, dt])
     F = np.array([
         [ dt, 0.0, 0.0],
         [0.0,  dt, 0.0],
         [0.0, 0.0, -dt],
+        [0.0, 0.0, 0.0],
         [0.0, 0.0, 0.0]])
 
     # Augment the original system with reference and exogeneous disturbance
-    AA = np.zeros((11, 11))
-    AA[0:4,  0:4]  = A
-    AA[0:4,  4:8]  = A - np.eye(4)
-    AA[0:4,  8:11] = F
-    AA[4:8,  4:8]  = np.eye(4)
-    AA[8:11, 8:11] = np.eye(3)
+    AA = np.zeros((13, 13))
+    AA[0:5,   0:5]   = A
+    AA[0:5,   5:10]  = A - np.eye(5)
+    AA[0:5,   10:13] = F
+    AA[5:10,  5:10]  = np.eye(5)
+    AA[10:13, 10:13] = np.eye(3)
 
-    BB = np.zeros((11, 1))
-    BB[0:4, 0] = B
+    BB = np.zeros((13, 1))
+    BB[0:5, 0] = B
 
     # Construct the full matrices, Q and R.
-    Q = np.zeros((11, 11))
-    Q[0:4, 0:4] = np.diag(q)
+    Q = np.zeros((13, 13))
+    Q[0:5, 0:5] = np.diag(q)
     R = np.diag(r)
 
     # Solve for the optimal feedback gain of finite horizon.
-    K = solve_are(AA, BB, Q, R, np.zeros((11, 11)), T/dt)
+    K = solve_are(AA, BB, Q, R, np.zeros((13, 13)), T/dt)
     P = np.linalg.inv(np.transpose(BB).dot(K).dot(BB)+R)
     L = -P.dot(np.transpose(BB).dot(K).dot(AA))
 
     return L
 
-def lqr(ego_v, ego_v0, lead_v=None, s=None):
+def lqr(ego_v, ego_accel, ego_v0, lead_v=None, s=None):
 
     # Form the state vector.
-    x = np.zeros((11, 1))
-
+    x = np.zeros((13, 1))
 
     if (lead_v is None) or (s is None):
         x[3, 0] = ego_v - ego_v0
-        x[7, 0] = ego_v0
+        x[4, 0] = ego_accel
+        x[8, 0] = ego_v0
+        x[9, 0] = 0.0
         L = lqr_policies[0]
     else:
-        x[3, 0] = ego_v - lead_v
-        x[7, 0] = lead_v
-        x[0, 0] = s - (distance_gap+lead_v*time_gap)
-        x[4, 0] = distance_gap + lead_v*time_gap
-        x[8, 0] = lead_v
+        x[0, 0] = s - (distance_gap+ego_v*time_gap)
+        x[3, 0] = ego_v - min(lead_v, ego_v0)
+        x[4, 0] = ego_accel
+        x[5, 0] = distance_gap+ego_v*time_gap
+        x[8, 0] = min(lead_v, ego_v0)
+        x[9, 0] = 0.0
+        x[10, 0] = lead_v
         L = lqr_policies[1]
 
-    accel = L.dot(x)
+    jerk = L.dot(x)
+    accel = ego_accel + jerk*0.05
     return saturate_accel(accel)
 
 def following_distance(leader, follower):
@@ -130,9 +136,9 @@ def vehicle_accels2(snapshot):
 
     ego = snapshot[0]
     if ego['lead'] >= snapshot.size:
-        accels[0] = lqr(ego['speed'], ego['policy'])
+        accels[0] = lqr(ego['speed'], ego['accel'], ego['policy'])
     else:
-        accels[0] = lqr(ego['speed'], ego['policy'],
+        accels[0] = lqr(ego['speed'], ego['accel'], ego['policy'],
                         snapshot[ego['lead']]['speed'],
                         following_distance(snapshot[ego['lead']], ego))
 
@@ -211,11 +217,11 @@ def case_comparison():
     # The setup of the vehicles is the following:
     # --------ego-------------v1----------------------
     snapshot = np.array([
-        ( 0.0, 0.0, 0.0, 25.0, 0.0,  1, 25.0, 4.7),
-        (20.0, 0.0, 0.0, 18.0, 0.0, 10, 18.0, 4.7) ], dtype=vehicle_dtype)
+        ( 0.0, 0.0, 0.0, 29.0, 0.0,  1, 30.0, 4.7),
+        (40.0, 0.0, 0.0, 20.0, 0.0, 10, 20.0, 4.7) ], dtype=vehicle_dtype)
     # --------ego--------------------------------------
     #snapshot = np.array([
-    #    (0.0, 0.0, 0.0, 30.0, 0.0, 10, 15.0, 4.7) ], dtype=vehicle_dtype)
+    #    (0.0, 0.0, 0.0, 15.0, 0.0, 10, 1.0, 4.7) ], dtype=vehicle_dtype)
 
     # Simulate the traffic with all vehicles controlled by IDM.
     snapshots_idm = simulate_traffic(np.copy(snapshot), vehicle_accels1)
@@ -294,16 +300,16 @@ def minmax_accel_comparison():
 
     # Compute the difference.
     accel_idm = max_accel_idm
-    accel_idm[accel_idm < 0.0] = 0.0
+    #accel_idm[accel_idm < 0.0] = 0.0
 
     brake_idm = -min_accel_idm
-    brake_idm[brake_idm < 0.0] = 0.0
+    #brake_idm[brake_idm < 0.0] = 0.0
 
     accel_lqr = max_accel_lqr
-    accel_lqr[accel_lqr < 0.0] = 0.0
+    #accel_lqr[accel_lqr < 0.0] = 0.0
 
     brake_lqr = -min_accel_lqr
-    brake_lqr[brake_lqr < 0.0] = 0.0
+    #brake_lqr[brake_lqr < 0.0] = 0.0
 
     diff_max_accel = accel_idm - accel_lqr
     diff_min_accel = brake_idm - brake_lqr
@@ -345,8 +351,11 @@ def main():
 
     # Solve the LQR speed controller
     global lqr_polices
-    lqr_policies[0] = solve_lqr(np.array([0.0, 0.0, 0.0, 1.0]), np.array([23.0]), 30.0, 0.1)
-    lqr_policies[1] = solve_lqr(np.array([0.1, 0.0, 0.0, 20.0]), np.array([100.0]), 30.0, 0.1)
+    lqr_policies[0] = solve_lqr(np.array([0.0, 0.0, 0.0, 0.1, 5.0]), np.array([1.0]), 30.0, 0.1)
+    lqr_policies[1] = solve_lqr(np.array([0.0005, 0.0, 0.0, 0.5, 1.0]), np.array([1.0]), 30.0, 0.1)
+
+    #print(lqr_policies[0])
+    #print(lqr_policies[1])
 
     #case_comparison()
     minmax_accel_comparison()
