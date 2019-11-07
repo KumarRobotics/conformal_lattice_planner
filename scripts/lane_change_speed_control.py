@@ -1,8 +1,5 @@
 #!/usr/bin/python3
 
-#from __future__ import print_function
-#from __future__ import division
-
 from math import exp
 import numpy as np
 import matplotlib.pyplot as plt
