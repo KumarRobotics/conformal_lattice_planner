@@ -24,11 +24,10 @@
 
 namespace planner {
 
-template<typename Router>
-TrafficManager<Router>::TrafficManager(
+TrafficManager::TrafficManager(
     const boost::shared_ptr<CarlaWaypoint>& start,
     const double range,
-    const boost::shared_ptr<Router>& router,
+    const boost::shared_ptr<router::Router>& router,
     const boost::shared_ptr<CarlaMap>& map,
     const boost::shared_ptr<utils::FastWaypointMap>& fast_map) {
   // The \c longitudinal_resolution_ is fixed to 1.0m.
@@ -38,8 +37,7 @@ TrafficManager<Router>::TrafficManager(
   return;
 }
 
-template<typename Router>
-bool TrafficManager<Router>::moveTrafficForward(
+bool TrafficManager::moveTrafficForward(
     const std::vector<VehicleTuple>& vehicles,
     const double shift_distance,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
@@ -95,8 +93,7 @@ bool TrafficManager<Router>::moveTrafficForward(
   return valid;
 }
 
-template<typename Router>
-bool TrafficManager<Router>::moveTrafficForward(
+bool TrafficManager::moveTrafficForward(
     const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
     const double shift_distance,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
@@ -117,12 +114,11 @@ bool TrafficManager<Router>::moveTrafficForward(
   return valid;
 }
 
-template<typename Router>
 boost::optional<std::pair<
   double,
-  boost::shared_ptr<const typename TrafficManager<Router>::CarlaWaypoint>
+  boost::shared_ptr<const typename TrafficManager::CarlaWaypoint>
   >>
-  TrafficManager<Router>::frontSpawnWaypoint(const double min_range) const {
+  TrafficManager::frontSpawnWaypoint(const double min_range) const {
 
   // All lattice exits are candidates where we can spawn new vehicles.
   std::vector<boost::shared_ptr<const Node>> candidates;
@@ -152,12 +148,11 @@ boost::optional<std::pair<
   return valid_candidates.front();
 }
 
-template<typename Router>
 boost::optional<std::pair<
   double,
-  boost::shared_ptr<const typename TrafficManager<Router>::CarlaWaypoint>
+  boost::shared_ptr<const typename TrafficManager::CarlaWaypoint>
   >>
-  TrafficManager<Router>::backSpawnWaypoint(const double min_range) const {
+  TrafficManager::backSpawnWaypoint(const double min_range) const {
 
   // All lattice entries are candidates where we can spawn new vehicles.
   std::vector<boost::shared_ptr<const Node>> candidates;

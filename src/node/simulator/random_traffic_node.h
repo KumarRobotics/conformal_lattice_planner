@@ -43,10 +43,10 @@ protected:
 protected:
 
   /// Loop router, the router is predefined on Town04.
-  boost::shared_ptr<router::LoopRouter> loop_router_;
+  boost::shared_ptr<router::LoopRouter> loop_router_ = nullptr;
 
   /// Traffic lattice.
-  boost::shared_ptr<planner::TrafficManager<router::LoopRouter>> traffic_manager_;
+  boost::shared_ptr<planner::TrafficManager> traffic_manager_;
 
 public:
 

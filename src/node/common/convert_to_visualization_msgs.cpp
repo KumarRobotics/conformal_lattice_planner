@@ -396,7 +396,7 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
 }
 
 visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const boost::shared_ptr<const WaypointLattice<LoopRouter>>& waypoint_lattice) {
+    const boost::shared_ptr<const WaypointLattice>& waypoint_lattice) {
 
   std_msgs::ColorRGBA color;
   color.r = 0.2;
@@ -487,7 +487,7 @@ visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
 }
 
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const boost::shared_ptr<const TrafficLattice<LoopRouter>>& traffic_lattice) {
+    const boost::shared_ptr<const TrafficLattice>& traffic_lattice) {
 
   std_msgs::ColorRGBA color;
   color.r = 0.4;
@@ -581,10 +581,10 @@ visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
 }
 
 visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
-    const boost::shared_ptr<const TrafficManager<LoopRouter>>& traffic_manager) {
+    const boost::shared_ptr<const TrafficManager>& traffic_manager) {
 
-  const boost::shared_ptr<const TrafficLattice<LoopRouter>> traffic_lattice =
-    boost::static_pointer_cast<const TrafficLattice<LoopRouter>>(traffic_manager);
+  const boost::shared_ptr<const TrafficLattice> traffic_lattice =
+    boost::static_pointer_cast<const TrafficLattice>(traffic_manager);
   return createTrafficLatticeMsg(traffic_lattice);
 }
 

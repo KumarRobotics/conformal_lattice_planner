@@ -84,6 +84,5 @@ public:
  * \brief WaypointLattice is a helper class used to query
  *        the relative waypoints of the given waypoint.
  */
-template<typename Router>
-using WaypointLattice = Lattice<WaypointNode, Router>;
+using WaypointLattice = Lattice<WaypointNode>;
 } // End namespace planner.

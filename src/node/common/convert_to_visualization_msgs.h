@@ -65,13 +65,13 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
     const boost::shared_ptr<const carla::client::Vehicle>&, const std::string&);
 
 visualization_msgs::MarkerArrayPtr createWaypointLatticeMsg(
-    const boost::shared_ptr<const planner::WaypointLattice<router::LoopRouter>>&);
+    const boost::shared_ptr<const planner::WaypointLattice>&);
 
 visualization_msgs::MarkerArrayPtr createTrafficLatticeMsg(
-    const boost::shared_ptr<const planner::TrafficLattice<router::LoopRouter>>&);
+    const boost::shared_ptr<const planner::TrafficLattice>&);
 
 visualization_msgs::MarkerArrayPtr createTrafficManagerMsg(
-    const boost::shared_ptr<const planner::TrafficManager<router::LoopRouter>>&);
+    const boost::shared_ptr<const planner::TrafficManager>&);
 
 template<typename Path>
 void populatePathMsg(const Path& path, const visualization_msgs::MarkerPtr& path_msg) {

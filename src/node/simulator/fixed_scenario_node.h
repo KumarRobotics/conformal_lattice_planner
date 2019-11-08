@@ -36,7 +36,7 @@ public:
 protected:
 
   /// Loop router, the router is predefined on Town04.
-  boost::shared_ptr<router::LoopRouter> loop_router_;
+  boost::shared_ptr<router::LoopRouter> loop_router_ = nullptr;
 
 public:
 

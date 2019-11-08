@@ -1,4 +1,6 @@
 set(planner_srcs
+  common/traffic_lattice.cpp
+  common/traffic_manager.cpp
   common/snapshot.cpp
   common/utils.cpp
   common/vehicle_path.cpp

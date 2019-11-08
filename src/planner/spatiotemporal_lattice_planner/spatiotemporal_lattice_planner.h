@@ -25,6 +25,7 @@
 #include <boost/optional.hpp>
 #include <boost/core/noncopyable.hpp>
 
+#include <router/common/router.h>
 #include <router/loop_router/loop_router.h>
 #include <planner/common/traffic_lattice.h>
 #include <planner/common/snapshot.h>
@@ -180,7 +181,7 @@ public:
   }
 
   Vertex(const Snapshot& snapshot,
-         const boost::shared_ptr<const WaypointLattice<router::LoopRouter>>& waypoint_lattice,
+         const boost::shared_ptr<const WaypointLattice>& waypoint_lattice,
          const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
     snapshot_(snapshot) {
     boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
@@ -381,10 +382,10 @@ protected:
   double spatial_horizon_;
 
   /// The router to be used.
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+  boost::shared_ptr<router::Router> router_ = nullptr;
 
   /// The waypoint lattice used to find nodes for stations.
-  boost::shared_ptr<WaypointLattice<router::LoopRouter>> waypoint_lattice_ = nullptr;
+  boost::shared_ptr<WaypointLattice> waypoint_lattice_ = nullptr;
 
   /// Stores all the constructed vertices.
   /// The vetices are indexed by the node ID. Each node may link upto three vertices.
@@ -408,7 +409,7 @@ public:
   SpatiotemporalLatticePlanner(
       const double sim_time_step,
       const double spatial_horizon,
-      const boost::shared_ptr<router::LoopRouter>& router,
+      const boost::shared_ptr<router::Router>& router,
       const boost::shared_ptr<CarlaMap>& map,
       const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
     Base(map, fast_map),
@@ -423,12 +424,12 @@ public:
   boost::shared_ptr<const Vertex> rootVertex() const { return root_.lock(); }
 
   /// Get the waypoint lattice constructed by the planner.
-  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypointLattice() const {
+  boost::shared_ptr<const WaypointLattice> waypointLattice() const {
     return waypoint_lattice_;
   }
 
   /// Get the router used by the planner.
-  boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
+  boost::shared_ptr<const router::Router> router() const { return router_; }
 
   /// Get all vertices in the graph.
   std::vector<boost::shared_ptr<const Vertex>> vertices() const {

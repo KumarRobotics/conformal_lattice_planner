@@ -26,12 +26,11 @@
 
 namespace planner {
 
-template<typename Router>
-TrafficLattice<Router>::TrafficLattice(
+TrafficLattice::TrafficLattice(
     const std::vector<VehicleTuple>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
     const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
-    const boost::shared_ptr<Router>& router,
+    const boost::shared_ptr<router::Router>& router,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) :
   map_(map), fast_map_(fast_map) {
 
@@ -82,12 +81,11 @@ TrafficLattice<Router>::TrafficLattice(
   return;
 }
 
-template<typename Router>
-TrafficLattice<Router>::TrafficLattice(
+TrafficLattice::TrafficLattice(
     const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
     const boost::shared_ptr<CarlaMap>& map,
     const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
-    const boost::shared_ptr<Router>& router,
+    const boost::shared_ptr<router::Router>& router,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) :
   map_(map), fast_map_(fast_map) {
 
@@ -126,7 +124,7 @@ TrafficLattice<Router>::TrafficLattice(
     std::string vehicle_msg;
     boost::format vehicle_format("vehicle %1%: x:%2% y:%3% z:%4% r:%5% p:%6% y:%7%.\n");
 
-    for (const auto& vehicle : vehicles) {
+    for (const auto& vehicle : vehicle_tuples) {
       size_t id; CarlaTransform transform;
       std::tie(id, transform, std::ignore) = vehicle;
       vehicle_msg += (vehicle_format
@@ -146,8 +144,7 @@ TrafficLattice<Router>::TrafficLattice(
   return;
 }
 
-template<typename Router>
-TrafficLattice<Router>::TrafficLattice(const TrafficLattice<Router>& other) :
+TrafficLattice::TrafficLattice(const TrafficLattice& other) :
   Base(other) {
 
   // Make sure the weak pointers point to the stuff within this object.
@@ -168,8 +165,7 @@ TrafficLattice<Router>::TrafficLattice(const TrafficLattice<Router>& other) :
   return;
 }
 
-template<typename Router>
-void TrafficLattice<Router>::swap(TrafficLattice<Router>& other) {
+void TrafficLattice::swap(TrafficLattice& other) {
 
   Base::swap(other);
   std::swap(vehicle_to_nodes_table_, other.vehicle_to_nodes_table_);
@@ -179,9 +175,8 @@ void TrafficLattice<Router>::swap(TrafficLattice<Router>& other) {
   return;
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::front(const size_t vehicle) const {
+  TrafficLattice::front(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -196,9 +191,8 @@ boost::optional<std::pair<size_t, double>>
   return frontVehicle(start);
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::back(const size_t vehicle) const {
+  TrafficLattice::back(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -213,9 +207,8 @@ boost::optional<std::pair<size_t, double>>
   return backVehicle(start);
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::leftFront(const size_t vehicle) const {
+  TrafficLattice::leftFront(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -254,9 +247,8 @@ boost::optional<std::pair<size_t, double>>
   }
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::leftBack(const size_t vehicle) const {
+  TrafficLattice::leftBack(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -295,9 +287,8 @@ boost::optional<std::pair<size_t, double>>
   }
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::rightFront(const size_t vehicle) const {
+  TrafficLattice::rightFront(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -336,9 +327,8 @@ boost::optional<std::pair<size_t, double>>
   }
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::rightBack(const size_t vehicle) const {
+  TrafficLattice::rightBack(const size_t vehicle) const {
 
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
@@ -377,8 +367,7 @@ boost::optional<std::pair<size_t, double>>
   }
 }
 
-template<typename Router>
-std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
+std::unordered_set<size_t> TrafficLattice::vehicles() const {
   std::unordered_set<size_t> vehicles;
   for (const auto& item : vehicle_to_nodes_table_)
     vehicles.insert(item.first);
@@ -386,8 +375,7 @@ std::unordered_set<size_t> TrafficLattice<Router>::vehicles() const {
   return vehicles;
 }
 
-template<typename Router>
-int32_t TrafficLattice<Router>::isChangingLane(const size_t vehicle) const {
+int32_t TrafficLattice::isChangingLane(const size_t vehicle) const {
   if (vehicle_to_nodes_table_.count(vehicle) == 0) {
     std::string error_msg = (boost::format(
           "TrafficLattice::isChangingLane(): "
@@ -430,8 +418,7 @@ int32_t TrafficLattice<Router>::isChangingLane(const size_t vehicle) const {
       rear_node->string("rear node: "));
 }
 
-template<typename Router>
-int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
+int32_t TrafficLattice::deleteVehicle(const size_t vehicle) {
   // If the vehicle is not being tracked, there is nothing to be deleted.
   if (vehicle_to_nodes_table_.count(vehicle) == 0) return 0;
 
@@ -444,8 +431,7 @@ int32_t TrafficLattice<Router>::deleteVehicle(const size_t vehicle) {
   return 1;
 }
 
-template<typename Router>
-int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
+int32_t TrafficLattice::addVehicle(const VehicleTuple& vehicle) {
   size_t id; CarlaTransform transform; CarlaBoundingBox bounding_box;
   std::tie(id, transform, bounding_box) = vehicle;
 
@@ -457,8 +443,7 @@ int32_t TrafficLattice<Router>::addVehicle(const VehicleTuple& vehicle) {
   return addVehicle(vehicle, waypoints);
 }
 
-template<typename Router>
-int32_t TrafficLattice<Router>::addVehicle(
+int32_t TrafficLattice::addVehicle(
     const VehicleTuple& vehicle,
     const VehicleWaypoints& waypoints) {
 
@@ -579,8 +564,7 @@ int32_t TrafficLattice<Router>::addVehicle(
   }
 }
 
-template<typename Router>
-bool TrafficLattice<Router>::moveTrafficForward(
+bool TrafficLattice::moveTrafficForward(
     const std::vector<VehicleTuple>& vehicles,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
 
@@ -664,8 +648,7 @@ bool TrafficLattice<Router>::moveTrafficForward(
   return valid;
 }
 
-template<typename Router>
-bool TrafficLattice<Router>::moveTrafficForward(
+bool TrafficLattice::moveTrafficForward(
     const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
 
@@ -685,12 +668,11 @@ bool TrafficLattice<Router>::moveTrafficForward(
   return valid;
 }
 
-template<typename Router>
-void TrafficLattice<Router>::baseConstructor(
+void TrafficLattice::baseConstructor(
     const boost::shared_ptr<const CarlaWaypoint>& start,
     const double range,
     const double longitudinal_resolution,
-    const boost::shared_ptr<Router>& router) {
+    const boost::shared_ptr<router::Router>& router) {
 
   this->longitudinal_resolution_ = longitudinal_resolution;
   this->router_ = router;
@@ -718,8 +700,7 @@ void TrafficLattice<Router>::baseConstructor(
   return;
 }
 
-template<typename Router>
-void TrafficLattice<Router>::latticeStartAndRange(
+void TrafficLattice::latticeStartAndRange(
     const std::vector<VehicleTuple>& vehicles,
     const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
     boost::shared_ptr<CarlaWaypoint>& start,
@@ -860,8 +841,7 @@ void TrafficLattice<Router>::latticeStartAndRange(
   return;
 }
 
-template<typename Router>
-bool TrafficLattice<Router>::registerVehicles(
+bool TrafficLattice::registerVehicles(
     const std::vector<VehicleTuple>& vehicles,
     const std::unordered_map<size_t, VehicleWaypoints>& vehicle_waypoints,
     boost::optional<std::unordered_set<size_t>&> disappear_vehicles) {
@@ -903,8 +883,7 @@ bool TrafficLattice<Router>::registerVehicles(
   return true;
 }
 
-template<typename Router>
-std::deque<size_t> TrafficLattice<Router>::sortRoads(
+std::deque<size_t> TrafficLattice::sortRoads(
     const std::unordered_set<size_t>& roads) const {
 
   // Keep track of the road IDs we have not dealt with.
@@ -970,9 +949,8 @@ std::deque<size_t> TrafficLattice<Router>::sortRoads(
   return sorted_roads;
 }
 
-template<typename Router>
-boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
-  TrafficLattice<Router>::vehicleHeadWaypoint(
+boost::shared_ptr<typename TrafficLattice::CarlaWaypoint>
+  TrafficLattice::vehicleHeadWaypoint(
     const CarlaTransform& transform,
     const CarlaBoundingBox& bounding_box) const {
 
@@ -995,9 +973,8 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   return fast_map_->waypoint(waypoint_location);
 }
 
-template<typename Router>
-std::unordered_map<size_t, typename TrafficLattice<Router>::VehicleWaypoints>
-  TrafficLattice<Router>::vehicleWaypoints(
+std::unordered_map<size_t, typename TrafficLattice::VehicleWaypoints>
+  TrafficLattice::vehicleWaypoints(
     const std::vector<VehicleTuple>& vehicles) const {
 
   std::unordered_map<size_t, VehicleWaypoints> vehicle_waypoints;
@@ -1015,9 +992,8 @@ std::unordered_map<size_t, typename TrafficLattice<Router>::VehicleWaypoints>
   return vehicle_waypoints;
 }
 
-template<typename Router>
-boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
-  TrafficLattice<Router>::vehicleRearWaypoint(
+boost::shared_ptr<typename TrafficLattice::CarlaWaypoint>
+  TrafficLattice::vehicleRearWaypoint(
     const CarlaTransform& transform,
     const CarlaBoundingBox& bounding_box) const {
 
@@ -1039,9 +1015,8 @@ boost::shared_ptr<typename TrafficLattice<Router>::CarlaWaypoint>
   return fast_map_->waypoint(waypoint_location);
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::frontVehicle(
+  TrafficLattice::frontVehicle(
       const boost::shared_ptr<const Node>& start) const {
 
   if (!start) {
@@ -1064,9 +1039,8 @@ boost::optional<std::pair<size_t, double>>
   return boost::none;
 }
 
-template<typename Router>
 boost::optional<std::pair<size_t, double>>
-  TrafficLattice<Router>::backVehicle(
+  TrafficLattice::backVehicle(
       const boost::shared_ptr<const Node>& start) const {
 
   if (!start) {
@@ -1089,8 +1063,7 @@ boost::optional<std::pair<size_t, double>>
   return boost::none;
 }
 
-template<typename Router>
-std::string TrafficLattice<Router>::string(const std::string& prefix) const {
+std::string TrafficLattice::string(const std::string& prefix) const {
 
   std::string lattice_msg = Base::string(prefix);
 

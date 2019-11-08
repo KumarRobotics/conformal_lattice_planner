@@ -26,7 +26,7 @@ namespace planner {
 Snapshot::Snapshot(
     const Vehicle& ego,
     const std::unordered_map<size_t, Vehicle>& agents,
-    const boost::shared_ptr<router::LoopRouter>& router,
+    const boost::shared_ptr<router::Router>& router,
     const boost::shared_ptr<CarlaMap>& map,
     const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
   ego_(ego),
@@ -39,7 +39,7 @@ Snapshot::Snapshot(
 
   // Generate the waypoint lattice.
   std::unordered_set<size_t> disappear_vehicles;
-  traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(
+  traffic_lattice_ = boost::make_shared<TrafficLattice>(
       vehicles, map, fast_map, router, disappear_vehicles);
 
   // Remove the disappeared vehicles.
@@ -60,12 +60,12 @@ Snapshot::Snapshot(
 Snapshot::Snapshot(const Snapshot& other) :
   ego_(other.ego_),
   agents_(other.agents_),
-  traffic_lattice_(boost::make_shared<TrafficLattice<router::LoopRouter>>(*(other.traffic_lattice_))) {}
+  traffic_lattice_(boost::make_shared<TrafficLattice>(*(other.traffic_lattice_))) {}
 
 Snapshot& Snapshot::operator=(const Snapshot& other) {
   ego_ = other.ego_;
   agents_ = other.agents_;
-  traffic_lattice_ = boost::make_shared<TrafficLattice<router::LoopRouter>>(*(other.traffic_lattice_));
+  traffic_lattice_ = boost::make_shared<TrafficLattice>(*(other.traffic_lattice_));
   return *this;
 }
 

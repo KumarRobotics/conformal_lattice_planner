@@ -23,6 +23,7 @@
 #include <carla/client/Map.h>
 #include <carla/client/Waypoint.h>
 
+#include <router/common/router.h>
 #include <router/loop_router/loop_router.h>
 #include <planner/common/vehicle_path.h>
 #include <planner/common/snapshot.h>
@@ -53,7 +54,7 @@ protected:
   Snapshot snapshot_;
 
   /// Router.
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+  boost::shared_ptr<router::Router> router_ = nullptr;
 
   /// Carla map.
   boost::shared_ptr<CarlaMap> map_ = nullptr;
@@ -62,6 +63,15 @@ protected:
   boost::shared_ptr<utils::FastWaypointMap> fast_map_ = nullptr;
 
 public:
+
+  TrafficSimulator(const Snapshot& snapshot,
+                   const boost::shared_ptr<router::Router>& router,
+                   const boost::shared_ptr<CarlaMap>& map,
+                   const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    snapshot_(snapshot),
+    router_(router),
+    map_(map),
+    fast_map_(fast_map) {}
 
   TrafficSimulator(const Snapshot& snapshot,
                    const boost::shared_ptr<CarlaMap>& map,
@@ -73,8 +83,8 @@ public:
 
   const Snapshot& snapshot() const { return snapshot_; }
 
-  const boost::shared_ptr<const router::LoopRouter> router() const { return router_; }
-  boost::shared_ptr<router::LoopRouter>& router() { return router_; }
+  const boost::shared_ptr<const router::Router> router() const { return router_; }
+  boost::shared_ptr<router::Router>& router() { return router_; }
 
   /**
    * \brief Simulate the traffic.

@@ -28,14 +28,14 @@
 
 namespace planner {
 
-template<typename Node, typename Router>
-Lattice<Node, Router>::Lattice(
-    const boost::shared_ptr<const CarlaWaypoint>& start,
-    const double range,
-    const double longitudinal_resolution,
-    const boost::shared_ptr<Router>& router) :
-  router_(router),
-  longitudinal_resolution_(longitudinal_resolution) {
+template<typename Node>
+Lattice<Node>::Lattice(
+  const boost::shared_ptr<const CarlaWaypoint>& start,
+  const double range,
+  const double longitudinal_resolution,
+  const boost::shared_ptr<router::Router>& router) :
+    router_(router),
+    longitudinal_resolution_(longitudinal_resolution) {
 
   if (range <= longitudinal_resolution_) {
     std::string error_msg = (boost::format(
@@ -60,8 +60,8 @@ Lattice<Node, Router>::Lattice(
   return;
 }
 
-template<typename Node, typename Router>
-Lattice<Node, Router>::Lattice(const Lattice<Node, Router>& other) :
+template<typename Node>
+Lattice<Node>::Lattice(const Lattice<Node>& other) :
   router_(other.router_),
   lattice_entries_(other.lattice_entries_),
   lattice_exits_(other.lattice_exits_),
@@ -104,8 +104,8 @@ Lattice<Node, Router>::Lattice(const Lattice<Node, Router>& other) :
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::swap(Lattice<Node, Router>& other) {
+template<typename Node>
+void Lattice<Node>::swap(Lattice<Node>& other) {
 
   std::swap(lattice_entries_, other.lattice_entries_);
   std::swap(lattice_exits_, other.lattice_exits_);
@@ -117,8 +117,8 @@ void Lattice<Node, Router>::swap(Lattice<Node, Router>& other) {
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::augmentRoadlaneToWaypointsTable(
+template<typename Node>
+void Lattice<Node>::augmentRoadlaneToWaypointsTable(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
 
   //const size_t roadlane_id = hashRoadLaneIds(
@@ -136,8 +136,8 @@ void Lattice<Node, Router>::augmentRoadlaneToWaypointsTable(
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::reduceRoadlaneToWaypointsTable(
+template<typename Node>
+void Lattice<Node>::reduceRoadlaneToWaypointsTable(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint) {
 
   size_t roadlane_id = 0;
@@ -157,9 +157,9 @@ void Lattice<Node, Router>::reduceRoadlaneToWaypointsTable(
   return;
 }
 
-template<typename Node, typename Router>
+template<typename Node>
 std::unordered_map<size_t, boost::shared_ptr<const Node>>
-  Lattice<Node, Router>::nodes() const {
+  Lattice<Node>::nodes() const {
 
   std::unordered_map<size_t, boost::shared_ptr<const Node>> nodes;
   for (const auto& item : waypoint_to_node_table_)
@@ -168,9 +168,9 @@ std::unordered_map<size_t, boost::shared_ptr<const Node>>
   return nodes;
 }
 
-template<typename Node, typename Router>
+template<typename Node>
 std::vector<std::pair<size_t, size_t>>
-  Lattice<Node, Router>::edges() const {
+  Lattice<Node>::edges() const {
 
   std::vector<std::pair<size_t, size_t>> edges;
 
@@ -201,8 +201,8 @@ std::vector<std::pair<size_t, size_t>>
   return edges;
 }
 
-template<typename Node, typename Router>
-double Lattice<Node, Router>::range() const {
+template<typename Node>
+double Lattice<Node>::range() const {
 
   if (lattice_entries_.empty() || lattice_exits_.empty()) return 0.0;
 
@@ -221,8 +221,8 @@ double Lattice<Node, Router>::range() const {
   return exit_distance - entry_distance;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::extend(double range) {
+template<typename Node>
+void Lattice<Node>::extend(double range) {
 
   if (range <= 0.0) {
     std::string error_msg = (boost::format(
@@ -258,8 +258,8 @@ void Lattice<Node, Router>::extend(double range) {
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::shorten(double range) {
+template<typename Node>
+void Lattice<Node>::shorten(double range) {
 
   if (range < 0.0) {
     std::string error_msg((boost::format(
@@ -346,8 +346,8 @@ void Lattice<Node, Router>::shorten(double range) {
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::updateNodeDistance() {
+template<typename Node>
+void Lattice<Node>::updateNodeDistance() {
 
   // Find the existing lattice entry with the smallest distance.
   // The distance of all nodes will be reduced by this much.
@@ -416,8 +416,8 @@ void Lattice<Node, Router>::updateNodeDistance() {
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::extendFront(
+template<typename Node>
+void Lattice<Node>::extendFront(
     const boost::shared_ptr<Node>& node,
     const double range,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
@@ -457,8 +457,8 @@ void Lattice<Node, Router>::extendFront(
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::extendLeft(
+template<typename Node>
+void Lattice<Node>::extendLeft(
     const boost::shared_ptr<Node>& node,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
   // Find the left waypoint.
@@ -498,8 +498,8 @@ void Lattice<Node, Router>::extendLeft(
   return;
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::extendRight(
+template<typename Node>
+void Lattice<Node>::extendRight(
     const boost::shared_ptr<Node>& node,
     std::queue<boost::shared_ptr<Node>>& nodes_queue) {
 
@@ -540,8 +540,8 @@ void Lattice<Node, Router>::extendRight(
   return;
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::front(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::front(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -564,8 +564,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::front(
   return node;
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::back(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::back(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -588,8 +588,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::back(
   return node;
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::leftFront(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::leftFront(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -603,8 +603,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::leftFront(
   return front(left_node->waypoint(), range);
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::frontLeft(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::frontLeft(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -618,8 +618,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::frontLeft(
   return front_node->left();
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::leftBack(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::leftBack(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -633,8 +633,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::leftBack(
   return back(left_node->waypoint(), range);
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::backLeft(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::backLeft(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -648,8 +648,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::backLeft(
   return back_node->left();
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::rightFront(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::rightFront(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -663,8 +663,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::rightFront(
   return front(right_node->waypoint(), range);
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::frontRight(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::frontRight(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -678,8 +678,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::frontRight(
   return front_node->right();
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::rightBack(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::rightBack(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -693,8 +693,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::rightBack(
   return back(right_node->waypoint(), range);
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<const Node> Lattice<Node, Router>::backRight(
+template<typename Node>
+boost::shared_ptr<const Node> Lattice<Node>::backRight(
     const boost::shared_ptr<const CarlaWaypoint>& query,
     const double range) const {
 
@@ -708,8 +708,8 @@ boost::shared_ptr<const Node> Lattice<Node, Router>::backRight(
   return back_node->right();
 }
 
-template<typename Node, typename Router>
-void Lattice<Node, Router>::findLatticeEntriesAndExits() {
+template<typename Node>
+void Lattice<Node>::findLatticeEntriesAndExits() {
 
   lattice_entries_.clear();
   lattice_exits_.clear();
@@ -722,8 +722,8 @@ void Lattice<Node, Router>::findLatticeEntriesAndExits() {
   return;
 }
 
-template<typename Node, typename Router>
-boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
+template<typename Node>
+boost::shared_ptr<Node> Lattice<Node>::closestNode(
     const boost::shared_ptr<const CarlaWaypoint>& waypoint,
     const double tolerance) {
 
@@ -793,8 +793,8 @@ boost::shared_ptr<Node> Lattice<Node, Router>::closestNode(
   //return nullptr;
 }
 
-template<typename Node, typename Router>
-std::string Lattice<Node, Router>::string(const std::string& prefix) const {
+template<typename Node>
+std::string Lattice<Node>::string(const std::string& prefix) const {
 
   std::string lattice_msg = (boost::format(
         "lattice longitudinal resolution: %1%.\n"

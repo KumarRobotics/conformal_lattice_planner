@@ -21,6 +21,7 @@
 #include <planner/common/vehicle_path.h>
 #include <planner/common/vehicle_path_planner.h>
 #include <planner/common/utils.h>
+#include <router/common/router.h>
 
 namespace planner {
 namespace lane_follower {
@@ -44,9 +45,9 @@ protected:
 protected:
 
   // Used to find the waypoint on the same lane.
-  boost::shared_ptr<WaypointLattice<router::LoopRouter>> waypoint_lattice_ = nullptr;
+  boost::shared_ptr<WaypointLattice> waypoint_lattice_ = nullptr;
 
-  boost::shared_ptr<router::LoopRouter> router_ = nullptr;
+  boost::shared_ptr<router::Router> router_ = nullptr;
 
 public:
 
@@ -63,19 +64,19 @@ public:
                const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
                const boost::shared_ptr<const CarlaWaypoint>& lattice_start,
                const double lattice_range,
-               const boost::shared_ptr<router::LoopRouter>& router) :
+               const boost::shared_ptr<router::Router>& router) :
     Base(map, fast_map),
-    waypoint_lattice_(boost::make_shared<WaypointLattice<router::LoopRouter>>(
+    waypoint_lattice_(boost::make_shared<WaypointLattice>(
           lattice_start, lattice_range, 5.0, router)),
     router_(router) {}
 
   /// Get the waypoint lattice maintained in the object.
-  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypointLattice() const {
+  boost::shared_ptr<const WaypointLattice> waypointLattice() const {
     return waypoint_lattice_;
   }
 
   /// Get or set the waypoint lattice maintained in the object.
-  boost::shared_ptr<WaypointLattice<router::LoopRouter>>& waypointLattice() {
+  boost::shared_ptr<WaypointLattice>& waypointLattice() {
     return waypoint_lattice_;
   }
 

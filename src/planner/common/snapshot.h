@@ -21,7 +21,7 @@
 #include <carla/client/Vehicle.h>
 #include <carla/geom/Transform.h>
 
-#include <router/loop_router/loop_router.h>
+#include <router/common/router.h>
 #include <planner/common/vehicle.h>
 #include <planner/common/traffic_lattice.h>
 
@@ -54,13 +54,13 @@ protected:
 
   /// Traffic lattice which is used to keep track of the relative
   /// location among the vehicles.
-  boost::shared_ptr<TrafficLattice<router::LoopRouter>> traffic_lattice_;
+  boost::shared_ptr<TrafficLattice> traffic_lattice_;
 
 public:
 
   Snapshot(const Vehicle& ego,
            const std::unordered_map<size_t, Vehicle>& agents,
-           const boost::shared_ptr<router::LoopRouter>& router,
+           const boost::shared_ptr<router::Router>& router,
            const boost::shared_ptr<CarlaMap>& map,
            const boost::shared_ptr<utils::FastWaypointMap>& fast_map);
 
@@ -80,9 +80,9 @@ public:
   const Vehicle& vehicle(const size_t id) const;
   Vehicle& vehicle(const size_t id);
 
-  const boost::shared_ptr<const TrafficLattice<router::LoopRouter>>
+  const boost::shared_ptr<const TrafficLattice>
     trafficLattice() const { return traffic_lattice_; }
-  const boost::shared_ptr<TrafficLattice<router::LoopRouter>>
+  const boost::shared_ptr<TrafficLattice>
     trafficLattice() { return traffic_lattice_; }
 
   // The input \c new_transforms should cover every vehicle in the snapshot.

@@ -30,6 +30,7 @@
 #include <planner/common/utils.h>
 #include <planner/common/fast_waypoint_map.h>
 #include <planner/common/waypoint_lattice.h>
+#include <router/common/router.h>
 
 namespace planner {
 
@@ -112,8 +113,7 @@ public:
  *       \c MapData& carla::road::Map::GetMap() to
  *       \c const MapData& carla::road::Map::GetMap() const.
  */
-template<typename Router>
-class TrafficLattice : public Lattice<WaypointNodeWithVehicle, Router> {
+class TrafficLattice : public Lattice<WaypointNodeWithVehicle> {
 
 protected:
 
@@ -140,7 +140,7 @@ protected:
 
 private:
 
-  using Base = Lattice<WaypointNodeWithVehicle, Router>;
+  using Base = Lattice<WaypointNodeWithVehicle>;
 
 protected:
 
@@ -174,7 +174,7 @@ public:
       const std::vector<boost::shared_ptr<const CarlaVehicle>>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
       const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
-      const boost::shared_ptr<Router>& router,
+      const boost::shared_ptr<router::Router>& router,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   /**
@@ -191,14 +191,14 @@ public:
       const std::vector<VehicleTuple>& vehicles,
       const boost::shared_ptr<CarlaMap>& map,
       const boost::shared_ptr<utils::FastWaypointMap>& fast_map,
-      const boost::shared_ptr<Router>& router,
+      const boost::shared_ptr<router::Router>& router,
       boost::optional<std::unordered_set<size_t>&> disappear_vehicles = boost::none);
 
   /// Copy constructor.
   TrafficLattice(const TrafficLattice& other);
 
   /// Copy assignment operator.
-  TrafficLattice& operator=(const TrafficLattice other) {
+  TrafficLattice& operator=(TrafficLattice other) {
     this->swap(other);
     return *this;
   }
@@ -370,7 +370,7 @@ protected:
       const boost::shared_ptr<const CarlaWaypoint>& start,
       const double range,
       const double longitudinal_resolution,
-      const boost::shared_ptr<Router>& router);
+      const boost::shared_ptr<router::Router>& router);
 
   /**
    * \brief Sort the given roads into a chain according to the
@@ -523,5 +523,3 @@ protected:
 }; // End class TrafficLattice.
 
 } // End namespace planner.
-
-#include <planner/common/traffic_lattice_inst.h>

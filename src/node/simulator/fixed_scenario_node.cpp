@@ -57,8 +57,8 @@ void FixedScenarioNode::spawnVehicles() {
   boost::shared_ptr<CarlaWaypoint> start_waypoint =
     fast_map_->waypoint(start_transform.location);
 
-  boost::shared_ptr<WaypointLattice<LoopRouter>> waypoint_lattice=
-    boost::make_shared<WaypointLattice<LoopRouter>>(start_waypoint, 100, 1.0, loop_router_);
+  boost::shared_ptr<WaypointLattice> waypoint_lattice=
+    boost::make_shared<WaypointLattice>(start_waypoint, 100, 1.0, loop_router_);
 
   // Spawn the ego vehicle.
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer

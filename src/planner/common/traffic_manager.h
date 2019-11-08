@@ -28,8 +28,7 @@ namespace planner {
  * Meanwhile, the class is able to suggest locations to spawn new vehicles at
  * either front or back of the lattice.
  */
-template<typename Router>
-class TrafficManager : public TrafficLattice<Router> {
+class TrafficManager : public TrafficLattice {
 
 protected:
 
@@ -56,7 +55,7 @@ protected:
 
 private:
 
-  using Base = TrafficLattice<Router>;
+  using Base = TrafficLattice;
 
 public:
 
@@ -82,7 +81,7 @@ public:
    */
   TrafficManager(const boost::shared_ptr<CarlaWaypoint>& start,
                  const double range,
-                 const boost::shared_ptr<Router>& router,
+                 const boost::shared_ptr<router::Router>& router,
                  const boost::shared_ptr<CarlaMap>& map,
                  const boost::shared_ptr<utils::FastWaypointMap>& fast_map);
 
@@ -171,5 +170,3 @@ public:
 }; // End class TrafficManager.
 
 } // End namespace planner.
-
-#include <planner/common/traffic_manager_inst.h>

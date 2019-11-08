@@ -291,8 +291,8 @@ bool IDMLatticePlanner::immediateNextStationReached(
 
   //std::printf("immediateNextStationReached(): \n");
 
-  boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
-    boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
+  boost::shared_ptr<const WaypointLattice> waypoint_lattice =
+    boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
 
   // Find out the current distance of the ego on the lattice.
   boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
@@ -330,7 +330,7 @@ void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
     //std::printf("Create new waypoint lattice.\n");
     boost::shared_ptr<CarlaWaypoint> ego_waypoint =
       fast_map_->waypoint(snapshot.ego().transform().location);
-    waypoint_lattice_ = boost::make_shared<WaypointLattice<router::LoopRouter>>(
+    waypoint_lattice_ = boost::make_shared<WaypointLattice>(
         ego_waypoint, spatial_horizon_+30.0, 1.0, router_);
     return;
   }
@@ -339,8 +339,8 @@ void IDMLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
   // update the lattice or leave it as it currently is based on whether the ego
   // has reached one of the child stations of the root.
   if (immediateNextStationReached(snapshot)) {
-    boost::shared_ptr<const WaypointLattice<router::LoopRouter>> waypoint_lattice =
-      boost::const_pointer_cast<const WaypointLattice<router::LoopRouter>>(waypoint_lattice_);
+    boost::shared_ptr<const WaypointLattice> waypoint_lattice =
+      boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
 
     boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
         fast_map_->waypoint(snapshot.ego().transform().location),

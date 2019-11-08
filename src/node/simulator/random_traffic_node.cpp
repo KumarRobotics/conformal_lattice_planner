@@ -63,7 +63,7 @@ void RandomTrafficNode::spawnVehicles() {
     fast_map_->waypoint(start_transform.location);
 
   // Initialize the traffic manager.
-  traffic_manager_ = boost::make_shared<TrafficManager<LoopRouter>>(
+  traffic_manager_ = boost::make_shared<TrafficManager>(
       start_waypoint, 150.0, loop_router_, map_, fast_map_);
 
   // Spawn the ego vehicle.
@@ -227,8 +227,8 @@ void RandomTrafficNode::manageTraffic() {
   // We wanto to make sure it is at the 50m distance.
   const boost::shared_ptr<CarlaWaypoint> ego_waypoint =
     fast_map_->waypoint(egoVehicle()->GetTransform().location);
-  boost::shared_ptr<const TrafficManager<LoopRouter>> const_traffic_manager =
-    boost::const_pointer_cast<const TrafficManager<LoopRouter>>(traffic_manager_);
+  boost::shared_ptr<const TrafficManager> const_traffic_manager =
+    boost::const_pointer_cast<const TrafficManager>(traffic_manager_);
   const double ego_distance = const_traffic_manager->closestNode(ego_waypoint, 1.0)->distance();
   const double shift_distance = ego_distance<50.0 ? 0.0 : 2.0;
 

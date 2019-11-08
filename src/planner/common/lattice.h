@@ -31,6 +31,8 @@
 #include <carla/road/Road.h>
 #include <carla/road/Lane.h>
 
+#include <router/common/router.h>
+
 namespace planner {
 
 /**
@@ -174,9 +176,8 @@ public:
  * possible. The lattice is paved following the road sequence given by the router.
  *
  * See \c WaypointNode to find the interface required for the \c Node template.
- * See \c Router to find the interface required for the \c Router template.
  */
-template<typename Node, typename Router>
+template<typename Node>
 class Lattice {
 
 protected:
@@ -191,7 +192,7 @@ protected:
 protected:
 
   /// Router used to query the roads and front waypoints.
-  boost::shared_ptr<Router> router_;
+  boost::shared_ptr<router::Router> router_;
 
   /// Entry nodes of the lattice (nodes that do not have back nodes).
   std::vector<boost::weak_ptr<Node>> lattice_entries_;
@@ -230,7 +231,7 @@ public:
   Lattice(const boost::shared_ptr<const CarlaWaypoint>& start,
           const double range,
           const double longitudinal_resolution,
-          const boost::shared_ptr<Router>& router);
+          const boost::shared_ptr<router::Router>& router);
 
   /// Copy constructor.
   Lattice(const Lattice& other);
