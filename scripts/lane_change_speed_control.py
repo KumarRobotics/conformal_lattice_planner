@@ -80,9 +80,14 @@ def lc_idm(ego_v, ego_v0, progress, cl_v=None, cl_s=None, tl_v=None, tl_s=None, 
 
     inv_sigmoid = lambda x : 1.0 - exp(-5.0*x)
 
+    if progress >= 0.5:
+        return idm(ego_v, ego_v0, tl_v, tl_s)
+
     cl_accel, cl_w = 0.0, 0.0
     tl_accel, tl_w = 0.0, 0.0
     tf_accel, tf_w = 0.0, 0.0
+
+    progress *= 2.0
 
     if (cl_v is not None) and (cl_s is not None):
         cl_accel = idm(ego_v, ego_v0, cl_v, cl_s)
@@ -203,7 +208,7 @@ def draw_snapshots(snapshots, ax_accel, ax_speed, ax_distance, controller_label)
     ax_distance.plot(t, ego_following_distance, label=controller_label)
     return
 
-def main():
+def case_comparison():
 
     # Load the lane chaning path of the ego vehicle.
     ego_path = np.loadtxt('left_lane_change_path', waypoint_dtype)
@@ -217,11 +222,16 @@ def main():
     # The setup of the vehicles is the following:
     # --v3---------------------------------v2---------
     # --------ego-------------v1----------------------
+    #snapshot = np.array([
+    #    (  0.0, 0.0, 0.0, 23.0, 0.0,  1, 25.0, 4.7),
+    #    ( 30.0, 0.0, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
+    #    ( 60.0, 3.7, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
+    #    (-20.0, 3.7, 0.0, 24.0, 0.0,  2, 25.0, 4.7) ], dtype=vehicle_dtype)
     snapshot = np.array([
-        (  0.0, 0.0, 0.0, 23.0, 0.0,  1, 25.0, 4.7),
+        (  0.0, 0.0, 0.0, 25.0, 0.0,  1, 30.0, 4.7),
         ( 30.0, 0.0, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
-        ( 60.0, 3.7, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
-        (-20.0, 3.7, 0.0, 24.0, 0.0,  2, 25.0, 4.7) ], dtype=vehicle_dtype)
+        ( 50.0, 3.7, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
+        (-10.0, 3.7, 0.0, 25.0, 0.0,  2, 30.0, 4.7) ], dtype=vehicle_dtype)
 
     # Simulate the traffic.
     snapshots_lf = simulate_traffic(np.copy(snapshot), ego_path, vehicle_accels1)
@@ -256,6 +266,102 @@ def main():
     plt.show()
     return
 
+def switch_accel_wrt(snapshots, variable, ego_path, title):
+
+    switch_accel_lf = np.zeros(variable.size, dtype=[('ego', 'float'), ('tf', 'float')])
+    switch_accel_lc = np.zeros(variable.size, dtype=[('ego', 'float'), ('tf', 'float')])
+
+    for i, snapshot in enumerate(snapshots):
+        initial_snapshot = np.copy(snapshot)
+
+        try:
+            snapshots_lf = simulate_traffic(np.copy(initial_snapshot), ego_path, vehicle_accels1)
+            t_lf, vehicles_lf = parse_snapshots(snapshots_lf)
+            ego_switch_lane_idx = np.nonzero(vehicles_lf[0]['y']>=3.7/2.0)[0][0]
+            switch_accel_lf['ego'][i] = vehicles_lf[0]['accel'][ego_switch_lane_idx-1]
+            switch_accel_lf['tf' ][i] = vehicles_lf[3]['accel'][ego_switch_lane_idx+1]
+        except:
+            print('Collision detected for LF-IDM.')
+            switch_accel_lf['ego'][i] = np.nan
+            switch_accel_lf['tf' ][i] = np.nan
+
+        try:
+            snapshots_lc = simulate_traffic(np.copy(initial_snapshot), ego_path, vehicle_accels2)
+            t_lc, vehicles_lc = parse_snapshots(snapshots_lc)
+            ego_switch_lane_idx = np.nonzero(vehicles_lc[0]['y']>=3.7/2.0)[0][0]
+            switch_accel_lc['ego'][i] = vehicles_lc[0]['accel'][ego_switch_lane_idx-1]
+            switch_accel_lc['tf' ][i] = vehicles_lc[3]['accel'][ego_switch_lane_idx+1]
+        except:
+            print('Collision detected for LC-IDM.')
+            switch_accel_lc['ego'][i] = np.nan
+            switch_accel_lc['tf' ][i] = np.nan
+
+    fig, ax = plt.subplots()
+    ax.plot(variable, switch_accel_lf['ego'], label='ego LF-IDM')
+    ax.plot(variable, switch_accel_lf['tf' ], label='TF LF-IDM' )
+    ax.plot(variable, switch_accel_lc['ego'], label='ego LC-IDM')
+    ax.plot(variable, switch_accel_lc['tf' ], label='TF LC-IDM' )
+    ax.set_title('Switch Accel w.r.t. ' + title)
+    ax.set_xlabel(title)
+    ax.grid()
+    ax.legend()
+
+    return fig, ax
+
+def switch_accel_comparison():
+    # Load the lane chaning path of the ego vehicle.
+    ego_path = np.loadtxt('left_lane_change_path', waypoint_dtype)
+
+    tl_distance_axis = np.linspace(20.0, 80.0, 61)
+    tf_distance_axis = np.linspace(-60, -10, 51)
+    tf_speed_axis    = np.linspace(10.0, 30.0, 21)
+
+    # Initialize the micro-traffic.
+    # +x: right; +y: up
+    # v0: the ego vehicle
+    # v1: lead on the current lane
+    # v2: lead on the target lane
+    # v3: follower on the target lane
+    # The setup of the vehicles is the following:
+    # --v3---------------------------------v2---------
+    # --------ego-------------v1----------------------
+    snapshot = np.array([
+        (  0.0, 0.0, 0.0, 25.0, 0.0,  1, 30.0, 4.7),
+        ( 30.0, 0.0, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
+        ( 50.0, 3.7, 0.0, 20.0, 0.0, 10, 20.0, 4.7),
+        (-20.0, 3.7, 0.0, 25.0, 0.0,  2, 30.0, 4.7) ], dtype=vehicle_dtype)
+
+    # Switch accel w.r.t. tl distance.
+    snapshots = []
+    for tl_distance in tl_distance_axis:
+        initial_snapshot = np.copy(snapshot)
+        initial_snapshot[2]['x'] = tl_distance
+        snapshots.append(initial_snapshot)
+
+    fig_tl_distance, ax_tl_distance = switch_accel_wrt(snapshots, tl_distance_axis, ego_path, 'TL Distance')
+
+    # Switch accel w.r.t. tf distance.
+    snapshots = []
+    for tf_distance in tf_distance_axis:
+        initial_snapshot = np.copy(snapshot)
+        initial_snapshot[3]['x'] = tf_distance
+        snapshots.append(initial_snapshot)
+
+    fig_tf_distance, ax_tf_distance = switch_accel_wrt(snapshots, tf_distance_axis, ego_path, 'TF Distance')
+
+    # Switch accel w.r.t. tf speed.
+    snapshots = []
+    for tf_speed in tf_speed_axis:
+        initial_snapshot = np.copy(snapshot)
+        initial_snapshot[3]['speed'] = tf_speed
+        snapshots.append(initial_snapshot)
+
+    fig_tf_speed, ax_tf_speed = switch_accel_wrt(snapshots, tf_speed_axis, ego_path, 'TF Speed')
+
+    plt.show()
+    return
+
 
 if __name__ == '__main__':
-    main()
+    #case_comparison()
+    switch_accel_comparison()
