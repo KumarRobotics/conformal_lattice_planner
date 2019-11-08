@@ -52,22 +52,10 @@ public:
   }
 
   boost::shared_ptr<CarlaWaypoint> waypointOnRoute(
-      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const;
+      const boost::shared_ptr<const CarlaWaypoint>& waypoint) const override;
 
-  /**
-   * \brief In LoopRouter, there is always a next road for any route
-   *        on the route. In the case that the query road is the last
-   *        road in \c road_sequence_, the first road in the
-   *        \c road_sequence_ is returned.
-   */
   boost::optional<size_t> nextRoad(const size_t road) const override;
 
-  /**
-   * \brief In LoopRouter, there is always a previous road for any route
-   *        on the route. In the case that the query road is the first
-   *        road in \c road_sequence_, the last road in the
-   *        \c road_sequence_ is returned.
-   */
   boost::optional<size_t> prevRoad(const size_t road) const override;
 
   boost::optional<size_t> nextRoad(
@@ -86,7 +74,7 @@ public:
    * Keep in mind that the next road of the last element in the returned
    * vector is the first element.
    */
-  const std::vector<size_t>& roadSequence() const {
+  const std::vector<size_t>& roadSequence() const override {
     return road_sequence_;
   }
 

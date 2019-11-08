@@ -119,6 +119,11 @@ public:
   virtual boost::shared_ptr<CarlaWaypoint> frontWaypoint(
       const boost::shared_ptr<const CarlaWaypoint>& waypoint, const double distance) const = 0;
 
+  /**
+   * \brief Get the road sequence in the router
+   */
+  virtual const std::vector<size_t>& roadSequence() const = 0;
+
 }; // End class Router.
 
 } // End namespace router.
