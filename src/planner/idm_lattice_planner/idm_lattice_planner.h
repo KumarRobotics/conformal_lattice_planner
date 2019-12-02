@@ -301,6 +301,13 @@ protected:
    */
   boost::weak_ptr<Station> root_;
 
+  /**
+   * The immediate next station to be reached by the ego.
+   *
+   * This is the station at the end of the first piece of last-time planned trajectory.
+   */
+  boost::weak_ptr<Station> cached_next_station_;
+
 public:
 
   /// Constructor of the class.
@@ -375,7 +382,9 @@ protected:
   const double costFromRootToTerminal(const boost::shared_ptr<Station>& terminal) const;
 
   /// Select the optimal path sequence based on the constructed station graph.
-  std::list<ContinuousPath> selectOptimalPath() const;
+  void selectOptimalPath(
+      std::list<ContinuousPath>& path_sequence,
+      std::list<boost::weak_ptr<Station>>& station_sequence) const;
 
   /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
   DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;

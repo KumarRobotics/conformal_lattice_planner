@@ -278,10 +278,15 @@ DiscretePath IDMLatticePlanner::planPath(
   constructStationGraph(station_queue);
 
   // Select the optimal path sequence from the station graph.
-  std::list<ContinuousPath> optimal_path_seq = selectOptimalPath();
+  std::list<ContinuousPath> optimal_path_seq;
+  std::list<boost::weak_ptr<Station>> optimal_station_seq;
+  selectOptimalPath(optimal_path_seq, optimal_station_seq);
 
   // Merge the path sequence into one discrete path.
   DiscretePath optimal_path = mergePaths(optimal_path_seq);
+
+  // Update the cached next station.
+  cached_next_station_ = *(++optimal_station_seq.begin());
 
   return optimal_path;
 }
@@ -385,98 +390,23 @@ std::deque<boost::shared_ptr<Station>>
   boost::shared_ptr<Station> new_root =
     boost::make_shared<Station>(snapshot, waypoint_lattice_, fast_map_);
 
-  // Find the immedidate waypoint nodes.
-  boost::shared_ptr<const WaypointNode> front_node = nullptr;
-  if (root_.lock()->hasFrontChild())
-    front_node = std::get<2>(*(root_.lock()->frontChild())).lock()->node().lock();
+  // Read the immedinate next waypoint node to be reached.
+  boost::shared_ptr<const WaypointNode> next_node =
+    cached_next_station_.lock()->node().lock();
+  const double distance_to_next_node =
+    next_node->distance() - new_root->node().lock()->distance();
 
-  boost::shared_ptr<const WaypointNode> left_front_node = nullptr;
-  if (root_.lock()->hasLeftChild())
-    left_front_node = std::get<2>(*(root_.lock()->leftChild())).lock()->node().lock();
-
-  boost::shared_ptr<const WaypointNode> right_front_node = nullptr;
-  if (root_.lock()->hasRightChild())
-    right_front_node = std::get<2>(*(root_.lock()->rightChild())).lock()->node().lock();
+  // Find the next nodes to be reached.
+  boost::shared_ptr<const WaypointNode> front_node =
+    waypoint_lattice_->front(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> left_front_node =
+    waypoint_lattice_->frontLeft(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> right_front_node =
+    waypoint_lattice_->frontRight(new_root->node().lock()->waypoint(), distance_to_next_node);
 
   // Clear all old stations.
-  // We are good with the above nodes already. All stations will be newly created.
+  // We are good with the previously created nodes. All stations will be newly created.
   node_to_station_table_.clear();
-
-  // Now we have to spend some time figuring out which node is the front, left front,
-  // and right front node relative to the new root node.
-  boost::shared_ptr<const WaypointNode> vehicle_node = new_root->node().lock();
-  boost::shared_ptr<const WaypointNode> vehicle_left_node = vehicle_node->left();
-  boost::shared_ptr<const WaypointNode> vehicle_right_node = vehicle_node->right();
-
-  while (true) {
-    // The ego is still on the same lane.
-    if (front_node &&
-        vehicle_node->id()==front_node->id()) break;
-
-    if (left_front_node && vehicle_left_node &&
-        vehicle_left_node->id()==left_front_node->id()) break;
-
-    if (right_front_node && vehicle_right_node &&
-        vehicle_right_node->id()==right_front_node->id()) break;
-
-    // The ego has moved to the left lane.
-    if (left_front_node && vehicle_node->id()==left_front_node->id()) {
-      right_front_node = front_node;
-      front_node = left_front_node;
-      left_front_node = nullptr;
-      break;
-    }
-
-    if (front_node && vehicle_right_node &&
-        vehicle_right_node->id()==front_node->id()) {
-      right_front_node = front_node;
-      front_node = left_front_node;
-      left_front_node = nullptr;
-      break;
-    }
-
-    // The ego has moved to the right lane.
-    if (right_front_node && vehicle_node->id()==right_front_node->id()) {
-      left_front_node = front_node;
-      front_node = right_front_node;
-      right_front_node = nullptr;
-      break;
-    }
-
-    if (front_node && vehicle_left_node &&
-        vehicle_left_node->id()==front_node->id()) {
-      left_front_node = front_node;
-      front_node = right_front_node;
-      right_front_node = nullptr;
-      break;
-    }
-
-    vehicle_node = vehicle_node->front();
-    if (vehicle_left_node) vehicle_left_node = vehicle_left_node->front();
-    if (vehicle_right_node) vehicle_right_node = vehicle_right_node->front();
-
-    if ((!vehicle_node) && (!vehicle_left_node) && (!vehicle_right_node)) {
-      std::string error_msg(
-          "IDMLatticePlanner::pruneStationGraph(): "
-          "Immediate next stations are missing.\n");
-
-      std::string front_node_msg;
-      if (front_node)
-        front_node_msg = front_node->string("front node:\n");
-
-      std::string left_front_node_msg;
-      if (left_front_node)
-        left_front_node_msg = left_front_node->string("left front node:\n");
-
-      std::string right_front_node_msg;
-      if (right_front_node)
-        right_front_node_msg = right_front_node->string("right front node:\n");
-
-      throw std::runtime_error(
-          error_msg + new_root->string() + front_node_msg +
-          left_front_node_msg + right_front_node_msg);
-    }
-  }
 
   // Try to connect the new root with above nodes.
   boost::shared_ptr<Station> front_station =
@@ -496,21 +426,18 @@ std::deque<boost::shared_ptr<Station>>
     node_to_station_table_[front_station->id()] = front_station;
     if (front_station->id() == front_node->id())
       station_queue.push_back(front_station);
-    //std::printf("Add immediate front station to table.\n");
   }
 
   if (left_front_station) {
     node_to_station_table_[left_front_station->id()] = left_front_station;
     if (left_front_station->id() == left_front_node->id())
       station_queue.push_back(left_front_station);
-    //std::printf("Add immediate left front station to table.\n");
   }
 
   if (right_front_station) {
     node_to_station_table_[right_front_station->id()] = right_front_station;
     if (right_front_station->id() == right_front_node->id())
       station_queue.push_back(right_front_station);
-    //std::printf("Add immediate right front station to table.\n");
   }
 
   return station_queue;
@@ -910,7 +837,9 @@ const double IDMLatticePlanner::costFromRootToTerminal(
   return path_cost + terminal_speed_cost + terminal_distance_cost;
 }
 
-std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
+void IDMLatticePlanner::selectOptimalPath(
+    std::list<ContinuousPath>& path_sequence,
+    std::list<boost::weak_ptr<Station>>& station_sequence) const {
 
   //std::printf("selectOptimalPath():\n");
 
@@ -969,8 +898,11 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
   };
 
   // Trace back from the terminal station to find all the paths.
-  std::list<ContinuousPath> path_sequence;
+  path_sequence.clear();
+  station_sequence.clear();
+
   boost::shared_ptr<Station> station = optimal_station;
+  station_sequence.push_front(boost::weak_ptr<Station>(station));
 
   //std::printf("Trace back parent stations.\n");
   while (station->hasParent()) {
@@ -985,6 +917,8 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
           "cannot find parent when tracing back optimal path from the station.\n");
       throw std::runtime_error(error_msg + station->string());
     }
+
+    station_sequence.push_front(boost::weak_ptr<Station>(parent_station));
 
     // The station is the front child station of the parent.
     if (frontChildId(parent_station) &&
@@ -1011,7 +945,7 @@ std::list<ContinuousPath> IDMLatticePlanner::selectOptimalPath() const {
     }
   }
 
-  return path_sequence;
+  return;
 }
 
 DiscretePath IDMLatticePlanner::mergePaths(
