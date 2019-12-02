@@ -256,7 +256,10 @@ protected:
 }; // End class Station.
 
 /**
- * \brief IDMLatticePlanner implements the actual algorithm.
+ * \brief IDMLatticePlanner implements a planner that uses IDM to model the
+ *        response of other agent vehicles. In order to reduce the number of
+ *        cases to be considered, the algorithm allows only one traffic state/snapshot
+ *        at each station, violating the principle of optimality.
  */
 class IDMLatticePlanner : public VehiclePathPlanner,
                           private boost::noncopyable{
