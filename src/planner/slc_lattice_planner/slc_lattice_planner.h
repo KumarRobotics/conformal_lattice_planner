@@ -197,5 +197,142 @@ public:
 
 }; // End class Vertex.
 
+/**
+ * \brief SLCLatticePlanner implements the planner that uses IDM to model the
+ *        response of other agent vehicles. The difference to the \c IDMLatticePlanner
+ *        is that the \c SLCLatticePlanner allows only one lane change during the
+ *        planning horizon. This greatly reduce the cases to be considered while
+ *        maintaining the principle of optimality.
+ */
+class SLCLatticePlanner : public VehiclePathPlanner,
+                          private boost::noncopyable {
+
+private:
+
+  using Base = VehiclePathPlanner;
+  using This = SLCLatticePlanner;
+
+protected:
+
+  using CarlaWaypoint    = carla::client::Waypoint;
+  using CarlaTransform   = carla::geom::Transform;
+  using CarlaBoundingBox = carla::geom::BoundingBox;
+
+protected:
+
+  /// Simulation time step.
+  double sim_time_step_;
+
+  /// The spatial planning horizon.
+  /// There is no strict temporal planning horizon, which is determined implicitly
+  /// by the spatial horizion, and traffic scenario.
+  double spatial_horizon_;
+
+  /// The router to be used.
+  boost::shared_ptr<router::Router> router_ = nullptr;
+
+  /// The waypoint lattice used to find nodes for stations.
+  boost::shared_ptr<WaypointLattice> waypoint_lattice_ = nullptr;
+
+  /// Stores all the constructed vertices.
+  std::list<boost::shared_ptr<Vertex>> all_vertices_;
+
+  /**
+   * \brief The root vertex in the vertex graph.
+   *
+   * The node within the root vertex corresponds to the location of the ego vehicle
+   * at the start of the planning. Meanwhile, the snapshot within the root vertex
+   * stores the micro traffic scenario at the start of the planning.
+   */
+  boost::weak_ptr<Vertex> root_;
+
+  /**
+   * The immediate next vertex to be reached by the ego.
+   *
+   * This is the vertex at the end of the first piece of last-time planned trajectory.
+   */
+  boost::weak_ptr<Vertex> cached_next_vertex_;
+
+public:
+
+  /// Constructor of the class.
+  SLCLatticePlanner(
+      const double sim_time_step,
+      const double spatial_horizon,
+      const boost::shared_ptr<router::Router>& router,
+      const boost::shared_ptr<CarlaMap>& map,
+      const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    Base(map, fast_map),
+    sim_time_step_(sim_time_step),
+    spatial_horizon_(spatial_horizon),
+    router_(router) {}
+
+  /// Destructor of the class.
+  virtual ~SLCLatticePlanner() {}
+
+  /// Get the root vertex.
+  boost::shared_ptr<const Vertex> rootVertex() const { return root_.lock(); }
+
+  /// Get the waypoint lattice constructed by the planner.
+  boost::shared_ptr<const WaypointLattice> waypointLattice() const {
+    return waypoint_lattice_;
+  }
+
+  /// Get the router used by the planner.
+  boost::shared_ptr<const router::Router> router() const { return router_; }
+
+  /// Get the waypoint nodes used in the planner.
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes() const;
+
+  /// Get all paths connecting the waypoint nodes in the planner.
+  std::vector<ContinuousPath> edges() const;
+
+  virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
+
+protected:
+
+  /// Check if the any of the child vertices has been reached.
+  bool immediateNextVertexReached(const Snapshot& snapshot) const;
+
+  /// Update the waypoint lattice.
+  void updateWaypointLattice(const Snapshot& snapshot);
+
+  /// Prune/update the vertex graph of last step.
+  std::deque<boost::shared_ptr<Vertex>> pruneVertexGraph(const Snapshot& snapshot);
+
+  /// Construct the vertex graph.
+  void constructVertexGraph(std::deque<boost::shared_ptr<Vertex>>& vertex_queue);
+
+  boost::shared_ptr<Vertex> connectVertexToFrontNode(
+      const boost::shared_ptr<Vertex>& vertex,
+      const boost::shared_ptr<const WaypointNode>& target_node);
+  boost::shared_ptr<Vertex> connectVertexToLeftFrontNode(
+      const boost::shared_ptr<Vertex>& vertex,
+      const boost::shared_ptr<const WaypointNode>& target_node);
+  boost::shared_ptr<Vertex> connectVertexToRightFrontNode(
+      const boost::shared_ptr<Vertex>& vertex,
+      const boost::shared_ptr<const WaypointNode>& target_node);
+
+  /// Compute the speed cost for a terminal vertex
+  const double terminalSpeedCost(const boost::shared_ptr<Vertex>& vertex) const;
+
+  /// Compute the distance cost for a terminal vertex.
+  const double terminalDistanceCost(const boost::shared_ptr<Vertex>& vertex) const;
+
+  /// Compute the cost from root to this terminal, including the terminal costs.
+  const double costFromRootToTerminal(const boost::shared_ptr<Vertex>& terminal) const;
+
+  /// Select the optimal path sequence based on the constructed vertex graph.
+  void selectOptimalPath(
+      std::list<ContinuousPath>& path_sequence,
+      std::list<boost::weak_ptr<Vertex>>& vertex_sequence) const;
+
+  /// Merge the path segements from \c selectOptimalPath() into a single discrete path.
+  DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
+
+}; // End class SLCLatticePlanner.
+
 } // End namespace slc_lattice_planner.
+
+using SLCLatticePlanner = slc_lattice_planner::SLCLatticePlanner;
 } // End namespace planner.
