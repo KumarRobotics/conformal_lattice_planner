@@ -160,7 +160,8 @@ void EgoIDMLatticePlanningNode::executeCallback(
   const DiscretePath ego_path = path_planner_->planPath(ego_policy.first, *snapshot);
 
   // Publish the station graph.
-  //conformal_lattice_pub_.publish(createConformalLatticeMsg(path_planner_));
+  conformal_lattice_pub_.publish(createConformalLatticeMsg(
+        path_planner_->nodes(), path_planner_->edges()));
   path_pub_.publish(createEgoPathMsg(ego_path));
   //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
