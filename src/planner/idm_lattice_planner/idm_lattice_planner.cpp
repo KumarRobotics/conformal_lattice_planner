@@ -303,20 +303,10 @@ bool IDMLatticePlanner::immediateNextStationReached(
   boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
       fast_map_->waypoint(snapshot.ego().transform().location),
       waypoint_lattice->longitudinalResolution());
-  double ego_distance = ego_node->distance();
+  const double ego_distance = ego_node->distance();
 
   // Find out the distance the ego need to achieve.
-  double target_distance = 0.0;
-  if (root_.lock()->hasLeftChild()) {
-    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->leftChild())).lock();
-    target_distance = station->node().lock()->distance();
-  } else if (root_.lock()->hasFrontChild()) {
-    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->frontChild())).lock();
-    target_distance = station->node().lock()->distance();
-  } else if (root_.lock()->hasRightChild()) {
-    boost::shared_ptr<Station> station = std::get<2>(*(root_.lock()->rightChild())).lock();
-    target_distance = station->node().lock()->distance();
-  }
+  const double target_distance = cached_next_station_.lock()->node().lock()->distance();
 
   // If the difference is less than 0.5, or the ego has travelled beyond the
   // the target distance, the immediate station is considered to be reached.
