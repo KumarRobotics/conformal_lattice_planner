@@ -344,7 +344,7 @@ public:
   boost::shared_ptr<const router::Router> router() const { return router_; }
 
   /// Get the nodes on the lattice, corresponding to the stations.
-  std::vector<boost::shared_ptr<const Station>> nodes() const;
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes() const;
 
   /// Get the edges on the lattice, corresponding to the path.
   std::vector<ContinuousPath> edges() const;

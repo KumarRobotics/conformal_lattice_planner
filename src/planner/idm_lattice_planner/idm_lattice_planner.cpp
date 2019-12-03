@@ -209,14 +209,14 @@ std::string Station::string(const std::string& prefix) const {
   return output;
 }
 
-std::vector<boost::shared_ptr<const Station>>
+std::vector<boost::shared_ptr<const WaypointNode>>
   IDMLatticePlanner::nodes() const {
 
-  std::vector<boost::shared_ptr<const Station>> stations;
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes;
   for (const auto& item : node_to_station_table_)
-    stations.push_back(item.second);
+    nodes.push_back(item.second->node().lock());
 
-  return stations;
+  return nodes;
 }
 
 std::vector<ContinuousPath> IDMLatticePlanner::edges() const {
