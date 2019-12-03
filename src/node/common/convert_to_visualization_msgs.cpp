@@ -859,4 +859,103 @@ visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
   return planner_msg;
 }
 
+visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+    const std::vector<boost::shared_ptr<const planner::WaypointNode>>& nodes,
+    const std::vector<planner::ContinuousPath>& edges) {
+
+  static size_t edge_num = 0;
+
+  std_msgs::ColorRGBA node_color;
+  node_color.r = 0.8;
+  node_color.g = 0.9;
+  node_color.b = 1.0;
+  node_color.a = 1.0;
+
+  std_msgs::ColorRGBA edge_color;
+  edge_color.r = 0.3;
+  edge_color.g = 0.6;
+  edge_color.b = 1.0;
+  edge_color.a = 1.0;
+
+  visualization_msgs::MarkerPtr nodes_msg(new visualization_msgs::Marker);
+
+  nodes_msg->header.stamp = ros::Time::now();
+  nodes_msg->header.frame_id = "map";
+  nodes_msg->ns = "conformal_lattice_nodes";
+  nodes_msg->id = 0;
+  nodes_msg->type = visualization_msgs::Marker::SPHERE_LIST;
+  nodes_msg->action = visualization_msgs::Marker::ADD;
+  nodes_msg->lifetime = ros::Duration(0.0);
+  nodes_msg->frame_locked = false;
+  nodes_msg->pose.orientation.w = 1.0;
+  nodes_msg->scale.x = 2.0;
+  nodes_msg->scale.y = 2.0;
+  nodes_msg->scale.z = 2.0;
+  nodes_msg->color = node_color;
+
+  for (const auto& node : nodes) {
+    //const boost::shared_ptr<const WaypointNode> node = station->node();
+    CarlaTransform transform = utils::convertTransform(node->waypoint()->GetTransform());
+    geometry_msgs::Point pt;
+    pt.x = transform.location.x;
+    pt.y = transform.location.y;
+    pt.z = transform.location.z;
+
+    nodes_msg->points.push_back(pt);
+    nodes_msg->colors.push_back(node_color);
+  }
+
+  visualization_msgs::MarkerArrayPtr edges_msg(new visualization_msgs::MarkerArray);
+
+  for (size_t i = 0; i < edges.size(); ++i) {
+
+    const ContinuousPath& edge = edges[i];
+    visualization_msgs::MarkerPtr edge_msg(new visualization_msgs::Marker);
+
+    edge_msg->header.stamp = ros::Time::now();
+    edge_msg->header.frame_id = "map";
+    edge_msg->ns = "conformal_lattice_edges";
+    edge_msg->id = i;
+    edge_msg->type = visualization_msgs::Marker::LINE_STRIP;
+    edge_msg->action = visualization_msgs::Marker::ADD;
+    edge_msg->lifetime = ros::Duration(0.0);
+    edge_msg->frame_locked = false;
+    edge_msg->pose.orientation.w = 1.0;
+    edge_msg->scale.x = 0.5;
+    edge_msg->scale.y = 0.5;
+    edge_msg->scale.z = 0.5;
+    edge_msg->color = edge_color;
+
+    populatePathMsg(edge, edge_msg);
+    edges_msg->markers.push_back(*edge_msg);
+  }
+
+  if (edges.size() < edge_num) {
+    for (size_t i = edges.size(); i < edge_num; ++i) {
+      visualization_msgs::MarkerPtr edge_msg(new visualization_msgs::Marker);
+      edge_msg->header.stamp = ros::Time::now();
+      edge_msg->header.frame_id = "map";
+      edge_msg->ns = "conformal_lattice_edges";
+      edge_msg->id = i;
+      edge_msg->type = visualization_msgs::Marker::LINE_STRIP;
+      edge_msg->action = visualization_msgs::Marker::DELETE;
+      edge_msg->lifetime = ros::Duration(0.0);
+      edge_msg->frame_locked = false;
+      edges_msg->markers.push_back(*edge_msg);
+    }
+  }
+
+  edge_num = edges.size();
+
+  visualization_msgs::MarkerArrayPtr conformal_lattice_msg(
+      new visualization_msgs::MarkerArray);
+  conformal_lattice_msg->markers.push_back(*nodes_msg);
+  conformal_lattice_msg->markers.insert(
+      conformal_lattice_msg->markers.end(),
+      edges_msg->markers.begin(),
+      edges_msg->markers.end());
+
+  return conformal_lattice_msg;
+}
+
 } // End namespace node.

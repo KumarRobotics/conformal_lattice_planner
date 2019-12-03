@@ -128,4 +128,8 @@ visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
 visualization_msgs::MarkerArrayPtr createSpatiotemporalLatticeMsg(
     const boost::shared_ptr<const planner::SpatiotemporalLatticePlanner>&);
 
+visualization_msgs::MarkerArrayPtr createConformalLatticeMsg(
+    const std::vector<boost::shared_ptr<const planner::WaypointNode>>& nodes,
+    const std::vector<planner::ContinuousPath>& edges);
+
 } // End namespace node.
