@@ -114,8 +114,8 @@ const int Vertex::relativeLanePosition(
 
   while (node) {
     if (node->id() == other_node->id()) return 0;
-    if (node->left()->id() == other_node->id()) return -1;
-    if (node->right()->id() == other_node->id()) return 1;
+    if (node->left() && node->left()->id()==other_node->id()) return -1;
+    if (node->right() && node->right()->id()==other_node->id()) return 1;
 
     node = node->back();
   }
@@ -292,6 +292,8 @@ DiscretePath SLCLatticePlanner::planPath(
 bool SLCLatticePlanner::immediateNextVertexReached(
     const Snapshot& snapshot) const {
 
+  //std::printf("immediateNextVertexReached()\n");
+
   boost::shared_ptr<const WaypointLattice> waypoint_lattice =
     boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
 
@@ -311,6 +313,8 @@ bool SLCLatticePlanner::immediateNextVertexReached(
 }
 
 void SLCLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
+
+  //std::printf("updateWaypointLattice(): \n");
 
   // If the waypoint lattice has not been initialized, a new one is created with
   // the start waypoint as where the ego currently is. Meanwhile, the range of
