@@ -106,28 +106,27 @@ void Vertex::updateRightChild(
   return;
 }
 
-const bool Vertex::sameLaneWithRoot(
-    const boost::shared_ptr<const Vertex>& root) const {
+const int Vertex::relativeLanePosition(
+    const boost::shared_ptr<const Vertex>& other) const {
 
   boost::shared_ptr<const WaypointNode> node = node_.lock();
-  boost::shared_ptr<const WaypointNode> root_node = root->node();
+  boost::shared_ptr<const WaypointNode> other_node = other->node();
 
   while (node) {
-    if (node->id() == root_node->id()) return true;
-    if (node->left()->id() == root_node->id()) return false;
-    if (node->right()->id() == root_node->id()) return false;
+    if (node->id() == other_node->id()) return 0;
+    if (node->left()->id() == other_node->id()) return -1;
+    if (node->right()->id() == other_node->id()) return 1;
 
     node = node->back();
   }
 
-  // There must be something wrong if we cannnot find the root
-  // node by looking backwards.
   std::string error_msg(
-      "Vertex::sameLaneWithRoot(): "
-      "Cannot find the root node by looking backwards.\n");
-  throw std::runtime_error(error_msg + this->string());
+      "Vertex::relativeLanePosition(): "
+      "Cannot identify the relative lane position of the two vertices.\n");
+  throw std::runtime_error(error_msg +
+      node->string("this node:\n") + other_node->string("other node:\n"));
 
-  return false;
+  return 0;
 }
 
 std::string Vertex::string(const std::string& prefix) const {
@@ -235,6 +234,646 @@ std::vector<ContinuousPath> SLCLatticePlanner::edges() const {
   }
 
   return paths_in_graph;
+}
+
+DiscretePath SLCLatticePlanner::planPath(
+    const size_t ego, const Snapshot& snapshot) {
+
+  if (ego != snapshot.ego().id()) {
+    std::string error_msg(
+        "SLCLatticePlanner::planPath(): "
+        "The SLC lattice planner can only plan for the ego.\n");
+    std::string id_msg = (boost::format(
+          "Target vehicle ID:%1% Ego vehicle ID:%2%\n")
+        % ego % snapshot.ego().id()).str();
+
+    throw std::runtime_error(error_msg + id_msg);
+  }
+
+  // Update the waypoint lattice.
+  updateWaypointLattice(snapshot);
+
+  // Prune the vertex graph from the last planning step.
+  std::deque<boost::shared_ptr<Vertex>> vertex_queue = pruneVertexGraph(snapshot);
+
+  // In the case that no immedinate front nodes can be connected.
+  // We have to start fresh.
+  if (vertex_queue.size() == 0) {
+    std::string warning_msg;
+    warning_msg += snapshot.string("Input snapshot:\n");
+    std::printf("SLCLatticePlanner::planPath(): WARNING\n"
+                "The ego cannot reach any immediate next nodes. Restart fresh.\n"
+                "%s", warning_msg.c_str());
+
+    waypoint_lattice_ = nullptr;
+    all_vertices_.clear();
+
+    updateWaypointLattice(snapshot);
+    vertex_queue = pruneVertexGraph(snapshot);
+  }
+
+  // Construct the vertex graph.
+  constructVertexGraph(vertex_queue);
+
+  // Select the optimal path sequence from the vertex graph.
+  std::list<ContinuousPath> optimal_path_seq;
+  std::list<boost::weak_ptr<Vertex>> optimal_vertex_seq;
+  selectOptimalPath(optimal_path_seq, optimal_vertex_seq);
+
+  // Merge the path sequence into one discrete path.
+  DiscretePath optimal_path = mergePaths(optimal_path_seq);
+
+  // Update the cached next vertex.
+  cached_next_vertex_ = *(++optimal_vertex_seq.begin());
+
+  return optimal_path;
+}
+
+bool SLCLatticePlanner::immediateNextVertexReached(
+    const Snapshot& snapshot) const {
+
+  boost::shared_ptr<const WaypointLattice> waypoint_lattice =
+    boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
+
+  // Find out the current distance of the ego on the lattice.
+  boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
+      fast_map_->waypoint(snapshot.ego().transform().location),
+      waypoint_lattice->longitudinalResolution());
+  const double ego_distance = ego_node->distance();
+
+  // Find out the distance the ego need to achieve.
+  const double target_distance = cached_next_vertex_.lock()->node().lock()->distance();
+
+  // If the difference is less than 0.5, or the ego has travelled beyond the
+  // the target distance, the immediate vertex is considered to be reached.
+  if (target_distance-ego_distance < 0.5) return true;
+  else return false;
+}
+
+void SLCLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
+
+  // If the waypoint lattice has not been initialized, a new one is created with
+  // the start waypoint as where the ego currently is. Meanwhile, the range of
+  // the lattice is set to the spatial horizon. The resolution is hardcoded as 1.0m.
+  if (!waypoint_lattice_) {
+    //std::printf("Create new waypoint lattice.\n");
+    boost::shared_ptr<CarlaWaypoint> ego_waypoint =
+      fast_map_->waypoint(snapshot.ego().transform().location);
+    waypoint_lattice_ = boost::make_shared<WaypointLattice>(
+        ego_waypoint, spatial_horizon_+30.0, 1.0, router_);
+    return;
+  }
+
+  // If the waypoint lattice has been created before, we will choose to either
+  // update the lattice or leave it as it currently is based on whether the ego
+  // has reached one of the child vertices of the root.
+  if (immediateNextVertexReached(snapshot)) {
+    boost::shared_ptr<const WaypointLattice> waypoint_lattice =
+      boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
+
+    boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
+        fast_map_->waypoint(snapshot.ego().transform().location),
+        waypoint_lattice->longitudinalResolution());
+    //std::printf("Shift the lattice by %f\n", ego_node->distance()-5.0);
+    const double shift_distance = ego_node->distance() - 5.0;
+    waypoint_lattice_->shift(shift_distance);
+  }
+
+  return;
+}
+
+std::deque<boost::shared_ptr<Vertex>>
+  SLCLatticePlanner::pruneVertexGraph(const Snapshot& snapshot) {
+
+  //std::printf("pruneVertexGraph(): \n");
+
+  // Stores the vertices to be explored.
+  std::deque<boost::shared_ptr<Vertex>> vertex_queue;
+
+  // There are two cases we can basically start fresh in constructing the vertex graph:
+  // 1) This is the first time the \c plan() interface is called.
+  // 2) The ego reached one of the immediate child of the root vertex.
+  if ((!root_.lock()) || immediateNextVertexReached(snapshot)) {
+    all_vertices_.clear();
+
+    // Initialize the new root vertex.
+    boost::shared_ptr<Vertex> root =
+      boost::make_shared<Vertex>(snapshot, waypoint_lattice_, fast_map_);
+    all_vertices_.push_back(root);
+    root_ = root;
+
+    vertex_queue.push_back(root);
+    return vertex_queue;
+  }
+
+  // If the ego is in the progress of approaching one of the immedidate
+  // child of the root node, we have to keep these immediate child nodes
+  // where they are.
+
+  // Create the new root vertex.
+  boost::shared_ptr<Vertex> new_root =
+    boost::make_shared<Vertex>(snapshot, waypoint_lattice_, fast_map_);
+
+  // Read the immedinate next waypoint node to be reached.
+  boost::shared_ptr<const WaypointNode> next_node =
+    cached_next_vertex_.lock()->node().lock();
+  const double distance_to_next_node =
+    next_node->distance() - new_root->node().lock()->distance();
+
+  // Find the next nodes to be reached.
+  boost::shared_ptr<const WaypointNode> front_node =
+    waypoint_lattice_->front(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> left_front_node =
+    waypoint_lattice_->frontLeft(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> right_front_node =
+    waypoint_lattice_->frontRight(new_root->node().lock()->waypoint(), distance_to_next_node);
+
+  // Clear all old vertices.
+  // We are good with the previously created nodes. All vertices will be newly created.
+  all_vertices_.clear();
+
+  // Try to connect the new root with above nodes.
+  boost::shared_ptr<Vertex> front_vertex =
+    connectVertexToFrontNode(new_root, front_node);
+  boost::shared_ptr<Vertex> left_front_vertex =
+    connectVertexToLeftFrontNode(new_root, left_front_node);
+  boost::shared_ptr<Vertex> right_front_vertex =
+    connectVertexToRightFrontNode(new_root, right_front_node);
+
+  // Save the new root to the graph.
+  root_ = new_root;
+  all_vertices_.push_back(new_root);
+
+  // Save the newly created vertices to the graph and queue
+  // if they are successfully created.
+  if (front_vertex) {
+    all_vertices_.push_back(front_vertex);
+    if (front_vertex->node().lock()->id() == front_node->id())
+      vertex_queue.push_back(front_vertex);
+  }
+
+  if (left_front_vertex) {
+    all_vertices_.push_back(left_front_vertex);
+    if (left_front_vertex->node().lock()->id() == left_front_node->id())
+      vertex_queue.push_back(left_front_vertex);
+  }
+
+  if (right_front_vertex) {
+    all_vertices_.push_back(right_front_vertex);
+    if (right_front_vertex->node().lock()->id() == right_front_node->id())
+      vertex_queue.push_back(right_front_vertex);
+  }
+
+  return vertex_queue;
+}
+
+void SLCLatticePlanner::constructVertexGraph(
+    std::deque<boost::shared_ptr<Vertex>>& vertex_queue) {
+
+  //std::printf("constructVertexGraph(): \n");
+
+  auto addVertexToGraphAndQueue = [this, &vertex_queue](
+      const boost::shared_ptr<Vertex>& vertex,
+      const boost::shared_ptr<const WaypointNode>& node)->void{
+    if ((!vertex) || (!node)) return;
+
+    all_vertices_.push_back(vertex);
+    if (vertex->node().lock()->id() == node->id())
+      vertex_queue.push_back(vertex);
+  };
+
+  while (!vertex_queue.empty()) {
+    boost::shared_ptr<Vertex> vertex = vertex_queue.front();
+    vertex_queue.pop_front();
+
+    // Try to connect to the front node.
+    boost::shared_ptr<const WaypointNode> front_node =
+      waypoint_lattice_->front(vertex->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Vertex> front_vertex =
+      connectVertexToFrontNode(vertex, front_node);
+
+    addVertexToGraphAndQueue(front_vertex, front_node);
+
+    // Check if the vertex is on the same lane with the root.
+    // If not, no lane change options will be allowed further.
+    if (vertex->relativeLanePosition(root_.lock()) != 0) continue;
+
+    // Try to connect to the left front node.
+    boost::shared_ptr<const WaypointNode> left_front_node =
+      waypoint_lattice_->frontLeft(vertex->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Vertex> left_front_vertex =
+      connectVertexToLeftFrontNode(vertex, left_front_node);
+
+    addVertexToGraphAndQueue(left_front_vertex, left_front_node);
+
+    // Try to connect to the right front node.
+    boost::shared_ptr<const WaypointNode> right_front_node =
+      waypoint_lattice_->frontRight(vertex->node().lock()->waypoint(), 50.0);
+    boost::shared_ptr<Vertex> right_front_vertex =
+      connectVertexToRightFrontNode(vertex, right_front_node);
+
+    addVertexToGraphAndQueue(right_front_vertex, right_front_node);
+  }
+
+  return;
+}
+
+boost::shared_ptr<Vertex> SLCLatticePlanner::connectVertexToFrontNode(
+    const boost::shared_ptr<Vertex>& vertex,
+    const boost::shared_ptr<const WaypointNode>& target_node) {
+
+  //std::printf("connectVertexToFrontNode(): \n");
+
+  // Return directly if the target node does not exist.
+  if (!target_node) return nullptr;
+
+  // Plan a path between the node at the current vertex to the target node.
+  //std::printf("Compute Kelly-Nagy path.\n");
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        std::make_pair(vertex->snapshot().ego().transform(),
+                       vertex->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
+        ContinuousPath::LaneChangeType::KeepLane);
+  } catch (std::exception& e) {
+    // If for whatever reason, the path cannot be created, the vertex
+    // cannot be created either.
+    std::printf("%s", e.what());
+    return nullptr;
+  }
+
+  // Now, simulate the traffic forward with ego following the created path.
+  //std::printf("Simulate the traffic.\n");
+  SLCTrafficSimulator simulator(vertex->snapshot(), map_, fast_map_);
+  double simulation_time = 0.0; double stage_cost = 0.0;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch(std::exception& e) {
+    std::printf("SLCLatticePlanner::connectVertexToFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
+
+  // A new vertex should be created.
+  //std::printf("Create child vertex.\n");
+  boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
+
+  // Set the child vertex of the parent vertex.
+  //std::printf("Update the child vertex of the input vertex.\n");
+  vertex->updateFrontChild(*path, stage_cost, next_vertex);
+
+  // Set the parent vertex of the child vertex.
+  //std::printf("Update the parent vertex of the new vertex.\n");
+  next_vertex->updateParent(
+      simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
+
+  return next_vertex;
+}
+
+boost::shared_ptr<Vertex> SLCLatticePlanner::connectVertexToLeftFrontNode(
+    const boost::shared_ptr<Vertex>& vertex,
+    const boost::shared_ptr<const WaypointNode>& target_node) {
+
+  //std::printf("connectVertexToLeftFrontNode(): \n");
+
+  // Return directly if the target node does not exisit.
+  if (!target_node) return nullptr;
+
+  // Return directly if the target node is already very close to the vertex.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return nullptr;
+
+  // Check the left front and left back vehicles.
+  //
+  // If there are vehicles at the left front or left back of the ego,
+  // and those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> left_front =
+    vertex->snapshot().trafficLattice()->leftFront(vertex->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> left_back =
+    vertex->snapshot().trafficLattice()->leftBack(vertex->snapshot().ego().id());
+
+  if (left_front && left_front->second <= 0.0) return nullptr;
+  if (left_back  && left_back->second  <= 0.0) return nullptr;
+
+  // Plan a path between the node at the current vertex to the target node.
+  //std::printf("Compute Kelly-Nagy path.\n");
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        std::make_pair(vertex->snapshot().ego().transform(),
+                       vertex->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
+        ContinuousPath::LaneChangeType::LeftLaneChange);
+  } catch (const std::exception& e) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    std::printf("%s", e.what());
+    return nullptr;
+  }
+
+  // Now, simulate the traffic forward with ego following the created path.
+  //std::printf("Simulate the traffic.\n");
+  SLCTrafficSimulator simulator(vertex->snapshot(), map_, fast_map_);
+  double simulation_time = 0.0; double stage_cost = 0.0;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch (std::exception& e) {
+    std::printf("SLCLatticePlanner::connectVertexToLeftFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
+
+  // Create a new vertex.
+  //std::printf("Create child vertex.\n");
+  boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
+
+  // Set the child vertex of the parent vertex.
+  //std::printf("Update the child vertex of the input vertex.\n");
+  vertex->updateLeftChild(*path, stage_cost, next_vertex);
+
+  // Set the parent vertex of the child vertex.
+  //std::printf("Update the parent vertex of the new vertex.\n");
+  next_vertex->updateParent(
+      simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
+
+  return next_vertex;
+}
+
+boost::shared_ptr<Vertex> SLCLatticePlanner::connectVertexToRightFrontNode(
+    const boost::shared_ptr<Vertex>& vertex,
+    const boost::shared_ptr<const WaypointNode>& target_node) {
+
+  //std::printf("connectVertexToRightFrontNode(): \n");
+
+  // Return directly if the target node does not exisit.
+  if (!target_node) return nullptr;
+
+  // Return directly if the target node is already very close to the vertex.
+  // It is not reasonable to change lane with this short distance.
+  if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return nullptr;
+
+  // Check the right front and right back vehicles.
+  //
+  // If there are vehicles at the right front or right back of the ego,
+  // and those vehicles has non-positive distance to the ego, we will
+  // ignore this path option.
+  //
+  // TODO: Should we increase the margin of the check?
+  boost::optional<std::pair<size_t, double>> right_front =
+    vertex->snapshot().trafficLattice()->rightFront(vertex->snapshot().ego().id());
+  boost::optional<std::pair<size_t, double>> right_back =
+    vertex->snapshot().trafficLattice()->rightBack(vertex->snapshot().ego().id());
+
+  if (right_front && right_front->second <= 0.0) return nullptr;
+  if (right_back  && right_back->second  <= 0.0) return nullptr;
+
+  // Plan a path between the node at the current vertex to the target node.
+  //std::printf("Compute Kelly-Nagy path.\n");
+  boost::shared_ptr<ContinuousPath> path = nullptr;
+  try {
+    path = boost::make_shared<ContinuousPath>(
+        std::make_pair(vertex->snapshot().ego().transform(),
+                       vertex->snapshot().ego().curvature()),
+        std::make_pair(target_node->waypoint()->GetTransform(),
+                       target_node->curvature(map_)),
+        ContinuousPath::LaneChangeType::RightLaneChange);
+  } catch (std::exception& e) {
+    // If for whatever reason, the path cannot be created,
+    // just ignore this option.
+    std::printf("%s", e.what());
+    return nullptr;
+  }
+
+  // Now, simulate the traffic forward with the ego following the created path.
+  //std::printf("Simulate the traffic.\n");
+  SLCTrafficSimulator simulator(vertex->snapshot(), map_, fast_map_);
+  double simulation_time = 0.0; double stage_cost = 0.0;
+  try {
+    const bool no_collision = simulator.simulate(
+        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+    // There a collision is detected in the simulation, this option is ignored.
+    if (!no_collision) return nullptr;
+  } catch (std::exception& e) {
+    std::printf("SLCLatticePlanner::connectVertexToRightFrontNode(): WARNING\n"
+                "%s", e.what());
+    return nullptr;
+  }
+
+  // Create a new vertex.
+  //std::printf("Create child vertex.\n");
+  boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
+      simulator.snapshot(), waypoint_lattice_, fast_map_);
+
+  // Set the child vertex of the parent vertex.
+  //std::printf("Update the child vertex of the input vertex.\n");
+  vertex->updateRightChild(*path, stage_cost, next_vertex);
+
+  // Set the parent vertex of the child vertex.
+  //std::printf("Update the parent vertex of the new vertex.\n");
+  next_vertex->updateParent(
+      simulator.snapshot(), vertex->costToCome()+stage_cost, vertex);
+
+  return next_vertex;
+}
+
+const double SLCLatticePlanner::terminalSpeedCost(
+    const boost::shared_ptr<Vertex>& vertex) const {
+
+  if (vertex->hasChild()) {
+    std::string error_msg(
+        "SLCLatticePlanner::terminalSpeedCost(): "
+        "The input vertex is not a terminal.\n");
+    throw std::runtime_error(error_msg + vertex->string());
+  }
+
+  static std::unordered_map<int, double> cost_map {
+    {0, 3.0}, {1, 3.0}, {2, 2.0}, {3, 2.0}, {4, 2.0},
+    {5, 2.0}, {6, 1.0}, {7, 1.0}, {8, 0.0}, {9, 0.0},
+  };
+
+  const double ego_speed = vertex->snapshot().ego().speed();
+  const double ego_policy_speed = vertex->snapshot().ego().policySpeed();
+  if (ego_speed < 0.0 || ego_policy_speed < 0.0) {
+    std::string error_msg(
+        "SLCLatticePlanner::terminalSpeedCost(): "
+        "ego speed<0.0 or ego policy speed<0.0.\n");
+    std::string speed_msg = (boost::format(
+          "ego speed:%1% ego policy speed:%2%\n")
+          % ego_speed
+          % ego_policy_speed).str();
+    throw std::runtime_error(error_msg + speed_msg);
+  }
+
+  // FIXME: What if the policy speed is 0.
+  //        Should not worry about this too much here since,
+  //        1) IDM does not support 0 policy speed.
+  //        2) 0 policy speed may cause some invalidity in carla, such as
+  //           looking for a waypoint 0m ahead.
+  const double speed_ratio = ego_speed / ego_policy_speed;
+
+  // There is no cost if the speed of the ego matches or exceeds the policy speed.
+  if (speed_ratio >= 1.0) return 0.0;
+  else return cost_map[static_cast<int>(speed_ratio*10.0)];
+}
+
+const double SLCLatticePlanner::terminalDistanceCost(
+    const boost::shared_ptr<Vertex>& vertex) const {
+
+  if (vertex->hasChild()) {
+    std::string error_msg(
+        "SLCLatticePlanner::terminalDistanceCost(): "
+        "The input vertex is not a terminal.\n");
+    throw std::runtime_error(error_msg + vertex->string());
+  }
+
+  static std::unordered_map<int, double> cost_map {
+    {0, 20.0}, {1, 20.0}, {2, 20.0}, {3, 20.0}, {4, 20.0},
+    {5, 20.0}, {6, 20.0}, {7, 20.0}, {8, 10.0},  {9, 5.0},
+  };
+
+  // Find the current spatial planning horizon.
+  boost::shared_ptr<const Vertex> root_child;
+  if (root_.lock()->hasFrontChild())
+    root_child = std::get<2>(*(root_.lock()->frontChild())).lock();
+  else if (root_.lock()->hasLeftChild())
+    root_child = std::get<2>(*(root_.lock()->leftChild())).lock();
+  else if (root_.lock()->hasRightChild())
+    root_child = std::get<2>(*(root_.lock()->rightChild())).lock();
+
+  const double spatial_horizon =
+    spatial_horizon_ - 50.0 +
+    root_child->node()->distance() -
+    root_.lock()->node().lock()->distance();
+
+  const double distance = vertex->node().lock()->distance() -
+                          root_.lock()->node().lock()->distance();
+
+  const double distance_ratio = distance / spatial_horizon;
+  std::printf("vertex distance:%f spatial horizon:%f distance ratio: %f\n",
+      distance, spatial_horizon, distance_ratio);
+
+  if (distance_ratio >= 1.0) return 0.0;
+  else return cost_map[static_cast<int>(distance_ratio*10.0)];
+}
+
+const double SLCLatticePlanner::costFromRootToTerminal(
+    const boost::shared_ptr<Vertex>& terminal) const {
+
+  if (terminal->hasChild()) {
+    std::string error_msg(
+        "SLCLatticePlanner::costFromRootToTerminal(): "
+        "The input vertex is not a terminal.\n");
+    throw std::runtime_error(error_msg + terminal->string());
+  }
+
+  const double path_cost = terminal->costToCome();
+  const double terminal_speed_cost = terminalSpeedCost(terminal);
+  const double terminal_distance_cost = terminalDistanceCost(terminal);
+  std::printf("path cost: %f speed cost: %f distance cost:%f\n",
+      path_cost, terminal_speed_cost, terminal_distance_cost);
+
+  // TODO: Weight the cost properly.
+  return path_cost + terminal_speed_cost + terminal_distance_cost;
+}
+
+void SLCLatticePlanner::selectOptimalPath(
+    std::list<ContinuousPath>& path_sequence,
+    std::list<boost::weak_ptr<Vertex>>& vertex_sequence) const {
+
+  //std::printf("selectOptimalPath():\n");
+
+  //std::printf("Find optimal terminal vertex.\n");
+  // Find the optimal terminal vertex.
+  boost::shared_ptr<Vertex> optimal_vertex = nullptr;
+  double optimal_cost = 1.0e10;
+
+  for (const auto& vertex : all_vertices_) {
+    if (vertex->hasChild()) continue;
+    const double vertex_cost = costFromRootToTerminal(vertex);
+
+    // Update the terminal vertex if the candidate has smaller cost.
+    if (vertex_cost < optimal_cost) {
+      optimal_vertex = vertex;
+      optimal_cost = vertex_cost;
+    }
+  }
+
+  // The optimal vertex should be set no matter what.
+  if (!optimal_vertex) {
+    throw std::runtime_error(
+        "SLCLatticePlanner::selectOptimalPath(): "
+        "no terminal vertex in the graph.\n");
+  }
+
+  // There should always be a parent vertex for a terminal vertex.
+  if (!optimal_vertex->hasParent()) {
+    throw std::runtime_error(
+        "SLCLatticePlanner::selectOptimalPath(): "
+        "the graph only has root vertex.\n");
+  }
+
+  // Trace back from the terminal vertex to find all the paths.
+  path_sequence.clear();
+  vertex_sequence.clear();
+
+  boost::shared_ptr<Vertex> vertex = optimal_vertex;
+  vertex_sequence.push_front(boost::weak_ptr<Vertex>(vertex));
+
+  //std::printf("Trace back parent vertex.\n");
+  while (vertex->hasParent()) {
+
+    boost::shared_ptr<Vertex> parent_vertex =
+      std::get<2>((*(vertex->parent()))).lock();
+    if (!parent_vertex) {
+      std::string error_msg(
+          "SLCLatticePlanner::selectOptimalPath(): "
+          "cannot find parent when tracing back optimal path from the vertex.\n");
+      throw std::runtime_error(error_msg + vertex->string());
+    }
+
+    // Insert the parent vertex to the queue.
+    vertex_sequence.push_front(boost::weak_ptr<Vertex>(parent_vertex));
+
+    // Insert the path between the parent and this vertex to the queue.
+    const int relative_lane_position = vertex->relativeLanePosition(parent_vertex);
+
+    if (relative_lane_position == 0) {
+      path_sequence.push_front(std::get<0>(*(parent_vertex->frontChild())));
+    } else if (relative_lane_position == 1) {
+      path_sequence.push_front(std::get<0>(*(parent_vertex->leftChild())));
+    } else {
+      path_sequence.push_front(std::get<0>(*(parent_vertex->rightChild())));
+    }
+
+    vertex = parent_vertex;
+  }
+
+  return;
+}
+
+DiscretePath SLCLatticePlanner::mergePaths(
+    const std::list<ContinuousPath>& paths) const {
+
+  DiscretePath path(paths.front());
+  for (std::list<ContinuousPath>::const_iterator iter = ++(paths.begin());
+       iter != paths.end(); ++iter) path.append(*iter);
+  return path;
 }
 
 } // End namespace slc_lattice_planner.

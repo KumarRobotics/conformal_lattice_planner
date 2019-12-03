@@ -143,6 +143,26 @@ public:
     return;
   }
 
+  Vertex(const Snapshot& snapshot,
+         const boost::shared_ptr<const WaypointLattice>& waypoint_lattice,
+         const boost::shared_ptr<utils::FastWaypointMap>& fast_map) :
+    snapshot_(snapshot) {
+    boost::shared_ptr<const WaypointNode> node = waypoint_lattice->closestNode(
+        fast_map->waypoint(snapshot.ego().transform().location),
+        waypoint_lattice->longitudinalResolution());
+    if (!node) {
+      std::string error_msg(
+          "Vertex::Vertex(): "
+          "cannot find a node on the waypoint lattice corresponding to the ego location.\n");
+      throw std::runtime_error(
+          error_msg +
+          snapshot.string("snapshot: \n") +
+          waypoint_lattice->string("waypoint lattice: \n"));
+    }
+    node_ = node;
+    return;
+  }
+
   boost::shared_ptr<const WaypointNode> node() const { return node_.lock(); }
   boost::weak_ptr<const WaypointNode>& node() { return node_; }
 
@@ -190,8 +210,20 @@ public:
                         const double stage_cost,
                         const boost::shared_ptr<Vertex>& child_vertex);
 
-  /// Check if the vertex is one the same lane with the root vertex.
-  const bool sameLaneWithRoot(const boost::shared_ptr<const Vertex>& root) const;
+  /**
+   * \brief Check if the relative lane position between this vertex and the given vertex.
+   *
+   * \param[in] other The other vertex, the node of which should be on the
+   *                  back of this vertex on the waypoint lattice.
+   * \return  0 If the two vertices are on the same lane.
+   *          1 If this vertex if on the left of the other vertex.
+   *         -1 If this vertex if on the right of the other vertex.
+   *
+   * The function throws a runtime exception if the relative lane positions of the
+   * two vertices cannot be identified.
+   */
+  const int relativeLanePosition(
+      const boost::shared_ptr<const Vertex>& other) const;
 
   std::string string(const std::string& prefix = "") const;
 
@@ -235,7 +267,7 @@ protected:
   boost::shared_ptr<WaypointLattice> waypoint_lattice_ = nullptr;
 
   /// Stores all the constructed vertices.
-  std::list<boost::shared_ptr<Vertex>> all_vertices_;
+  std::vector<boost::shared_ptr<Vertex>> all_vertices_;
 
   /**
    * \brief The root vertex in the vertex graph.
