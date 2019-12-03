@@ -243,7 +243,7 @@ DiscretePath IDMLatticePlanner::planPath(
 
   if (ego != snapshot.ego().id()) {
     std::string error_msg(
-        "IDMLatticePlanner::plan(): "
+        "IDMLatticePlanner::planPath(): "
         "The IDM lattice planner can only plan for the ego.\n");
     std::string id_msg = (boost::format(
           "Target vehicle ID:%1% Ego vehicle ID:%2%\n")
@@ -778,7 +778,7 @@ const double IDMLatticePlanner::terminalDistanceCost(
 
   if (station->hasChild()) {
     std::string error_msg(
-        "IDMLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::terminalDistanceCost(): "
         "The input station is not a terminal.\n");
     throw std::runtime_error(error_msg + station->string());
   }
@@ -822,7 +822,7 @@ const double IDMLatticePlanner::costFromRootToTerminal(
 
   if (terminal->hasChild()) {
     std::string error_msg(
-        "IDMLatticePlanner::terminalSpeedCost(): "
+        "IDMLatticePlanner::costFromRootToTerminal(): "
         "The input station is not a terminal.\n");
     throw std::runtime_error(error_msg + terminal->string());
   }
