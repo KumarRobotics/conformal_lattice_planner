@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <set>
 #include <list>
+#include <planner/common/utils.h>
 #include <planner/slc_lattice_planner/slc_lattice_planner.h>
 
 namespace planner {
@@ -164,6 +166,75 @@ std::string Vertex::string(const std::string& prefix) const {
   else output += "\n";
 
   return output;
+}
+
+std::vector<boost::shared_ptr<const WaypointNode>> SLCLatticePlanner::nodes() const {
+  // Different vertices can be at the same waypoint node on the lattice.
+  // The function only return nonrepeated waypoint nodes.
+  std::set<size_t> visited_nodes;
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes_in_graph;
+
+  for (const auto& vertex : all_vertices_) {
+    boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+    if (visited_nodes.count(node->id()) > 0) continue;
+
+    nodes_in_graph.push_back(node);
+    visited_nodes.insert(node->id());
+  }
+
+  return nodes_in_graph;
+}
+
+std::vector<ContinuousPath> SLCLatticePlanner::edges() const {
+  // Two different pair of vertices may share the same path since they are
+  // at the same pair of waypoint nodes. This function only returns the
+  // nonrepeated paths.
+  std::set<size_t> visited_paths;
+  std::vector<ContinuousPath> paths_in_graph;
+
+  auto insertPath = [&visited_paths, &paths_in_graph](
+      const boost::shared_ptr<const WaypointNode>& parent_node,
+      const boost::shared_ptr<const WaypointNode>& child_node,
+      const ContinuousPath& path)->void{
+    size_t path_id = 0;
+    utils::hashCombine(path_id, parent_node->id(), child_node->id());
+
+    if (visited_paths.count(path_id) > 0) return;
+    paths_in_graph.push_back(path);
+    visited_paths.insert(path_id);
+  };
+
+  for (const auto& vertex : all_vertices_) {
+
+    // Add the path to the front child vertex.
+    if (vertex->hasFrontChild()) {
+      boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+      boost::shared_ptr<const WaypointNode> child_node =
+        std::get<2>(*(vertex->frontChild())).lock()->node().lock();
+      const ContinuousPath& path = std::get<0>(*(vertex->frontChild()));
+      insertPath(node, child_node, path);
+    }
+
+    // Add the path to the left child vertex.
+    if (vertex->hasLeftChild()) {
+      boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+      boost::shared_ptr<const WaypointNode> child_node =
+        std::get<2>(*(vertex->leftChild())).lock()->node().lock();
+      const ContinuousPath& path = std::get<0>(*(vertex->leftChild()));
+      insertPath(node, child_node, path);
+    }
+
+    // Add the path to the right child vertex.
+    if (vertex->hasRightChild()) {
+      boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+      boost::shared_ptr<const WaypointNode> child_node =
+        std::get<2>(*(vertex->rightChild())).lock()->node().lock();
+      const ContinuousPath& path = std::get<0>(*(vertex->rightChild()));
+      insertPath(node, child_node, path);
+    }
+  }
+
+  return paths_in_graph;
 }
 
 } // End namespace slc_lattice_planner.
