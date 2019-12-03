@@ -333,7 +333,7 @@ public:
 
   /// Get all the stations constructed by the planner. The order of the
   /// stations are not guaranteed.
-  std::vector<boost::shared_ptr<const Station>> stations() const;
+  //std::vector<boost::shared_ptr<const Station>> stations() const;
 
   /// Get the waypoint lattice constructed by the planner.
   boost::shared_ptr<const WaypointLattice> waypointLattice() const {
