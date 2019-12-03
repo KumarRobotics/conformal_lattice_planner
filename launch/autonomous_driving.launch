@@ -10,6 +10,7 @@
   <arg name="ego_lane_follower" default="false"/>
   <arg name="ego_idm_lattice_planner" default="false"/>
   <arg name="ego_spatiotemporal_lattice_planner" default="false"/>
+  <arg name="ego_slc_lattice_planner" default="false"/>
 
   <!-- Which agents planner to use -->
   <!-- Only one of the variables should be true -->
@@ -71,6 +72,14 @@
 
   <group if="$(arg ego_spatiotemporal_lattice_planner)">
     <include file="$(find conformal_lattice_planner)/launch/ego_spatiotemporal_lattice_planning.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+    </include>
+  </group>
+
+  <group if="$(arg ego_slc_lattice_planner)">
+    <include file="$(find conformal_lattice_planner)/launch/ego_slc_lattice_planning.launch">
       <arg name="host" value="$(arg host)"/>
       <arg name="port" value="$(arg port)"/>
       <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>

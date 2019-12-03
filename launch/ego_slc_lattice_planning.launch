@@ -1,0 +1,21 @@
+<launch>
+  <arg name="host" default="localhost"/>
+  <arg name="port" default="2000"/>
+  <arg name="fixed_delta_seconds" default="0.05"/>
+
+  <group ns="carla">
+    <node pkg="conformal_lattice_planner"
+      type="ego_slc_lattice_planning_node"
+      name="ego_slc_lattice_planner"
+      output="screen">
+
+      <env name="CPUPROFILE_FREQUENCY" value="100"/>
+
+      <param name="host" value="$(arg host)"/>
+      <param name="port" value="$(arg port)"/>
+      <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+
+      <remap from="~ego_plan" to="carla_simulator/ego_plan"/>
+    </node>
+  </group>
+</launch>
