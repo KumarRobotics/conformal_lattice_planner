@@ -850,9 +850,6 @@ void IDMLatticePlanner::selectOptimalPath(
     //std::printf("=============================================\n");
 
     // Update the optimal station if the candidate has small cost.
-    // Here we assume terminal station always has at least one parent station.
-    // Otherwise, there is just on root station in the graph.
-    // FIXME: Add the terminal cost as well.
     if (station_cost < optimal_cost) {
       optimal_station = station;
       optimal_cost = station_cost;

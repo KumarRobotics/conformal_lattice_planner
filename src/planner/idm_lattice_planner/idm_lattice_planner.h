@@ -346,7 +346,7 @@ public:
   /// Get the nodes on the lattice, corresponding to the stations.
   std::vector<boost::shared_ptr<const WaypointNode>> nodes() const;
 
-  /// Get the edges on the lattice, corresponding to the path.
+  /// Get the edges on the lattice, corresponding to the paths.
   std::vector<ContinuousPath> edges() const;
 
   virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
