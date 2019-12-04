@@ -1052,13 +1052,23 @@ const double SpatiotemporalLatticePlanner::terminalDistanceCost(
   }
 
   static std::unordered_map<int, double> cost_map {
-    {0, 10.0}, {1, 10.0}, {2, 8.0}, {3, 8.0}, {4, 6.0},
-    {5,  6.0}, {6,  4.0}, {7, 4.0}, {8, 2.0}, {9, 1.0},
+    {0, 20.0}, {1, 20.0}, {2, 20.0}, {3, 20.0}, {4, 20.0},
+    {5, 20.0}, {6, 20.0}, {7, 20.0}, {8, 10.0},  {9, 5.0},
   };
-  //static std::unordered_map<int, double> cost_map {
-  //  {0, 8.0}, {1, 7.0}, {2, 6.0}, {3, 5.0}, {4, 5.0},
-  //  {5, 3.0}, {6, 2.0}, {7, 2.0}, {8, 1.0}, {9, 1.0},
-  //};
+
+  // Find the current spatial planning horizon.
+  boost::shared_ptr<const Vertex> root_child;
+  if (root_.lock()->hasFrontChildren())
+    root_child = std::get<3>(root_.lock()->validFrontChildren().front()).lock();
+  else if (root_.lock()->hasLeftChildren())
+    root_child = std::get<3>(root_.lock()->validLeftChildren().front()).lock();
+  else if (root_.lock()->hasRightChildren())
+    root_child = std::get<3>(root_.lock()->validRightChildren().front()).lock();
+
+  const double spatial_horizon =
+    spatial_horizon_ - 50.0 +
+    root_child->node()->distance() -
+    root_.lock()->node().lock()->distance();
 
   const double distance = vertex->node().lock()->distance() -
                           root_.lock()->node().lock()->distance();
