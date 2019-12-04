@@ -106,22 +106,33 @@ void Vertex::updateRightChild(
   return;
 }
 
-const int Vertex::relativeLanePosition(
+const bool Vertex::sameLaneWith(
     const boost::shared_ptr<const Vertex>& other) const {
 
-  boost::shared_ptr<const WaypointNode> node = node_.lock();
+  boost::shared_ptr<const WaypointNode> this_node = node_.lock();
   boost::shared_ptr<const WaypointNode> other_node = other->node();
+  boost::shared_ptr<const WaypointNode> node;
 
+  // Search backwards.
+  node = this_node;
   while (node) {
-    if (node->id() == other_node->id()) return 0;
-    if (node->left() && node->left()->id()==other_node->id()) return -1;
-    if (node->right() && node->right()->id()==other_node->id()) return 1;
-
+    if (node->id() == other_node->id()) return true;
+    if (node->left() && node->left()->id()==other_node->id()) return false;
+    if (node->right() && node->right()->id()==other_node->id()) return false;
     node = node->back();
   }
 
+  // Search forward.
+  node = this_node;
+  while (node) {
+    if (node->id() == other_node->id()) return true;
+    if (node->left() && node->left()->id()==other_node->id()) return false;
+    if (node->right() && node->right()->id()==other_node->id()) return false;
+    node = node->front();
+  }
+
   std::string error_msg(
-      "Vertex::relativeLanePosition(): "
+      "Vertex::sameLaneWith(): "
       "Cannot identify the relative lane position of the two vertices.\n");
   throw std::runtime_error(error_msg +
       node->string("this node:\n") + other_node->string("other node:\n"));
@@ -460,7 +471,7 @@ void SLCLatticePlanner::constructVertexGraph(
 
     // Check if the vertex is on the same lane with the root.
     // If not, no lane change options will be allowed further.
-    if (vertex->relativeLanePosition(root_.lock()) != 0) continue;
+    if (!(vertex->sameLaneWith(root_.lock()))) continue;
 
     // Try to connect to the left front node.
     boost::shared_ptr<const WaypointNode> left_front_node =
@@ -769,8 +780,8 @@ const double SLCLatticePlanner::terminalDistanceCost(
                           root_.lock()->node().lock()->distance();
 
   const double distance_ratio = distance / spatial_horizon;
-  std::printf("vertex distance:%f spatial horizon:%f distance ratio: %f\n",
-      distance, spatial_horizon, distance_ratio);
+  //std::printf("vertex distance:%f spatial horizon:%f distance ratio: %f\n",
+  //    distance, spatial_horizon, distance_ratio);
 
   if (distance_ratio >= 1.0) return 0.0;
   else return cost_map[static_cast<int>(distance_ratio*10.0)];
@@ -789,8 +800,8 @@ const double SLCLatticePlanner::costFromRootToTerminal(
   const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
   const double terminal_distance_cost = terminalDistanceCost(terminal);
-  std::printf("path cost: %f speed cost: %f distance cost:%f\n",
-      path_cost, terminal_speed_cost, terminal_distance_cost);
+  //std::printf("path cost: %f speed cost: %f distance cost:%f\n",
+  //    path_cost, terminal_speed_cost, terminal_distance_cost);
 
   // TODO: Weight the cost properly.
   return path_cost + terminal_speed_cost + terminal_distance_cost;
@@ -832,6 +843,20 @@ void SLCLatticePlanner::selectOptimalPath(
         "the graph only has root vertex.\n");
   }
 
+  // Lambda functions to get the child vertex IDs given a parent vertex.
+  auto frontChildId = [this](const boost::shared_ptr<Vertex>& vertex)->boost::optional<size_t>{
+    if (!(vertex->frontChild())) return boost::none;
+    else return std::get<2>(*(vertex->frontChild())).lock()->node().lock()->id();
+  };
+  auto leftChildId = [this](const boost::shared_ptr<Vertex>& vertex)->boost::optional<size_t>{
+    if (!(vertex->leftChild())) return boost::none;
+    else return std::get<2>(*(vertex->leftChild())).lock()->node().lock()->id();
+  };
+  auto rightChildId = [this](const boost::shared_ptr<Vertex>& vertex)->boost::optional<size_t>{
+    if (!(vertex->rightChild())) return boost::none;
+    else return std::get<2>(*(vertex->rightChild())).lock()->node().lock()->id();
+  };
+
   // Trace back from the terminal vertex to find all the paths.
   path_sequence.clear();
   vertex_sequence.clear();
@@ -855,17 +880,27 @@ void SLCLatticePlanner::selectOptimalPath(
     vertex_sequence.push_front(boost::weak_ptr<Vertex>(parent_vertex));
 
     // Insert the path between the parent and this vertex to the queue.
-    const int relative_lane_position = vertex->relativeLanePosition(parent_vertex);
-
-    if (relative_lane_position == 0) {
+    if (frontChildId(parent_vertex) &&
+        frontChildId(parent_vertex) == vertex->node().lock()->id()) {
       path_sequence.push_front(std::get<0>(*(parent_vertex->frontChild())));
-    } else if (relative_lane_position == 1) {
-      path_sequence.push_front(std::get<0>(*(parent_vertex->leftChild())));
-    } else {
-      path_sequence.push_front(std::get<0>(*(parent_vertex->rightChild())));
+      vertex = parent_vertex;
+      continue;
     }
 
-    vertex = parent_vertex;
+    if (leftChildId(parent_vertex) &&
+        leftChildId(parent_vertex) == vertex->node().lock()->id()) {
+      path_sequence.push_front(std::get<0>(*(parent_vertex->leftChild())));
+      vertex = parent_vertex;
+      continue;
+    }
+
+    if (rightChildId(parent_vertex) &&
+        rightChildId(parent_vertex) == vertex->node().lock()->id()) {
+      path_sequence.push_front(std::get<0>(*(parent_vertex->rightChild())));
+      vertex = parent_vertex;
+      continue;
+    }
+
   }
 
   return;

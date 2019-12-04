@@ -210,19 +210,8 @@ public:
                         const double stage_cost,
                         const boost::shared_ptr<Vertex>& child_vertex);
 
-  /**
-   * \brief Check if the relative lane position between this vertex and the given vertex.
-   *
-   * \param[in] other The other vertex, the node of which should be on the
-   *                  back of this vertex on the waypoint lattice.
-   * \return  0 If the two vertices are on the same lane.
-   *          1 If this vertex if on the left of the other vertex.
-   *         -1 If this vertex if on the right of the other vertex.
-   *
-   * The function throws a runtime exception if the relative lane positions of the
-   * two vertices cannot be identified.
-   */
-  const int relativeLanePosition(
+  /// Check if the vertex is on the same lane with the \c other.
+  const bool sameLaneWith(
       const boost::shared_ptr<const Vertex>& other) const;
 
   std::string string(const std::string& prefix = "") const;
