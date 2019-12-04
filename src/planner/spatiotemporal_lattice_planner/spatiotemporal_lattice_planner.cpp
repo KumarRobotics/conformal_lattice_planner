@@ -393,7 +393,7 @@ std::vector<ContinuousPath> SpatiotemporalLatticePlanner::edges() const {
 bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
     const Snapshot& snapshot) const {
 
-  std::printf("SpatiotemporalLatticePlanner::immediateNextStationReached()\n");
+  //std::printf("SpatiotemporalLatticePlanner::immediateNextStationReached()\n");
 
   boost::shared_ptr<const WaypointLattice> waypoint_lattice =
     boost::const_pointer_cast<const WaypointLattice>(waypoint_lattice_);
@@ -415,7 +415,7 @@ bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
 
 void SpatiotemporalLatticePlanner::updateWaypointLattice(const Snapshot& snapshot) {
 
-  std::printf("SpatiotemporalLatticePlanner::updateWaypointLattice()\n");
+  //std::printf("SpatiotemporalLatticePlanner::updateWaypointLattice()\n");
 
   // If the waypoint lattice has not been initialized, a new one is created with
   // the start waypoint as where the ego currently is. Meanwhile, the range of
@@ -451,7 +451,7 @@ std::list<std::pair<ContinuousPath, double>>
   SpatiotemporalLatticePlanner::planTraj(
     const size_t ego, const Snapshot& snapshot) {
 
-  std::printf("SpatiotemporalLatticePlanner::planTraj()\n");
+  //std::printf("SpatiotemporalLatticePlanner::planTraj()\n");
 
   if (ego != snapshot.ego().id()) {
     std::string error_msg(
@@ -490,7 +490,7 @@ std::list<std::pair<ContinuousPath, double>>
 DiscretePath SpatiotemporalLatticePlanner::planPath(
     const size_t ego, const Snapshot& snapshot) {
 
-  std::printf("SpatiotemporalLatticePlanner::planPath()\n");
+  //std::printf("SpatiotemporalLatticePlanner::planPath()\n");
 
   std::list<std::pair<ContinuousPath, double>> optimal_traj_seq =
     planTraj(ego, snapshot);
@@ -511,7 +511,7 @@ std::deque<boost::shared_ptr<Vertex>>
   SpatiotemporalLatticePlanner::pruneVertexGraph(
     const Snapshot& snapshot) {
 
-  std::printf("SpatiotemporalLatticePlanner::pruneVertexGraph()\n");
+  //std::printf("SpatiotemporalLatticePlanner::pruneVertexGraph()\n");
 
   // Stores the vertices to be explored.
   std::deque<boost::shared_ptr<Vertex>> vertex_queue;
@@ -572,24 +572,21 @@ std::deque<boost::shared_ptr<Vertex>>
   // Save the newly created vertices to the table and queue
   // if they are successfully created.
   for (const auto& vertex : front_vertices) {
-    if (vertex->node().lock()->id() == front_node->id()) {
-      addVertexToTable(vertex);
+    addVertexToTable(vertex);
+    if (vertex->node().lock()->id() == front_node->id())
       vertex_queue.push_back(vertex);
-    }
   }
 
   for (const auto& vertex : left_front_vertices) {
-    if (vertex->node().lock()->id() == left_front_node->id()) {
-      addVertexToTable(vertex);
+    addVertexToTable(vertex);
+    if (vertex->node().lock()->id() == left_front_node->id())
       vertex_queue.push_back(vertex);
-    }
   }
 
   for (const auto& vertex : right_front_vertices) {
-    if (vertex->node().lock()->id() == right_front_node->id()) {
-      addVertexToTable(vertex);
+    addVertexToTable(vertex);
+    if (vertex->node().lock()->id() == right_front_node->id())
       vertex_queue.push_back(vertex);
-    }
   }
 
   return vertex_queue;
@@ -598,7 +595,7 @@ std::deque<boost::shared_ptr<Vertex>>
 void SpatiotemporalLatticePlanner::constructVertexGraph(
     std::deque<boost::shared_ptr<Vertex>>& vertex_queue) {
 
-  std::printf("SpatiotemporalLatticePlanner::constructVertexGraph()\n");
+  //std::printf("SpatiotemporalLatticePlanner::constructVertexGraph()\n");
 
   auto addVerticesToTableAndQueue = [this, &vertex_queue](
       const std::vector<boost::shared_ptr<Vertex>>& vertices,
@@ -614,10 +611,9 @@ void SpatiotemporalLatticePlanner::constructVertexGraph(
 
       // If the vertex reaches the target node,
       // add the vertex to the queue and table in order to expand later.
-      if (vertex->node().lock()->id() == node->id()) {
-        addVertexToTable(vertex);
+      addVertexToTable(vertex);
+      if (vertex->node().lock()->id() == node->id())
         vertex_queue.push_back(vertex);
-      }
     }
   };
 
@@ -665,7 +661,7 @@ std::vector<boost::shared_ptr<Vertex>>
       const boost::shared_ptr<Vertex>& vertex,
       const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("SpatiotemporalLatticePlanner::connectVertexToFrontNode()\n");
+  //std::printf("SpatiotemporalLatticePlanner::connectVertexToFrontNode()\n");
 
   // Stores the expanded front children of the input vertex.
   std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
@@ -715,10 +711,10 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // Ignore this option if the target node is not reached under this
-    // acceleration option.
-    if (next_vertex->node().lock()->id() != target_node->id())
-      continue;
+    //// Ignore this option if the target node is not reached under this
+    //// acceleration option.
+    //if (next_vertex->node().lock()->id() != target_node->id())
+    //  continue;
 
     // Update the child of the parent vertex.
     vertex->updateFrontChild(*path, accel, stage_cost, next_vertex);
@@ -763,7 +759,7 @@ std::vector<boost::shared_ptr<Vertex>>
     const boost::shared_ptr<Vertex>& vertex,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode()\n");
+  //std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode()\n");
 
   // Stores the expanded left front children of the input vertex.
   std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
@@ -835,10 +831,10 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // Ignore this option if the target node is not reached under this
-    // acceleration option.
-    if (next_vertex->node().lock()->id() != target_node->id())
-      continue;
+    //// Ignore this option if the target node is not reached under this
+    //// acceleration option.
+    //if (next_vertex->node().lock()->id() != target_node->id())
+    //  continue;
 
     // Update the child of the parent vertex.
     vertex->updateLeftChild(*path, accel, stage_cost, next_vertex);
@@ -875,7 +871,7 @@ std::vector<boost::shared_ptr<Vertex>>
     const boost::shared_ptr<Vertex>& vertex,
     const boost::shared_ptr<const WaypointNode>& target_node) {
 
-  std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode()\n");
+  //std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode()\n");
 
   // Stores the expanded right front children of the input vertex.
   std::array<boost::shared_ptr<Vertex>, Vertex::kSpeedIntervalsPerStation_.size()>
@@ -947,10 +943,10 @@ std::vector<boost::shared_ptr<Vertex>>
     boost::shared_ptr<Vertex> similar_vertex = findVertexInTable(next_vertex);
     if (similar_vertex) next_vertex = similar_vertex;
 
-    // Ignore this option if the target node is not reached under this
-    // acceleration option.
-    if (next_vertex->node().lock()->id() != target_node->id())
-      continue;
+    //// Ignore this option if the target node is not reached under this
+    //// acceleration option.
+    //if (next_vertex->node().lock()->id() != target_node->id())
+    //  continue;
 
     // Update the child of the parent vertex.
     vertex->updateRightChild(*path, accel, stage_cost, next_vertex);
@@ -1100,7 +1096,7 @@ void SpatiotemporalLatticePlanner::selectOptimalTraj(
     std::list<std::pair<ContinuousPath, double>>& traj_sequence,
     std::list<boost::weak_ptr<Vertex>>& vertex_sequence) const {
 
-  std::printf("SpatiotemporalLatticePlanner::selectOptimalTraj()\n");
+  //std::printf("SpatiotemporalLatticePlanner::selectOptimalTraj()\n");
 
   //std::printf("Find optimal terminal station.\n");
   boost::shared_ptr<Vertex> optimal_vertex = nullptr;
@@ -1186,7 +1182,7 @@ void SpatiotemporalLatticePlanner::selectOptimalTraj(
 
 DiscretePath SpatiotemporalLatticePlanner::mergePaths(
     const std::list<ContinuousPath>& paths) const {
-  std::printf("SpatiotemporalLatticePlanner::mergePaths()\n");
+  //std::printf("SpatiotemporalLatticePlanner::mergePaths()\n");
   DiscretePath path(paths.front());
   for (std::list<ContinuousPath>::const_iterator iter = ++(paths.begin());
        iter != paths.end(); ++iter) path.append(*iter);
@@ -1198,7 +1194,7 @@ boost::optional<std::pair<ContinuousPath, double>>
     const boost::shared_ptr<Vertex>& parent,
     const boost::shared_ptr<Vertex>& child) const {
 
-  std::printf("SpatiotemporalLatticePlanner::findTrajfromParentToChild()\n");
+  //std::printf("SpatiotemporalLatticePlanner::findTrajfromParentToChild()\n");
 
   // FIXME: The three blocks of code are very similar.
   //        Maybe consider merging them into one function call.
