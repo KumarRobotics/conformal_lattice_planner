@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <set>
+#include <planner/common/utils.h>
 #include <planner/spatiotemporal_lattice_planner/spatiotemporal_lattice_planner.h>
 
 namespace planner {
@@ -318,6 +320,76 @@ std::string Vertex::string(const std::string& prefix) const {
   return output;
 }
 
+std::vector<boost::shared_ptr<const WaypointNode>>
+  SpatiotemporalLatticePlanner::nodes() const {
+
+  std::set<size_t> visited_nodes;
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes_in_graph;
+
+  for (const auto& item : node_to_vertices_table_) {
+    for (const auto& vertex : item.second) {
+      if (!vertex) continue;
+      boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+      if (visited_nodes.count(node->id()) > 0) continue;
+
+      nodes_in_graph.push_back(node);
+      visited_nodes.insert(node->id());
+    }
+  }
+
+  return nodes_in_graph;
+}
+
+std::vector<ContinuousPath> SpatiotemporalLatticePlanner::edges() const {
+  std::set<size_t> visited_paths;
+  std::vector<ContinuousPath> paths_in_graph;
+
+  for (const auto& item : node_to_vertices_table_) {
+    for (const auto& vertex : item.second) {
+      if (!vertex) continue;
+      boost::shared_ptr<const WaypointNode> node = vertex->node().lock();
+
+      // Paths to left children.
+      for (const auto& child : vertex->validLeftChildren()) {
+        boost::shared_ptr<const WaypointNode> child_node = std::get<3>(child).lock()->node().lock();
+
+        size_t path_id = 0;
+        utils::hashCombine(path_id, node->id(), child_node->id());
+        if (visited_paths.count(path_id) > 0) continue;
+
+        paths_in_graph.push_back(std::get<0>(child));
+        visited_paths.insert(path_id);
+      }
+
+      // Paths to front children.
+      for (const auto& child : vertex->validFrontChildren()) {
+        boost::shared_ptr<const WaypointNode> child_node = std::get<3>(child).lock()->node().lock();
+
+        size_t path_id = 0;
+        utils::hashCombine(path_id, node->id(), child_node->id());
+        if (visited_paths.count(path_id) > 0) continue;
+
+        paths_in_graph.push_back(std::get<0>(child));
+        visited_paths.insert(path_id);
+      }
+
+      // Paths to right children.
+      for (const auto& child : vertex->validRightChildren()) {
+        boost::shared_ptr<const WaypointNode> child_node = std::get<3>(child).lock()->node().lock();
+
+        size_t path_id = 0;
+        utils::hashCombine(path_id, node->id(), child_node->id());
+        if (visited_paths.count(path_id) > 0) continue;
+
+        paths_in_graph.push_back(std::get<0>(child));
+        visited_paths.insert(path_id);
+      }
+    }
+  }
+
+  return paths_in_graph;
+}
+
 bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
     const Snapshot& snapshot) const {
 
@@ -330,20 +402,10 @@ bool SpatiotemporalLatticePlanner::immediateNextVertexReached(
   boost::shared_ptr<const WaypointNode> ego_node = waypoint_lattice->closestNode(
       fast_map_->waypoint(snapshot.ego().transform().location),
       waypoint_lattice->longitudinalResolution());
-  double ego_distance = ego_node->distance();
+  const double ego_distance = ego_node->distance();
 
   // Find out the distance the ego need to achieve.
-  double target_distance = 0.0;
-  if (root_.lock()->hasLeftChildren()) {
-    boost::shared_ptr<Vertex> vertex = std::get<3>(root_.lock()->validLeftChildren().front()).lock();
-    target_distance = vertex->node().lock()->distance();
-  } else if (root_.lock()->hasFrontChildren()) {
-    boost::shared_ptr<Vertex> vertex = std::get<3>(root_.lock()->validFrontChildren().front()).lock();
-    target_distance = vertex->node().lock()->distance();
-  } else if (root_.lock()->hasRightChildren()) {
-    boost::shared_ptr<Vertex> vertex = std::get<3>(root_.lock()->validRightChildren().front()).lock();
-    target_distance = vertex->node().lock()->distance();
-  }
+  const double target_distance = cached_next_vertex_.lock()->node().lock()->distance();
 
   // If the difference is less than 0.5, or the ego has travelled beyond the
   // the target distance, the immediate station is considered to be reached.
@@ -412,7 +474,12 @@ std::list<std::pair<ContinuousPath, double>>
   constructVertexGraph(vertex_queue);
 
   // Select the optimal trajectory sequence from the graph.
-  std::list<std::pair<ContinuousPath, double>> optimal_traj_seq = selectOptimalTraj();
+  std::list<std::pair<ContinuousPath, double>> optimal_traj_seq;
+  std::list<boost::weak_ptr<Vertex>> optimal_vertex_seq;
+  selectOptimalTraj(optimal_traj_seq, optimal_vertex_seq);
+
+  // Update the cached next vertex.
+  cached_next_vertex_ = *(++optimal_vertex_seq.begin());
 
   //for (const auto& vertex : vertices())
   //  std::printf("%s", vertex->string().c_str());
@@ -475,97 +542,20 @@ std::deque<boost::shared_ptr<Vertex>>
     boost::make_shared<Vertex>(snapshot, waypoint_lattice_, fast_map_);
 
   // Find the immedidate waypoint nodes.
-  boost::shared_ptr<const WaypointNode> front_node = nullptr;
-  if (root_.lock()->hasFrontChildren())
-    front_node = std::get<3>(root_.lock()->validFrontChildren().back()).lock()->node().lock();
+  boost::shared_ptr<const WaypointNode> next_node = cached_next_vertex_.lock()->node().lock();
+  const double distance_to_next_node =
+    next_node->distance() - new_root->node().lock()->distance();
 
-  boost::shared_ptr<const WaypointNode> left_front_node = nullptr;
-  if (root_.lock()->hasLeftChildren())
-    left_front_node = std::get<3>(root_.lock()->validLeftChildren().back()).lock()->node().lock();
-
-  boost::shared_ptr<const WaypointNode> right_front_node = nullptr;
-  if (root_.lock()->hasRightChildren())
-    right_front_node = std::get<3>(root_.lock()->validRightChildren().back()).lock()->node().lock();
+  boost::shared_ptr<const WaypointNode> front_node =
+    waypoint_lattice_->front(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> left_front_node =
+    waypoint_lattice_->frontLeft(new_root->node().lock()->waypoint(), distance_to_next_node);
+  boost::shared_ptr<const WaypointNode> right_front_node =
+    waypoint_lattice_->frontRight(new_root->node().lock()->waypoint(), distance_to_next_node);
 
   // Clear all old vertices.
   // We are good with the above nodes already. All vertices will be newly created.
   node_to_vertices_table_.clear();
-
-  // Now we have to spend some time figuring out which node is the front, left front,
-  // and right front node relative to the new root node.
-  boost::shared_ptr<const WaypointNode> vehicle_node = new_root->node().lock();
-  boost::shared_ptr<const WaypointNode> vehicle_left_node = vehicle_node->left();
-  boost::shared_ptr<const WaypointNode> vehicle_right_node = vehicle_node->right();
-
-  while (true) {
-    // The ego is still on the same lane.
-    if (front_node &&
-        vehicle_node->id()==front_node->id()) break;
-
-    if (left_front_node && vehicle_left_node &&
-        vehicle_left_node->id()==left_front_node->id()) break;
-
-    if (right_front_node && vehicle_right_node &&
-        vehicle_right_node->id()==right_front_node->id()) break;
-
-    // The ego has moved to the left lane.
-    if (left_front_node && vehicle_node->id()==left_front_node->id()) {
-      right_front_node = front_node;
-      front_node = left_front_node;
-      left_front_node = nullptr;
-      break;
-    }
-
-    if (front_node && vehicle_right_node &&
-        vehicle_right_node->id()==front_node->id()) {
-      right_front_node = front_node;
-      front_node = left_front_node;
-      left_front_node = nullptr;
-      break;
-    }
-
-    // The ego has moved to the right lane.
-    if (right_front_node && vehicle_node->id()==right_front_node->id()) {
-      left_front_node = front_node;
-      front_node = right_front_node;
-      right_front_node = nullptr;
-      break;
-    }
-
-    if (front_node && vehicle_left_node &&
-        vehicle_left_node->id()==front_node->id()) {
-      left_front_node = front_node;
-      front_node = right_front_node;
-      right_front_node = nullptr;
-      break;
-    }
-
-    vehicle_node = vehicle_node->front();
-    if (vehicle_left_node) vehicle_left_node = vehicle_left_node->front();
-    if (vehicle_right_node) vehicle_right_node = vehicle_right_node->front();
-
-    if ((!vehicle_node) && (!vehicle_left_node) && (!vehicle_right_node)) {
-      std::string error_msg(
-          "SpatiotemporalLatticePlanner::pruneVertexGraph(): "
-          "Immediate next stations are missing.\n");
-
-      std::string front_node_msg;
-      if (front_node)
-        front_node_msg = front_node->string("front node:\n");
-
-      std::string left_front_node_msg;
-      if (left_front_node)
-        left_front_node_msg = left_front_node->string("left front node:\n");
-
-      std::string right_front_node_msg;
-      if (right_front_node)
-        right_front_node_msg = right_front_node->string("right front node:\n");
-
-      throw std::runtime_error(
-          error_msg + new_root->string() +
-          front_node_msg + left_front_node_msg + right_front_node_msg);
-    }
-  }
 
   // Try to connect the new root with above nodes.
   std::vector<boost::shared_ptr<Vertex>> front_vertices =
@@ -581,30 +571,24 @@ std::deque<boost::shared_ptr<Vertex>>
 
   // Save the newly created vertices to the table and queue
   // if they are successfully created.
-  if (front_vertices.size() > 0) {
-    for (const auto& vertex : front_vertices) {
-      if (vertex->node().lock()->id() == front_node->id()) {
-        addVertexToTable(vertex);
-        vertex_queue.push_back(vertex);
-      }
+  for (const auto& vertex : front_vertices) {
+    if (vertex->node().lock()->id() == front_node->id()) {
+      addVertexToTable(vertex);
+      vertex_queue.push_back(vertex);
     }
   }
 
-  if (left_front_vertices.size() > 0) {
-    for (const auto& vertex : left_front_vertices) {
-      if (vertex->node().lock()->id() == left_front_node->id()) {
-        addVertexToTable(vertex);
-        vertex_queue.push_back(vertex);
-      }
+  for (const auto& vertex : left_front_vertices) {
+    if (vertex->node().lock()->id() == left_front_node->id()) {
+      addVertexToTable(vertex);
+      vertex_queue.push_back(vertex);
     }
   }
 
-  if (right_front_vertices.size() > 0) {
-    for (const auto& vertex : right_front_vertices) {
-      if (vertex->node().lock()->id() == right_front_node->id()) {
-        addVertexToTable(vertex);
-        vertex_queue.push_back(vertex);
-      }
+  for (const auto& vertex : right_front_vertices) {
+    if (vertex->node().lock()->id() == right_front_node->id()) {
+      addVertexToTable(vertex);
+      vertex_queue.push_back(vertex);
     }
   }
 
@@ -1102,8 +1086,9 @@ const double SpatiotemporalLatticePlanner::costFromRootToTerminal(
   return path_cost + terminal_speed_cost + terminal_distance_cost;
 }
 
-std::list<std::pair<ContinuousPath, double>>
-  SpatiotemporalLatticePlanner::selectOptimalTraj() const {
+void SpatiotemporalLatticePlanner::selectOptimalTraj(
+    std::list<std::pair<ContinuousPath, double>>& traj_sequence,
+    std::list<boost::weak_ptr<Vertex>>& vertex_sequence) const {
 
   std::printf("SpatiotemporalLatticePlanner::selectOptimalTraj()\n");
 
@@ -1123,9 +1108,6 @@ std::list<std::pair<ContinuousPath, double>>
       const double vertex_cost = costFromRootToTerminal(vertex);
 
       // Update the optimal station if the candidate has small cost.
-      // Here we assume terminal station always has at least one parent station.
-      // Otherwise, there is just on root station in the graph.
-      // FIXME: Add the terminal cost as well.
       if (vertex_cost < optimal_cost) {
         optimal_vertex = vertex;
         optimal_cost = vertex_cost;
@@ -1150,8 +1132,11 @@ std::list<std::pair<ContinuousPath, double>>
 
   // Trace back from the terminal vertex to find all the trajectories
   // (path + acceleration).
-  std::list<std::pair<ContinuousPath, double>> traj_sequence;
+  traj_sequence.clear();
+  vertex_sequence.clear();
+
   boost::shared_ptr<Vertex> vertex = optimal_vertex;
+  vertex_sequence.push_back(boost::weak_ptr<Vertex>(vertex));
 
   while (vertex->hasParents()) {
     //std::printf("%s", vertex->string().c_str());
@@ -1166,6 +1151,9 @@ std::list<std::pair<ContinuousPath, double>>
       throw std::runtime_error(error_msg + vertex->string());
     }
 
+    vertex_sequence.push_back(boost::weak_ptr<Vertex>(parent_vertex));
+
+    // Find the path between the parent and this vertex.
     boost::optional<std::pair<ContinuousPath, double>> traj =
       findTrajFromParentToChild(parent_vertex, vertex);
 
@@ -1183,7 +1171,7 @@ std::list<std::pair<ContinuousPath, double>>
   }
   //std::printf("%s", vertex->string().c_str());
 
-  return traj_sequence;
+  return;
 }
 
 DiscretePath SpatiotemporalLatticePlanner::mergePaths(

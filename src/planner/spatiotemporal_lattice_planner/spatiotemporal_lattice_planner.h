@@ -115,7 +115,7 @@ public:
    */
   static constexpr std::array<std::pair<double, double>, 3>
     kSpeedIntervalsPerStation_ {{
-      {0.0, 13.4112},
+      { 0.0,    13.4112},
       {13.4112, 26.8224},
       {26.8224, 40.2336} }};
 
@@ -140,13 +140,13 @@ protected:
    */
   /// @{
   std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
-    left_parents_ {boost::none, boost::none, boost::none};
+    left_parents_ {boost::none};
 
   std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
-    back_parents_ {boost::none, boost::none, boost::none};
+    back_parents_ {boost::none};
 
   std::array<boost::optional<Parent>, kSpeedIntervalsPerStation_.size()>
-    right_parents_ {boost::none, boost::none, boost::none};
+    right_parents_ {boost::none};
 
   boost::optional<Parent> optimal_parent_ = boost::none;
   /// @}
@@ -160,13 +160,13 @@ protected:
    */
   /// @{
   std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
-    left_children_ {boost::none, boost::none, boost::none};
+    left_children_ {boost::none};
 
   std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
-    front_children_ {boost::none, boost::none, boost::none};
+    front_children_ {boost::none};
 
   std::array<boost::optional<Child>, kSpeedIntervalsPerStation_.size()>
-    right_children_ {boost::none, boost::none, boost::none};
+    right_children_ {boost::none};
   /// @}
 
 public:
@@ -403,6 +403,9 @@ protected:
    */
   boost::weak_ptr<Vertex> root_;
 
+  /// The next vertex to be reached.
+  boost::weak_ptr<Vertex> cached_next_vertex_;
+
 public:
 
   /// Constructor of the class.
@@ -431,18 +434,24 @@ public:
   /// Get the router used by the planner.
   boost::shared_ptr<const router::Router> router() const { return router_; }
 
-  /// Get all vertices in the graph.
-  std::vector<boost::shared_ptr<const Vertex>> vertices() const {
-    std::vector<boost::shared_ptr<const Vertex>> valid_vertices;
+  ///// Get all vertices in the graph.
+  //std::vector<boost::shared_ptr<const Vertex>> vertices() const {
+  //  std::vector<boost::shared_ptr<const Vertex>> valid_vertices;
 
-    for (const auto& item: node_to_vertices_table_) {
-      for (const auto& vertex : item.second) {
-        if (!vertex) continue;
-        valid_vertices.push_back(vertex);
-      }
-    }
-    return valid_vertices;
-  }
+  //  for (const auto& item: node_to_vertices_table_) {
+  //    for (const auto& vertex : item.second) {
+  //      if (!vertex) continue;
+  //      valid_vertices.push_back(vertex);
+  //    }
+  //  }
+  //  return valid_vertices;
+  //}
+
+  /// Get the nodes on the graph, corresponding to the stations that the vertices are at.
+  std::vector<boost::shared_ptr<const WaypointNode>> nodes() const;
+
+  /// Get the edges between nodes on the graph, corresponding to the paths.
+  std::vector<ContinuousPath> edges() const;
 
   // FIXME: How to get the acceleration out.
   virtual DiscretePath planPath(const size_t ego, const Snapshot& snapshot) override;
@@ -484,8 +493,10 @@ protected:
   /// Compute the cost from root to this terminal, including the terminal costs.
   const double costFromRootToTerminal(const boost::shared_ptr<Vertex>& terminal) const;
 
-  /// Select the optimal path sequence based on the constructed vertex graph.
-  std::list<std::pair<ContinuousPath, double>> selectOptimalTraj() const;
+  /// Select the optimal trajectory sequence based on the constructed vertex graph.
+  void selectOptimalTraj(
+      std::list<std::pair<ContinuousPath, double>>& traj_sequence,
+      std::list<boost::weak_ptr<Vertex>>& vertex_sequence) const;
 
   /// Merge the path segements from \c selectOptimalTraj() into a single discrete path.
   DiscretePath mergePaths(const std::list<ContinuousPath>& paths) const;
@@ -545,5 +556,6 @@ protected:
 
 } // End namespace spatiotemporal_lattice_planner.
 
-using SpatiotemporalLatticePlanner = spatiotemporal_lattice_planner::SpatiotemporalLatticePlanner;
+using SpatiotemporalLatticePlanner =
+  spatiotemporal_lattice_planner::SpatiotemporalLatticePlanner;
 } // End namespace planner.
