@@ -207,7 +207,7 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
   // Set the agent vehicle policy
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
-  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
+  std::uniform_real_distribution<double> uni_real_dist(-3.0, 3.0);
 
   if (noisy_speed) {
     agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
@@ -266,18 +266,24 @@ void RandomTrafficNode::manageTraffic() {
   // Spawn more vehicles if the number of agents around the ego vehicle
   // does not meet the requirement.
   // At most one vehicle is spawned every time this function is called.
-  if (agent_policies_.size() < 5) {
+  if (agent_policies_.size() < 8) {
 
-    const double min_distance = 20.0;
+    const double min_distance = 30.0;
     boost::optional<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> front =
       traffic_manager_->frontSpawnWaypoint(min_distance);
     boost::optional<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> back =
       traffic_manager_->backSpawnWaypoint(min_distance);
 
-    double front_distance = front ? front->first : 0.0;
-    double back_distance = back ? back->first : 0.0;
-    if (!traffic_manager_->back(front->second, 10.0)) front_distance = 0.0;
-    if (!traffic_manager_->front(back->second, 10.0)) back_distance = 0.0;
+    //double front_distance = front ? front->first : 0.0;
+    //double back_distance = back ? back->first : 0.0;
+    //if (!traffic_manager_->back(front->second, 10.0)) front_distance = 0.0;
+    //if (!traffic_manager_->front(back->second, 10.0)) back_distance = 0.0;
+    double front_distance = 0.0;
+    double back_distance = 0.0;
+    if (front && traffic_manager_->back(front->second, 30.0)) front_distance = front->first;
+    if (back  && traffic_manager_->front(back->second, 30.0)) back_distance = back->first;
+
+    //if (front_distance==0.0 && back_distance==0.0) return;
 
     // Waypoint to spawn the new vehicle.
     boost::shared_ptr<const CarlaWaypoint> spawn_waypoint = nullptr;
@@ -285,22 +291,22 @@ void RandomTrafficNode::manageTraffic() {
 
     const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine rand_gen(seed);
-    std::uniform_real_distribution<double> uni_real_dist(0.0, 5.0);
+    std::uniform_real_distribution<double> uni_real_dist(-10.0, 10.0);
 
     if (front_distance>=back_distance && front_distance>=min_distance) {
       // Spawn a new vehicle at the front of the lattice.
-      const double distance = 3.0 + uni_real_dist(rand_gen);
+      const double distance = min_distance/2.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = front->second;
       spawn_waypoint = traffic_manager_->back(waypoint, distance)->waypoint();
-      policy_speed = 20.0;
+      policy_speed = 23.0;
     }
 
     if (front_distance<back_distance && back_distance>=min_distance) {
       // Spawn a new vehicle at the back of the lattice.
-      const double distance = 3.0 + uni_real_dist(rand_gen);
+      const double distance = min_distance/2.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = back->second;
       spawn_waypoint = traffic_manager_->front(waypoint, distance)->waypoint();
-      policy_speed = 22.0;
+      policy_speed = 25.0;
     }
 
     if (!spawn_waypoint) {

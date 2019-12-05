@@ -164,8 +164,8 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
     ego_path.append(iter->first);
 
   // Publish the vertex graph.
-  conformal_lattice_pub_.publish(createConformalLatticeMsg(
-        traj_planner_->nodes(), traj_planner_->edges()));
+  //conformal_lattice_pub_.publish(createConformalLatticeMsg(
+  //      traj_planner_->nodes(), traj_planner_->edges()));
   path_pub_.publish(createEgoPathMsg(ego_path));
   //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(traj_planner_->waypointLattice()));
 
