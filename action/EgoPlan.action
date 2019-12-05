@@ -1,16 +1,22 @@
 # Goal
-# Policys of the ego and agent vehicles
-VehicleSpeed ego_policy
-VehicleSpeed ego_speed
-
-VehicleSpeed[] agent_policies
-VehicleSpeed[] agent_speed
+# Stores the data for all the vehicles
+# (both the ego and agent vehicles) with the policy speed included.
+std_msgs/Header header
+conformal_lattice_planner/TrafficSnapshot snapshot
 ---
 # Result
+std_msgs/Header header
 bool success
-VehicleSpeed ego_target_speed
+# The new desired state of the ego.
+conformal_lattice_planner/Vehicle vehicle
+# The lead vehicle of the ego.
+conformal_lattice_planner/Vehicle leader
+float64 leading_distance
+# The following vehicle of the ego.
+conformal_lattice_planner/Vehicle follower
+float64 following_distance
 ---
 # Feedback
 # TODO: what could a meaningful feedback?
-float32 percent
+std_msgs/Header header
 
