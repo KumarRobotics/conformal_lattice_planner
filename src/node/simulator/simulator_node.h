@@ -17,8 +17,8 @@
 #pragma once
 
 #include <vector>
-#include <unordered_map>
 #include <utility>
+#include <unordered_map>
 
 #include <boost/smart_ptr.hpp>
 #include <boost/core/noncopyable.hpp>
@@ -40,6 +40,8 @@
 #include <carla/sensor/data/Image.h>
 
 #include <planner/common/fast_waypoint_map.h>
+#include <planner/common/vehicle.h>
+
 #include <conformal_lattice_planner/EgoPlanAction.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 
@@ -69,18 +71,23 @@ protected:
   //         as well since the IDs between corresponding maps may not
   //         match.
 
-  /// Ego ID and ego policy speed pair.
-  std::pair<size_t, double> ego_policy_;
+  ///// Ego ID and ego policy speed pair.
+  //std::pair<size_t, double> ego_policy_;
 
-  /// Ego ID and ego speed pair.
-  std::pair<size_t, double> ego_speed_;
+  ///// Ego ID and ego speed pair.
+  //std::pair<size_t, double> ego_speed_;
 
-  /// Agent ID and policy speed pair.
-  std::unordered_map<size_t, double> agent_policies_;
+  ///// Agent ID and policy speed pair.
+  //std::unordered_map<size_t, double> agent_policies_;
 
-  /// Agent ID and speed pair.
-  std::unordered_map<size_t, double> agent_speed_;
+  ///// Agent ID and speed pair.
+  //std::unordered_map<size_t, double> agent_speed_;
 
+  /// The ego vehicle.
+  planner::Vehicle ego_vehicle_;
+
+  /// Agent vehicles.
+  std::unordered_map<size_t, planner::Vehicle> agent_vehicles_;
 
   /// Indicates if the ego planner action server has returned success.
   bool ego_ready_ = true;
@@ -255,6 +262,21 @@ protected:
   virtual void agentsPlanFeedbackCallback(
       const conformal_lattice_planner::AgentPlanFeedbackConstPtr& feedback) {}
   /// @}
+
+  /// Populate the vehicle msg through object.
+  virtual void populateVehicleMsg(
+      const planner::Vehicle& vehicle_obj,
+      conformal_lattice_planner::Vehicle& vehicle_msg);
+
+  /// Populate the vehicle object through msg.
+  virtual void populateVehicleObj(
+      const conformal_lattice_planner::Vehicle& vehicle_msg,
+      planner::Vehicle& vehicle_obj);
+
+  /// Populate the vehicle object through actor.
+  virtual void populateVehicleObj(
+      const boost::shared_ptr<const CarlaVehicle>& vehicle_actor,
+      planner::Vehicle& vehicle_obj);
 
 }; // End class SimulatorNode.
 

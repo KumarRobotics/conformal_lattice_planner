@@ -18,6 +18,9 @@
 #include <random>
 #include <chrono>
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <node/common/convert_to_visualization_msgs.h>
 #include <node/simulator/simulator_node.h>
 
@@ -135,17 +138,19 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
   // Disable the vehicle physics.
   actor->SetSimulatePhysics(false);
 
-  // Set the ego vehicle policy.
+  // Set the ego vehicle.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
+  populateVehicleObj(vehicle, ego_);
+
+  ego_.speed() = policy_speed;
+  ego_.policySpeed() = policy_speed;
+
   if (noisy_speed) {
-    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
-    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
-  } else {
-    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed);
-    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed);
+    ego_.speed() += uni_real_dist(rand_gen);
+    ego_.policySpeed() += uni_real_dist(rand_gen);
   }
 
   world_->Tick();
@@ -180,18 +185,24 @@ boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
   // Disable the vehicle physics.
   actor->SetSimulatePhysics(false);
 
-  // Set the agent vehicle policy
+  // Set the agent vehicle.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
+  planner::Vehicle agent;
+  populateVehicleObj(vehicle, agent);
+
+  agent.speed() = policy_speed;
+  agent.policySpeed() = policy_speed;
+
   if (noisy_speed) {
-    agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
-    agent_speed_[vehicle->GetId()]    = policy_speed + uni_real_dist(rand_gen);
-  } else {
-    agent_policies_[vehicle->GetId()] = policy_speed;
-    agent_speed_[vehicle->GetId()]    = policy_speed;
+    agent.speed() = policy_speed + uni_real_dist(rand_gen);
+    agent.policySpeed() = policy_speed + uni_real_dist(rand_gen);
   }
+
+  // Store the newly created agent vehicle.
+  agents_[agent.id()] = agent;
 
   world_->Tick();
   return vehicle->GetId();
@@ -218,7 +229,7 @@ void SimulatorNode::spawnCamera() {
     //  carla::geom::Rotation{0.0f, -90.0f, 0.0f}}; // pitch, yaw, roll.
 
     boost::shared_ptr<CarlaActor> cam_actor = world_->SpawnActor(
-        camera_blueprint, camera_transform, world_->GetActor(ego_policy_.first).get());
+        camera_blueprint, camera_transform, world_->GetActor(ego_.id()).get());
     following_cam_ = boost::static_pointer_cast<CarlaSensor>(cam_actor);
     following_cam_->Listen(boost::bind(&SimulatorNode::publishImage, this, _1));
 
@@ -245,31 +256,31 @@ void SimulatorNode::publishImage(
 boost::shared_ptr<SimulatorNode::CarlaVehicle>
   SimulatorNode::egoVehicle() {
   return boost::static_pointer_cast<CarlaVehicle>(
-      world_->GetActor(ego_policy_.first));
+      world_->GetActor(ego_.id()));
 }
 
 boost::shared_ptr<const SimulatorNode::CarlaVehicle>
   SimulatorNode::egoVehicle() const {
   return boost::static_pointer_cast<CarlaVehicle>(
-      world_->GetActor(ego_policy_.first));
+      world_->GetActor(ego_.id()));
 }
 
 boost::shared_ptr<SimulatorNode::CarlaVehicle>
   SimulatorNode::agentVehicle(const size_t agent) {
-  if (agent_policies_.count(agent) == 0) return nullptr;
+  if (agents_.count(agent) == 0) return nullptr;
   return boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(agent));
 }
 
 boost::shared_ptr<const SimulatorNode::CarlaVehicle>
   SimulatorNode::agentVehicle(const size_t agent) const {
-  if (agent_policies_.count(agent) == 0) return nullptr;
+  if (agents_.count(agent) == 0) return nullptr;
   return boost::static_pointer_cast<CarlaVehicle>(world_->GetActor(agent));
 }
 
 std::vector<boost::shared_ptr<SimulatorNode::CarlaVehicle>>
   SimulatorNode::agentVehicles() {
   std::vector<boost::shared_ptr<CarlaVehicle>> vehicles;
-  for (const auto& agent : agent_policies_)
+  for (const auto& agent : agents_)
     vehicles.push_back(agentVehicle(agent.first));
   return vehicles;
 }
@@ -277,7 +288,7 @@ std::vector<boost::shared_ptr<SimulatorNode::CarlaVehicle>>
 std::vector<boost::shared_ptr<const SimulatorNode::CarlaVehicle>>
   SimulatorNode::agentVehicles() const {
   std::vector<boost::shared_ptr<const CarlaVehicle>> vehicles;
-  for (const auto& agent : agent_policies_)
+  for (const auto& agent : agents_)
     vehicles.push_back(agentVehicle(agent.first));
   return vehicles;
 }
@@ -350,21 +361,11 @@ void SimulatorNode::publishTraffic() const {
 void SimulatorNode::sendEgoGoal() {
 
   conformal_lattice_planner::EgoPlanGoal goal;
-  goal.ego_policy.id    = ego_policy_.first;
-  goal.ego_policy.speed = ego_policy_.second;
-  goal.ego_speed.id     = ego_speed_.first;
-  goal.ego_speed.speed  = ego_speed_.second;
-
-  for (const auto agent_policy : agent_policies_) {
-    goal.agent_policies.push_back(conformal_lattice_planner::VehicleSpeed());
-    goal.agent_policies.back().id    = agent_policy.first;
-    goal.agent_policies.back().speed = agent_policy.second;
-  }
-
-  for (const auto& agent_speed : agent_speed_) {
-    goal.agent_speed.push_back(conformal_lattice_planner::VehicleSpeed());
-    goal.agent_speed.back().id    = agent_speed.first;
-    goal.agent_speed.back().speed = agent_speed.second;
+  goal.header.stamp = ros::Time::now();
+  populateVehicleMsg(ego_, goal.snapshot.ego);
+  for (const auto& item : agents_) {
+    goal.agents.push_back(conformal_lattice_planner::Vehicle);
+    populateVehicleMsg(item.second, goal.agents.back());
   }
 
   ego_client_.sendGoal(
@@ -374,7 +375,6 @@ void SimulatorNode::sendEgoGoal() {
       boost::bind(&SimulatorNode::egoPlanFeedbackCallback, this, _1));
 
   ego_ready_ = false;
-
   return;
 }
 
@@ -384,9 +384,11 @@ void SimulatorNode::egoPlanDoneCallback(
 
   ROS_INFO_NAMED("carla_simulator", "egoPlanDoneCallback().");
 
-  if (result->ego_target_speed.id != ego_speed_.first)
+  if (result->ego.id != ego_.id())
     throw std::runtime_error("The ego ID in the action result does not exist.");
-  ego_speed_.second = result->ego_target_speed.speed;
+
+  // Update the ego vehicle.
+  populateVehicleObj(result->ego, ego_);
 
   ego_ready_ = true;
 
@@ -401,21 +403,11 @@ void SimulatorNode::egoPlanDoneCallback(
 void SimulatorNode::sendAgentsGoal() {
 
   conformal_lattice_planner::AgentPlanGoal goal;
-  goal.ego_policy.id    = ego_policy_.first;
-  goal.ego_policy.speed = ego_policy_.second;
-  goal.ego_speed.id     = ego_speed_.first;
-  goal.ego_speed.speed  = ego_speed_.second;
-
-  for (const auto agent_policy : agent_policies_) {
-    goal.agent_policies.push_back(conformal_lattice_planner::VehicleSpeed());
-    goal.agent_policies.back().id    = agent_policy.first;
-    goal.agent_policies.back().speed = agent_policy.second;
-  }
-
-  for (const auto& agent_speed : agent_speed_) {
-    goal.agent_speed.push_back(conformal_lattice_planner::VehicleSpeed());
-    goal.agent_speed.back().id    = agent_speed.first;
-    goal.agent_speed.back().speed = agent_speed.second;
+  goal.header.stamp = ros::Time::now();
+  populateVehicleMsg(ego_, goal.snapshot.ego);
+  for (const auto& item : agents_) {
+    goal.agents.push_back(conformal_lattice_planner::Vehicle);
+    populateVehicleMsg(item.second, goal.agents.back());
   }
 
   agents_client_.sendGoal(
@@ -434,10 +426,12 @@ void SimulatorNode::agentsPlanDoneCallback(
 
   ROS_INFO_NAMED("carla_simulator", "agentsPlanDoneCallback().");
 
-  for (const auto& target_speed : result->agent_target_speed) {
-    if (agent_speed_.count(target_speed.id) == 0)
+  // FIXME: Is it necessary to do cross check?
+  for (const auto& agent : result->agents) {
+    if (agents_.count(agent.id) == 0)
       throw std::runtime_error("An agent ID from acton result does not exist.");
-    agent_speed_[target_speed.id] = target_speed.speed;
+    // Update the agent vehicle.
+    populateVehicleObj(agent, agents_[agent.id]);
   }
 
   agents_ready_ = true;
@@ -447,6 +441,87 @@ void SimulatorNode::agentsPlanDoneCallback(
     tickWorld();
   }
 
+  return;
+}
+
+void SimulatorNode::populateVehicleMsg(
+    const planner::Vehicle& vehicle_obj,
+    conformal_lattice_planner::Vehicle& vehicle_msg) {
+  // ID.
+  vehicle_msg.id = vehicle_obj.id();
+  // Bounding box.
+  vehicle_msg.bounding_box.extent.x = vehicle_obj.boundingBox().extent.x;
+  vehicle_msg.bounding_box.extent.y = vehicle_obj.boundingBox().extent.y;
+  vehicle_msg.bounding_box.extent.z = vehicle_obj.boundingBox().extent.z;
+  vehicle_msg.bounding_box.location.x = vehicle_obj.boundingBox().location.x;
+  vehicle_msg.bounding_box.location.y = vehicle_obj.boundingBox().location.y;
+  vehicle_msg.bounding_box.location.z = vehicle_obj.boundingBox().location.z;
+  // Transform.
+  vehicle_msg.transform.position.x = vehicle_obj.transform().Location.x;
+  vehicle_msg.transform.position.y = vehicle_obj.transform().Location.y;
+  vehicle_msg.transform.position.z = vehicle_obj.transform().Location.z;
+  tf2::Matrix3x3 tf_mat
+  tf_mat.setEulerYPR(vehicle_obj.transform().rotation.yaw,
+                     vehicle_obj.transform().rotation.pitch,
+                     vehicle_obj.transform().rotation.roll);
+  vehicle_msg.transform.orientation = tf2::toMsg(tf2::Quaternion(tf_mat));
+  // Speed.
+  vehicle_msg.speed = vehicle_obj.speed();
+  // Acceleration.
+  vehicle_msg.acceleration = vehicle_obj.acceleration();
+  // Curvature.
+  vehicle_msg.curvature = vehicle_obj.curvature();
+  // policy speed.
+  vehicle_msg.policy_speed = vehicle_obj.policySpeed();
+  return;
+}
+
+void SimulatorNode::populateVehicleObj(
+    const conformal_lattice_planner::Vehicle& vehicle_msg,
+    planner::Vehicle& vehicle_obj) {
+  // ID.
+  vehicle_obj.id() = vehicle_msg.id;
+  // Bounding box.
+  vehicle_obj.boundingBox().extent.x = vehicle_msg.bounding_box.extent.x;
+  vehicle_obj.boundingBox().extent.y = vehicle_msg.bounding_box.extent.y;
+  vehicle_obj.boundingBox().extent.z = vehicle_msg.bounding_box.extent.z;
+  vehicle_obj.boundingBox().location.x = vehicle_msg.bounding_box.location.x;
+  vehicle_obj.boundingBox().location.y = vehicle_msg.bounding_box.location.y;
+  vehicle_obj.boundingBox().location.z = vehicle_msg.bounding_box.location.z;
+  // Transform.
+  vehicle_obj.transform().location.x = vehicle_msg.transform.position.x;
+  vehicle_obj.transform().location.y = vehicle_msg.transform.position.y;
+  vehicle_obj.transform().location.z = vehicle_msg.transform.position.z;
+  tf2::Matrix3x3 tf_mat(tf2::fromMsg(vehicle_msg.transform.orientation));
+  tf_mat.getEulerYPR(vehicle_obj.transform().rotation.yaw,
+                     vehicle_obj.transform().rotation.pitch,
+                     vehicle_obj.transform().roration.roll);
+  // Speed.
+  vehicle_obj.speed() = vehicle_msg.speed;
+  // Acceleration.
+  vehicle_obj.acceleration() = vehicle_msg.acceleration;
+  // Curvature.
+  vehicle_obj.curvature() = vehicle_msg.curvature;
+  // Policy speed.
+  vehicle_obj.policy_speed = vehicle_msg.policy_speed;
+  return;
+}
+
+void SimulatorNode::populateVehicleObj(
+    const boost::shared_ptr<const CarlaVehicle>& vehicle_actor,
+    planner::Vehicle& vehicle_obj) {
+  // ID.
+  vehicle_obj.id() = vehicle_actor->GetId();
+  // Bounding box.
+  vehicle_obj.boundingBox() = vehicle_actor->GetBoundingBox();
+  // Transform.
+  vehicle_obj.transform() = vehicle_actor->GetTransform();
+  // Curvature.
+  vehicle_obj.curvature() = utils::curvatureAtWaypoint(
+      map_->GetWaypoint(vehicle_actor->GetLocation()), map_);
+  // Acceleration.
+  vehicle_obj.acceleration() = 0.0;
+  // Speed and policy speed should be set by the caller.
   return;
 }
 

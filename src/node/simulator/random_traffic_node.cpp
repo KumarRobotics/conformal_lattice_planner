@@ -154,12 +154,14 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
 
+  populateVehicleObj(vehicle, ego_);
+
+  ego_.speed() = policy_speed;
+  ego_.policySpeed() = policy_speed;
+
   if (noisy_speed) {
-    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
-    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed+uni_real_dist(rand_gen));
-  } else {
-    ego_policy_ = std::make_pair(vehicle->GetId(), policy_speed);
-    ego_speed_  = std::make_pair(vehicle->GetId(), policy_speed);
+    ego_.speed() += uni_real_dist(rand_gen);
+    ego_.policySpeed() += uni_real_dist(rand_gen);
   }
 
   world_->Tick();
@@ -209,13 +211,19 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
   std::default_random_engine rand_gen(seed);
   std::uniform_real_distribution<double> uni_real_dist(-3.0, 3.0);
 
+  planner::Vehicle agent;
+  populateVehicleObj(vehicle, agent);
+
+  agent.speed() = policy_speed;
+  agent.policySpeed() = policy_speed;
+
   if (noisy_speed) {
-    agent_policies_[vehicle->GetId()] = policy_speed + uni_real_dist(rand_gen);
-    agent_speed_[vehicle->GetId()]    = policy_speed + uni_real_dist(rand_gen);
-  } else {
-    agent_policies_[vehicle->GetId()] = policy_speed;
-    agent_speed_[vehicle->GetId()]    = policy_speed;
+    agent.speed() = policy_speed + uni_real_dist(rand_gen);
+    agent.policySpeed() = policy_speed + uni_real_dist(rand_gen);
   }
+
+  // Store the newly created agent vehicle.
+  agents_[agent.id()] = agent;
 
   world_->Tick();
   return vehicle->GetId();
@@ -226,7 +234,7 @@ void RandomTrafficNode::manageTraffic() {
   // Check the position of the ego vehicle on the lattice.
   // We wanto to make sure it is at the 50m distance.
   const boost::shared_ptr<CarlaWaypoint> ego_waypoint =
-    fast_map_->waypoint(egoVehicle()->GetTransform().location);
+    fast_map_->waypoint(ego_.transform().location);
   boost::shared_ptr<const TrafficManager> const_traffic_manager =
     boost::const_pointer_cast<const TrafficManager>(traffic_manager_);
   const double ego_distance = const_traffic_manager->closestNode(ego_waypoint, 1.0)->distance();
@@ -245,28 +253,25 @@ void RandomTrafficNode::manageTraffic() {
 
   // Remove the vehicles that disappear.
   for (const size_t id : disappear_vehicles) {
-    if (id == ego_policy_.first) {
+    if (id == ego_.id()) {
       ROS_ERROR_NAMED("carla simulator", "The ego vehicle is removed.");
       throw std::runtime_error("The ego vehicle is removed from the simulation.");
     }
 
     // Remove the vehicle from the carla server.
     boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(id);
-    if (!world_->GetActor(id)->Destroy()) {
-      ROS_WARN_NAMED("carla simulator",
-          "Cannot destroy agent %lu.", id);
-    }
+    if (!world_->GetActor(id)->Destroy())
+      ROS_WARN_NAMED("carla simulator", "Cannot destroy agent %lu.", id);
     world_->Tick();
 
-    // Remove the vehicle from the object.
-    agent_policies_.erase(id);
-    agent_speed_.erase(id);
+    // Remove the vehicle from the agents.
+    agents_.erase(id);
   }
 
   // Spawn more vehicles if the number of agents around the ego vehicle
   // does not meet the requirement.
   // At most one vehicle is spawned every time this function is called.
-  if (agent_policies_.size() < 8) {
+  if (agents_.size() < 8) {
 
     const double min_distance = 30.0;
     boost::optional<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> front =
@@ -274,16 +279,10 @@ void RandomTrafficNode::manageTraffic() {
     boost::optional<std::pair<double, boost::shared_ptr<const CarlaWaypoint>>> back =
       traffic_manager_->backSpawnWaypoint(min_distance);
 
-    //double front_distance = front ? front->first : 0.0;
-    //double back_distance = back ? back->first : 0.0;
-    //if (!traffic_manager_->back(front->second, 10.0)) front_distance = 0.0;
-    //if (!traffic_manager_->front(back->second, 10.0)) back_distance = 0.0;
     double front_distance = 0.0;
     double back_distance = 0.0;
     if (front && traffic_manager_->back(front->second, 30.0)) front_distance = front->first;
     if (back  && traffic_manager_->front(back->second, 30.0)) back_distance = back->first;
-
-    //if (front_distance==0.0 && back_distance==0.0) return;
 
     // Waypoint to spawn the new vehicle.
     boost::shared_ptr<const CarlaWaypoint> spawn_waypoint = nullptr;
@@ -331,20 +330,8 @@ void RandomTrafficNode::tickWorld() {
 
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
-  //while (world_->GetSnapshot().GetId() == episode_id)
-  //  ros::Duration(0.01).sleep();
-  //episode_id = world_->GetSnapshot().GetId();
 
   manageTraffic();
-
-  // This tick is for adding or removing vehicles informed
-  // by the \c manageTraffic() function.
-  // FIXME: Sometimes a new vehicle is not still added properly,
-  //        but is left at the origin.
-  //world_->Tick();
-  //while (world_->GetSnapshot().GetId() == episode_id)
-  //  ros::Duration(0.01).sleep();
-  //episode_id = world_->GetSnapshot().GetId();
 
   std::string agent_ids_msg("agents in the sim: ");
   for (const auto& agent : agent_policies_) {
