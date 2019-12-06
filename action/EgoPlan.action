@@ -8,7 +8,7 @@ conformal_lattice_planner/TrafficSnapshot snapshot
 std_msgs/Header header
 bool success
 # The new desired state of the ego.
-conformal_lattice_planner/Vehicle vehicle
+conformal_lattice_planner/Vehicle ego
 # The lead vehicle of the ego.
 conformal_lattice_planner/Vehicle leader
 float64 leading_distance
