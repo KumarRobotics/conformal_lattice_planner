@@ -60,6 +60,8 @@ protected:
 
 public:
 
+  Vehicle() = default;
+
   /**
    * The \c acceleration_ of the object won't be filled in using \c CarlaVehicle's
    * \c GetAcceleration() API, since the vehicles are assumed to be teleported
