@@ -33,17 +33,17 @@ find_package(Boost 1.69 REQUIRED COMPONENTS timer)
 find_package(GooglePerfTools REQUIRED)
 find_package(PCL 1.9.1 EXACT REQUIRED COMPONENTS kdtree)
 
-# Copied from pcl_ros package.
-if(NOT "${PCL_LIBRARIES}" STREQUAL "")
-  # For debian: https://github.com/ros-perception/perception_pcl/issues/139
-  list(REMOVE_ITEM PCL_LIBRARIES
-    "vtkGUISupportQt"
-    "vtkGUISupportQtOpenGL"
-    "vtkGUISupportQtSQL"
-    "vtkGUISupportQtWebkit"
-    "vtkViewsQt"
-    "vtkRenderingQt")
-endif()
+## Copied from pcl_ros package.
+#if(NOT "${PCL_LIBRARIES}" STREQUAL "")
+#  # For debian: https://github.com/ros-perception/perception_pcl/issues/139
+#  list(REMOVE_ITEM PCL_LIBRARIES
+#    "vtkGUISupportQt"
+#    "vtkGUISupportQtOpenGL"
+#    "vtkGUISupportQtSQL"
+#    "vtkGUISupportQtWebkit"
+#    "vtkViewsQt"
+#    "vtkRenderingQt")
+#endif()
 
 ## Copied from pcl_ros package.
 #if(NOT "${PCL_INCLUDE_DIRS}" STREQUAL "")
@@ -87,7 +87,9 @@ endif()
 # Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  VehicleSpeed.msg
+  BoundingBox.msg
+  Vehicle.msg
+  TrafficSnapshot.msg
 )
 
 ## Generate services in the 'srv' folder
