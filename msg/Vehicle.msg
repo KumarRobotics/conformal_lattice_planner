@@ -1,5 +1,5 @@
 # ID of the vehicle
-uint64_t id
+uint64 id
 # Bounding box of the vehicle.
 conformal_lattice_planner/BoundingBox bounding_box
 # Left-hand transform of the vehicle, compatible with Carla simulator.

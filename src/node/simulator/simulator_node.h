@@ -84,10 +84,10 @@ protected:
   //std::unordered_map<size_t, double> agent_speed_;
 
   /// The ego vehicle.
-  planner::Vehicle ego_vehicle_;
+  planner::Vehicle ego_;
 
   /// Agent vehicles.
-  std::unordered_map<size_t, planner::Vehicle> agent_vehicles_;
+  std::unordered_map<size_t, planner::Vehicle> agents_;
 
   /// Indicates if the ego planner action server has returned success.
   bool ego_ready_ = true;

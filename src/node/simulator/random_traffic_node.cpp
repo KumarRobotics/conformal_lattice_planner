@@ -334,7 +334,7 @@ void RandomTrafficNode::tickWorld() {
   manageTraffic();
 
   std::string agent_ids_msg("agents in the sim: ");
-  for (const auto& agent : agent_policies_) {
+  for (const auto& agent : agents_) {
     boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(agent.first);
     const CarlaTransform transform = vehicle->GetTransform();
 
