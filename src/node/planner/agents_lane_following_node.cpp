@@ -25,6 +25,7 @@
 #include <planner/common/vehicle_path.h>
 #include <planner/common/vehicle_speed_planner.h>
 #include <planner/lane_follower/lane_follower.h>
+#include <planner/common/utils.h>
 #include <node/planner/agents_lane_following_node.h>
 
 using namespace router;
@@ -70,15 +71,8 @@ void AgentsLaneFollowingNode::executeCallback(
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   //map_ = world_->GetMap();
 
-  // Get the ego and agent policies.
-  const std::pair<size_t, double> ego_policy = egoPolicy(goal);
-  const std::pair<size_t, double> ego_speed  = egoSpeed(goal);
-  const std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
-  const std::unordered_map<size_t, double> agent_speed    = agentSpeed(goal);
-
   // Create the current snapshot.
-  boost::shared_ptr<Snapshot> snapshot =
-    createSnapshot(ego_policy, ego_speed, agent_policies, agent_speed);
+  boost::shared_ptr<Snapshot> snapshot = createSnapshot(goal->snapshot);
 
   // Create Path planner.
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
@@ -91,9 +85,6 @@ void AgentsLaneFollowingNode::executeCallback(
     waypoint = node->waypoint();
     break;
   }
-
-  //if (!waypoint)
-  //  throw std::runtime_error("No node with distance 0.");
 
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(map_, fast_map_, waypoint, range, router_);
@@ -165,12 +156,20 @@ void AgentsLaneFollowingNode::executeCallback(
     vehicle->SetTransform(updated_transform);
     //vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
 
-    result.agent_target_speed.push_back(conformal_lattice_planner::VehicleSpeed());
-    result.agent_target_speed.back().id = agent.id();
-    result.agent_target_speed.back().speed = updated_speed;
+    planner::Vehicle updated_agent(
+        agent.id(),
+        agent.boundingBox(),
+        updated_transform,
+        updated_speed,
+        agent.policySpeed(),
+        accel,
+        utils::curvatureAtWaypoint(map_->GetWaypoint(updated_transform.location), map_));
+
+    results.agents.push_back(updated_agent);
   }
 
   // Inform the client the result of plan.
+  result.header.stamp = ros::Time::now();
   result.success = true;
   server_.setSucceeded(result);
 
