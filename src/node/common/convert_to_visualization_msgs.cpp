@@ -251,10 +251,11 @@ visualization_msgs::MarkerArrayPtr createVehiclesMsg(
     vehicle_msg->pose.position.y = transform.location.y;
     vehicle_msg->pose.position.z = transform.location.z;
     tf2::Quaternion tf2_quat;
-    tf2_quat.setEuler(
-        transform.rotation.yaw  /180.0*M_PI,
+    tf2_quat.setRPY(
+        transform.rotation.roll /180.0*M_PI,
         transform.rotation.pitch/180.0*M_PI,
-        transform.rotation.roll /180.0*M_PI);
+        transform.rotation.yaw  /180.0*M_PI);
+
     tf2::convert(tf2_quat, vehicle_msg->pose.orientation);
 
     vehicles_msg->markers.push_back(*vehicle_msg);
@@ -383,10 +384,10 @@ geometry_msgs::TransformStampedPtr createVehicleTransformMsg(
   transform_msg->transform.translation.z = transform.location.z;
 
   tf2::Quaternion tf2_quat;
-  tf2_quat.setEuler(
-      transform.rotation.yaw  /180.0*M_PI,
+  tf2_quat.setRPY(
+      transform.rotation.roll /180.0*M_PI,
       transform.rotation.pitch/180.0*M_PI,
-      transform.rotation.roll /180.0*M_PI);
+      transform.rotation.yaw  /180.0*M_PI);
   transform_msg->transform.rotation.x = tf2_quat.x();
   transform_msg->transform.rotation.y = tf2_quat.y();
   transform_msg->transform.rotation.z = tf2_quat.z();
