@@ -29,6 +29,20 @@ boost::shared_ptr<planner::Snapshot> PlanningNode::createSnapshot(
   planner::Vehicle ego_vehicle;
   populateVehicleObj(snapshot_msg.ego, ego_vehicle);
 
+  std::printf("createSnapshot(): ego "
+      "id:%lu x:%f y:%f z:%f r:%f p:%f y:%f speed:%f accel:%f curv:%f policy:%f\n",
+      ego_vehicle.id(),
+      ego_vehicle.transform().location.x,
+      ego_vehicle.transform().location.y,
+      ego_vehicle.transform().location.z,
+      ego_vehicle.transform().rotation.roll,
+      ego_vehicle.transform().rotation.pitch,
+      ego_vehicle.transform().rotation.yaw,
+      ego_vehicle.speed(),
+      ego_vehicle.acceleration(),
+      ego_vehicle.curvature(),
+      ego_vehicle.policySpeed());
+
   if (ego_vehicle.transform().location.x==0.0 &&
       ego_vehicle.transform().location.y==0.0 &&
       ego_vehicle.transform().location.z==0.0) {
@@ -82,9 +96,9 @@ void PlanningNode::populateVehicleMsg(
   vehicle_msg.transform.position.y = vehicle_obj.transform().location.y;
   vehicle_msg.transform.position.z = vehicle_obj.transform().location.z;
   tf2::Matrix3x3 tf_mat;
-  tf_mat.setEulerYPR(vehicle_obj.transform().rotation.yaw,
-                     vehicle_obj.transform().rotation.pitch,
-                     vehicle_obj.transform().rotation.roll);
+  tf_mat.setRPY(vehicle_obj.transform().rotation.roll /180.0*M_PI,
+                vehicle_obj.transform().rotation.pitch/180.0*M_PI,
+                vehicle_obj.transform().rotation.yaw  /180.0*M_PI);
   tf2::Quaternion tf_quat;
   tf_mat.getRotation(tf_quat);
   vehicle_msg.transform.orientation = tf2::toMsg(tf_quat);
@@ -120,10 +134,10 @@ void PlanningNode::populateVehicleObj(
   tf2::fromMsg(vehicle_msg.transform.orientation, tf_quat);
   tf2::Matrix3x3 tf_mat(tf_quat);
   double yaw, pitch, roll;
-  tf_mat.getEulerYPR(yaw, pitch, roll);
-  vehicle_obj.transform().rotation.yaw = yaw;
-  vehicle_obj.transform().rotation.pitch = pitch;
-  vehicle_obj.transform().rotation.roll = roll;
+  tf_mat.getRPY(roll, pitch, yaw);
+  vehicle_obj.transform().rotation.yaw   = yaw  /M_PI*180.0;
+  vehicle_obj.transform().rotation.pitch = pitch/M_PI*180.0;
+  vehicle_obj.transform().rotation.roll  = roll /M_PI*180.0;
   // Speed.
   vehicle_obj.speed() = vehicle_msg.speed;
   // Acceleration.

@@ -137,6 +137,7 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
 
   // Disable the vehicle physics.
   actor->SetSimulatePhysics(false);
+  world_->Tick();
 
   // Set the ego vehicle.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -153,7 +154,6 @@ boost::optional<size_t> SimulatorNode::spawnEgoVehicle(
     ego_.policySpeed() += uni_real_dist(rand_gen);
   }
 
-  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -184,6 +184,7 @@ boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
 
   // Disable the vehicle physics.
   actor->SetSimulatePhysics(false);
+  world_->Tick();
 
   // Set the agent vehicle.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -204,7 +205,6 @@ boost::optional<size_t> SimulatorNode::spawnAgentVehicle(
   // Store the newly created agent vehicle.
   agents_[agent.id()] = agent;
 
-  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -368,6 +368,20 @@ void SimulatorNode::sendEgoGoal() {
     populateVehicleMsg(item.second, goal.snapshot.agents.back());
   }
 
+  std::printf("sendEgoGoal(): ego "
+      "id:%lu x:%f y:%f z:%f r:%f p:%f y:%f speed:%f accel:%f curv:%f policy:%f\n",
+      ego_.id(),
+      ego_.transform().location.x,
+      ego_.transform().location.y,
+      ego_.transform().location.z,
+      ego_.transform().rotation.roll,
+      ego_.transform().rotation.pitch,
+      ego_.transform().rotation.yaw,
+      ego_.speed(),
+      ego_.acceleration(),
+      ego_.curvature(),
+      ego_.policySpeed());
+
   ego_client_.sendGoal(
       goal,
       boost::bind(&SimulatorNode::egoPlanDoneCallback, this, _1, _2),
@@ -461,9 +475,9 @@ void SimulatorNode::populateVehicleMsg(
   vehicle_msg.transform.position.y = vehicle_obj.transform().location.y;
   vehicle_msg.transform.position.z = vehicle_obj.transform().location.z;
   tf2::Matrix3x3 tf_mat;
-  tf_mat.setEulerYPR(vehicle_obj.transform().rotation.yaw,
-                     vehicle_obj.transform().rotation.pitch,
-                     vehicle_obj.transform().rotation.roll);
+  tf_mat.setRPY(vehicle_obj.transform().rotation.roll /180.0*M_PI,
+                vehicle_obj.transform().rotation.pitch/180.0*M_PI,
+                vehicle_obj.transform().rotation.yaw  /180.0*M_PI);
   tf2::Quaternion tf_quat;
   tf_mat.getRotation(tf_quat);
   vehicle_msg.transform.orientation = tf2::toMsg(tf_quat);
@@ -499,10 +513,10 @@ void SimulatorNode::populateVehicleObj(
   tf2::fromMsg(vehicle_msg.transform.orientation, tf_quat);
   tf2::Matrix3x3 tf_mat(tf_quat);
   double yaw, pitch, roll;
-  tf_mat.getEulerYPR(yaw, pitch, roll);
-  vehicle_obj.transform().rotation.yaw = yaw;
-  vehicle_obj.transform().rotation.pitch = pitch;
-  vehicle_obj.transform().rotation.roll = roll;
+  tf_mat.getRPY(roll, pitch, yaw);
+  vehicle_obj.transform().rotation.yaw   = yaw  /M_PI*180.0;
+  vehicle_obj.transform().rotation.pitch = pitch/M_PI*180.0;
+  vehicle_obj.transform().rotation.roll  = roll /M_PI*180.0;
   // Speed.
   vehicle_obj.speed() = vehicle_msg.speed;
   // Acceleration.

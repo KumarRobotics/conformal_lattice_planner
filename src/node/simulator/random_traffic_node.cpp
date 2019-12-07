@@ -148,6 +148,7 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     ROS_ERROR_NAMED("carla simulator", "Cannot add ego vehicle to the traffic lattice.");
     return boost::none;
   }
+  world_->Tick();
 
   // Set the ego vehicle policy.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -164,7 +165,6 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
     ego_.policySpeed() += uni_real_dist(rand_gen);
   }
 
-  world_->Tick();
   return vehicle->GetId();
 }
 
@@ -205,6 +205,7 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
         "Cannot add the agent vehicle to the traffic lattice.");
     return boost::none;
   }
+  world_->Tick();
 
   // Set the agent vehicle policy
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -225,7 +226,6 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
   // Store the newly created agent vehicle.
   agents_[agent.id()] = agent;
 
-  world_->Tick();
   return vehicle->GetId();
 }
 
