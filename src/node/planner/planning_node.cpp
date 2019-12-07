@@ -22,8 +22,8 @@
 
 namespace node {
 
-virtual boost::shared_ptr<planner::Snapshot> PlanningNode::createSnapshot(
-    const conformal_lattice_planner::TrafficSnapshot& snapshot_msg);
+boost::shared_ptr<planner::Snapshot> PlanningNode::createSnapshot(
+    const conformal_lattice_planner::TrafficSnapshot& snapshot_msg) {
 
   // Create the ego vehicle.
   planner::Vehicle ego_vehicle;
@@ -78,14 +78,16 @@ void PlanningNode::populateVehicleMsg(
   vehicle_msg.bounding_box.location.y = vehicle_obj.boundingBox().location.y;
   vehicle_msg.bounding_box.location.z = vehicle_obj.boundingBox().location.z;
   // Transform.
-  vehicle_msg.transform.position.x = vehicle_obj.transform().Location.x;
-  vehicle_msg.transform.position.y = vehicle_obj.transform().Location.y;
-  vehicle_msg.transform.position.z = vehicle_obj.transform().Location.z;
-  tf2::Matrix3x3 tf_mat
+  vehicle_msg.transform.position.x = vehicle_obj.transform().location.x;
+  vehicle_msg.transform.position.y = vehicle_obj.transform().location.y;
+  vehicle_msg.transform.position.z = vehicle_obj.transform().location.z;
+  tf2::Matrix3x3 tf_mat;
   tf_mat.setEulerYPR(vehicle_obj.transform().rotation.yaw,
                      vehicle_obj.transform().rotation.pitch,
                      vehicle_obj.transform().rotation.roll);
-  vehicle_msg.transform.orientation = tf2::toMsg(tf2::Quaternion(tf_mat));
+  tf2::Quaternion tf_quat;
+  tf_mat.getRotation(tf_quat);
+  vehicle_msg.transform.orientation = tf2::toMsg(tf_quat);
   // Speed.
   vehicle_msg.speed = vehicle_obj.speed();
   // Acceleration.
@@ -113,10 +115,15 @@ void PlanningNode::populateVehicleObj(
   vehicle_obj.transform().location.x = vehicle_msg.transform.position.x;
   vehicle_obj.transform().location.y = vehicle_msg.transform.position.y;
   vehicle_obj.transform().location.z = vehicle_msg.transform.position.z;
-  tf2::Matrix3x3 tf_mat(tf2::fromMsg(vehicle_msg.transform.orientation));
-  tf_mat.getEulerYPR(vehicle_obj.transform().rotation.yaw,
-                     vehicle_obj.transform().rotation.pitch,
-                     vehicle_obj.transform().roration.roll);
+
+  tf2::Quaternion tf_quat;
+  tf2::fromMsg(vehicle_msg.transform.orientation, tf_quat);
+  tf2::Matrix3x3 tf_mat(tf_quat);
+  double yaw, pitch, roll;
+  tf_mat.getEulerYPR(yaw, pitch, roll);
+  vehicle_obj.transform().rotation.yaw = yaw;
+  vehicle_obj.transform().rotation.pitch = pitch;
+  vehicle_obj.transform().rotation.roll = roll;
   // Speed.
   vehicle_obj.speed() = vehicle_msg.speed;
   // Acceleration.
@@ -124,7 +131,7 @@ void PlanningNode::populateVehicleObj(
   // Curvature.
   vehicle_obj.curvature() = vehicle_msg.curvature;
   // Policy speed.
-  vehicle_obj.policy_speed = vehicle_msg.policy_speed;
+  vehicle_obj.policySpeed() = vehicle_msg.policy_speed;
   return;
 }
 

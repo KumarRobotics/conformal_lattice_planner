@@ -165,7 +165,8 @@ void AgentsLaneFollowingNode::executeCallback(
         accel,
         utils::curvatureAtWaypoint(map_->GetWaypoint(updated_transform.location), map_));
 
-    results.agents.push_back(updated_agent);
+    result.agents.push_back(conformal_lattice_planner::Vehicle());
+    populateVehicleMsg(updated_agent, result.agents.back());
   }
 
   // Inform the client the result of plan.

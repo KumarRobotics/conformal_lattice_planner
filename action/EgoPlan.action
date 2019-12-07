@@ -5,10 +5,14 @@ std_msgs/Header header
 conformal_lattice_planner/TrafficSnapshot snapshot
 ---
 # Result
+int8 LEFT_LANE_CHANGE = -1
+int8 LANE_KEEP = 0
+int8 RIGHT_LANE_CHANGE = 1
+
 std_msgs/Header header
 bool success
 # The type of action
-int8 action_type
+int8 path_type
 # The new desired state of the ego.
 conformal_lattice_planner/Vehicle ego
 ---
