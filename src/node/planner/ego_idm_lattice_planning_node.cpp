@@ -139,8 +139,7 @@ void EgoIDMLatticePlanningNode::executeCallback(
   conformal_lattice_planner::EgoPlanResult result;
   result.header.stamp = ros::Time::now();
   result.success = true;
-  // FIXME: Use the correct action type.
-  result.path_type = conformal_lattice_planner::EgoPlanResult::LANE_KEEP;
+  result.path_type = ego_path.laneChangeType();
   populateVehicleMsg(updated_ego, result.ego);
   server_.setSucceeded(result);
 
