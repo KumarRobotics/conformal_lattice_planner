@@ -39,6 +39,7 @@
 #include <carla/client/Sensor.h>
 #include <carla/sensor/data/Image.h>
 
+#include <router/loop_router/loop_router.h>
 #include <planner/common/fast_waypoint_map.h>
 #include <planner/common/vehicle.h>
 
@@ -95,6 +96,9 @@ protected:
   /// Indicates if the agents' planner action server has returned success.
   bool agents_ready_ = true;
 
+  /// Loop router, the router is predefined on Town04.
+  boost::shared_ptr<router::LoopRouter> loop_router_ = nullptr;
+
   /// Carla client object.
   boost::shared_ptr<CarlaClient> client_ = nullptr;
 
@@ -147,6 +151,7 @@ protected:
 public:
 
   SimulatorNode(ros::NodeHandle& nh) :
+    loop_router_(new router::LoopRouter),
     nh_(nh),
     img_transport_(nh),
     ego_client_(nh_, "ego_plan", false),

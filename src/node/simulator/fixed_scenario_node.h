@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <router/loop_router/loop_router.h>
 #include <node/simulator/simulator_node.h>
 
 namespace node {
@@ -35,13 +34,9 @@ public:
 
 protected:
 
-  /// Loop router, the router is predefined on Town04.
-  boost::shared_ptr<router::LoopRouter> loop_router_ = nullptr;
-
 public:
 
-  FixedScenarioNode(ros::NodeHandle nh) :
-    Base(nh), loop_router_(new router::LoopRouter) {}
+  FixedScenarioNode(ros::NodeHandle nh) : Base(nh) {}
 
 protected:
 

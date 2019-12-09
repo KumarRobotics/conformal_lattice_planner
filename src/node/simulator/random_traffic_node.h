@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <router/loop_router/loop_router.h>
 #include <planner/common/traffic_manager.h>
 #include <node/simulator/simulator_node.h>
 
@@ -42,17 +41,12 @@ protected:
 
 protected:
 
-  /// Loop router, the router is predefined on Town04.
-  boost::shared_ptr<router::LoopRouter> loop_router_ = nullptr;
-
   /// Traffic lattice.
   boost::shared_ptr<planner::TrafficManager> traffic_manager_;
 
 public:
 
-  RandomTrafficNode(ros::NodeHandle nh) :
-    Base(nh),
-    loop_router_(new router::LoopRouter) {}
+  RandomTrafficNode(ros::NodeHandle nh) : Base(nh) {}
 
 protected:
 
