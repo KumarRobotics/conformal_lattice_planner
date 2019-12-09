@@ -74,67 +74,6 @@ bool EgoSLCLatticePlanningNode::initialize() {
   return all_param_exist;
 }
 
-boost::shared_ptr<planner::Snapshot> EgoSLCLatticePlanningNode::createSnapshot(
-    const std::pair<size_t, double>& ego_policy,
-    const std::pair<size_t, double>& ego_speed,
-    const std::unordered_map<size_t, double>& agent_policies,
-    const std::unordered_map<size_t, double>& agent_speed) {
-
-  // Create the ego vehicle.
-  const boost::shared_ptr<CarlaWaypoint> ego_waypoint =
-    carlaVehicleWaypoint(ego_policy.first);
-  if (!ego_curvature)
-    ego_curvature = utils::curvatureAtWaypoint(ego_waypoint, map_);
-  const planner::Vehicle ego_vehicle =
-    planner::Vehicle(carlaVehicle(ego_policy.first),
-                     ego_speed.second,
-                     ego_policy.second,
-                     *ego_curvature);
-
-  if (ego_vehicle.transform().location.x==0.0 &&
-      ego_vehicle.transform().location.y==0.0 &&
-      ego_vehicle.transform().location.z==0.0) {
-    std::string error_msg(
-        "EgoIDMLatticePlanningNode::createSnapshot(): "
-        "ego vehicle is set back to origin.\n");
-    std::string ego_msg = (
-        boost::format("Ego ID: %lu\n") % ego_vehicle.id()).str();
-    throw std::runtime_error(error_msg + ego_msg);
-  }
-
-  // Create the agent vehicles.
-  std::unordered_map<size_t, planner::Vehicle> agent_vehicles;
-  for (const auto& agent : agent_policies) {
-    const boost::shared_ptr<CarlaWaypoint> waypoint =
-      carlaVehicleWaypoint(agent.first);
-    const double curvature =
-      utils::curvatureAtWaypoint(waypoint, map_);
-
-    const double policy_speed = agent.second;
-    const double current_speed = agent_speed.find(agent.first)->second;
-
-    const planner::Vehicle vehicle(
-        carlaVehicle(agent.first), current_speed, policy_speed, curvature);
-
-    if (vehicle.transform().location.x==0.0 &&
-        vehicle.transform().location.y==0.0 &&
-        vehicle.transform().location.z==0.0) {
-      std::string error_msg(
-          "EgoIDMLatticePlanningNode::createSnapshot(): "
-          "an agent vehicle is set back to origin.\n");
-      std::string agent_msg = (
-          boost::format("Agent ID: %lu\n") % vehicle.id()).str();
-      throw std::runtime_error(error_msg + agent_msg);
-    }
-
-    agent_vehicles.insert(std::make_pair(agent.first, vehicle));
-  }
-
-  // Create the snapshot.
-  return boost::make_shared<planner::Snapshot>(
-      ego_vehicle, agent_vehicles, router_, map_, fast_map_);
-}
-
 void EgoSLCLatticePlanningNode::executeCallback(
     const conformal_lattice_planner::EgoPlanGoalConstPtr& goal) {
 
@@ -146,18 +85,11 @@ void EgoSLCLatticePlanningNode::executeCallback(
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   //map_ = world_->GetMap();
 
-  // Get the ego and agent policies and speed.
-  const std::pair<size_t, double> ego_policy = egoPolicy(goal);
-  const std::pair<size_t, double> ego_speed  = egoSpeed(goal);
-  const std::unordered_map<size_t, double> agent_policies = agentPolicies(goal);
-  const std::unordered_map<size_t, double> agent_speed    = agentSpeed(goal);
-
   // Create the current snapshot.
-  boost::shared_ptr<Snapshot> snapshot =
-    createSnapshot(ego_policy, ego_speed, agent_policies, agent_speed);
+  boost::shared_ptr<Snapshot> snapshot = createSnapshot(goal->snapshot);
 
   // Plan path.
-  const DiscretePath ego_path = path_planner_->planPath(ego_policy.first, *snapshot);
+  const DiscretePath ego_path = path_planner_->planPath(snapshot->ego().id(), *snapshot);
 
   // Publish the station graph.
   conformal_lattice_pub_.publish(createConformalLatticeMsg(
@@ -166,7 +98,7 @@ void EgoSLCLatticePlanningNode::executeCallback(
   //waypoint_lattice_pub_.publish(createWaypointLatticeMsg(path_planner_->waypointLattice()));
 
   // Plan speed.
-  const double ego_accel = speed_planner_->planSpeed(ego_policy.first, *snapshot);
+  const double ego_accel = speed_planner_->planSpeed(snapshot->ego().id(), *snapshot);
 
   // Update the ego vehicle in the simulator.
   double dt = 0.05;
@@ -175,7 +107,7 @@ void EgoSLCLatticePlanningNode::executeCallback(
   const double movement = snapshot->ego().speed()*dt + 0.5*ego_accel*dt*dt;
   const std::pair<CarlaTransform, double> updated_transform_curvature = ego_path.transformAt(movement);
   const CarlaTransform updated_transform = updated_transform_curvature.first;
-  ego_curvature = updated_transform_curvature.second;
+  const double updated_curvature = updated_transform_curvature.second;
   const double updated_speed = snapshot->ego().speed() + ego_accel*dt;
 
   ROS_INFO_NAMED("ego_planner", "ego %lu", snapshot->ego().id());
@@ -190,15 +122,26 @@ void EgoSLCLatticePlanningNode::executeCallback(
       updated_transform.rotation.pitch,
       updated_transform.rotation.yaw);
 
-  boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(ego_policy.first);
+  boost::shared_ptr<CarlaVehicle> ego_vehicle = carlaVehicle(snapshot->ego().id());
   ego_vehicle->SetTransform(updated_transform);
   //ego_vehicle->SetVelocity(updated_transform.GetForwardVector()*updated_speed);
 
   // Inform the client the result of plan.
+  planner::Vehicle updated_ego(
+      snapshot->ego().id(),
+      snapshot->ego().boundingBox(),
+      updated_transform,
+      updated_speed,
+      snapshot->ego().policySpeed(),
+      ego_accel,
+      updated_curvature);
+
   conformal_lattice_planner::EgoPlanResult result;
+  result.header.stamp = ros::Time::now();
   result.success = true;
-  result.ego_target_speed.id = ego_policy.first;
-  result.ego_target_speed.speed = updated_speed;
+  // FIXME: Use the correct action type.
+  result.path_type = conformal_lattice_planner::EgoPlanResult::LANE_KEEP;
+  populateVehicleMsg(updated_ego, result.ego);
   server_.setSucceeded(result);
 
   ros::Time end_time = ros::Time::now();
