@@ -41,11 +41,6 @@ public:
 
 protected:
 
-  /// Stores the curvature of the ego vehicle at end of last step.
-  /// If it is not set, it is initialized with the curvature of the road.
-  // FIXME: The variable feels sketchy.
-  boost::optional<double> ego_curvature = boost::none;
-
   boost::shared_ptr<planner::IDMLatticePlanner> path_planner_ = nullptr;
   boost::shared_ptr<planner::VehicleSpeedPlanner> speed_planner_ = nullptr;
 
@@ -71,12 +66,6 @@ public:
   virtual bool initialize() override;
 
 protected:
-
-  boost::shared_ptr<planner::Snapshot> createSnapshot(
-      const std::pair<size_t, double>& ego_policy,
-      const std::pair<size_t, double>& ego_speed,
-      const std::unordered_map<size_t, double>& agent_policies,
-      const std::unordered_map<size_t, double>& agent_speed) override;
 
   virtual void executeCallback(
       const conformal_lattice_planner::EgoPlanGoalConstPtr& goal);
