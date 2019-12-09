@@ -35,8 +35,6 @@ using namespace std;
 using namespace boost;
 using namespace router;
 using namespace planner;
-using namespace planner::idm_lattice_planner;
-using namespace planner::spatiotemporal_lattice_planner;
 
 using CarlaVehicle         = carla::client::Vehicle;
 using CarlaMap             = carla::client::Map;
