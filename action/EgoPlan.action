@@ -5,9 +5,10 @@ std_msgs/Header header
 conformal_lattice_planner/TrafficSnapshot snapshot
 ---
 # Result
-int8 LEFT_LANE_CHANGE = -1
-int8 LANE_KEEP = 0
-int8 RIGHT_LANE_CHANGE = 1
+uint8 LANE_KEEP = 0
+uint8 LEFT_LANE_CHANGE = 1
+uint8 RIGHT_LANE_CHANGE = 2
+uint8 UNKNOWN = 3
 
 std_msgs/Header header
 bool success
