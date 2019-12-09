@@ -29,20 +29,6 @@ boost::shared_ptr<planner::Snapshot> PlanningNode::createSnapshot(
   planner::Vehicle ego_vehicle;
   populateVehicleObj(snapshot_msg.ego, ego_vehicle);
 
-  std::printf("createSnapshot(): ego "
-      "id:%lu x:%f y:%f z:%f r:%f p:%f y:%f speed:%f accel:%f curv:%f policy:%f\n",
-      ego_vehicle.id(),
-      ego_vehicle.transform().location.x,
-      ego_vehicle.transform().location.y,
-      ego_vehicle.transform().location.z,
-      ego_vehicle.transform().rotation.roll,
-      ego_vehicle.transform().rotation.pitch,
-      ego_vehicle.transform().rotation.yaw,
-      ego_vehicle.speed(),
-      ego_vehicle.acceleration(),
-      ego_vehicle.curvature(),
-      ego_vehicle.policySpeed());
-
   if (ego_vehicle.transform().location.x==0.0 &&
       ego_vehicle.transform().location.y==0.0 &&
       ego_vehicle.transform().location.z==0.0) {

@@ -370,20 +370,6 @@ void SimulatorNode::sendEgoGoal() {
     populateVehicleMsg(item.second, goal.snapshot.agents.back());
   }
 
-  std::printf("sendEgoGoal(): ego "
-      "id:%lu x:%f y:%f z:%f r:%f p:%f y:%f speed:%f accel:%f curv:%f policy:%f\n",
-      ego_.id(),
-      ego_.transform().location.x,
-      ego_.transform().location.y,
-      ego_.transform().location.z,
-      ego_.transform().rotation.roll,
-      ego_.transform().rotation.pitch,
-      ego_.transform().rotation.yaw,
-      ego_.speed(),
-      ego_.acceleration(),
-      ego_.curvature(),
-      ego_.policySpeed());
-
   // Figure out the leader and follower of the ego vehicle.
   boost::shared_ptr<planner::Snapshot> snapshot =
     boost::make_shared<planner::Snapshot>(ego_, agents_, loop_router_, map_, fast_map_);
