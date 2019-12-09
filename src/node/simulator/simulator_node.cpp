@@ -21,6 +21,8 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#include <planner/common/snapshot.h>
 #include <node/common/convert_to_visualization_msgs.h>
 #include <node/simulator/simulator_node.h>
 
@@ -381,6 +383,29 @@ void SimulatorNode::sendEgoGoal() {
       ego_.acceleration(),
       ego_.curvature(),
       ego_.policySpeed());
+
+  // Figure out the leader and follower of the ego vehicle.
+  boost::shared_ptr<planner::Snapshot> snapshot =
+    boost::make_shared<planner::Snapshot>(ego_, agents_, loop_router_, map_, fast_map_);
+
+  boost::optional<std::pair<size_t, double>> leader =
+    snapshot->trafficLattice()->front(snapshot->ego().id());
+  boost::optional<std::pair<size_t, double>> follower =
+    snapshot->trafficLattice()->back(snapshot->ego().id());
+
+  if (leader) {
+    populateVehicleMsg(agents_[leader->first], goal.leader);
+    goal.leading_distance = leader->second;
+  } else {
+    goal.leading_distance = -1.0;
+  }
+
+  if (follower) {
+    populateVehicleMsg(agents_[follower->first], goal.follower);
+    goal.following_distance = follower->second;
+  } else {
+    goal.following_distance = -1.0;
+  }
 
   ego_client_.sendGoal(
       goal,
