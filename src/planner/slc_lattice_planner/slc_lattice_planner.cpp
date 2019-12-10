@@ -109,6 +109,9 @@ void Vertex::updateRightChild(
 const bool Vertex::sameLaneWith(
     const boost::shared_ptr<const Vertex>& other) const {
 
+  if (!other)
+    throw std::runtime_error("Vertex::sameLaneWith(): other==nullptr\n");
+
   boost::shared_ptr<const WaypointNode> this_node = node_.lock();
   boost::shared_ptr<const WaypointNode> other_node = other->node();
   boost::shared_ptr<const WaypointNode> node;
@@ -131,13 +134,7 @@ const bool Vertex::sameLaneWith(
     node = node->front();
   }
 
-  std::string error_msg(
-      "Vertex::sameLaneWith(): "
-      "Cannot identify the relative lane position of the two vertices.\n");
-  throw std::runtime_error(error_msg +
-      node->string("this node:\n") + other_node->string("other node:\n"));
-
-  return 0;
+  return false;
 }
 
 std::string Vertex::string(const std::string& prefix) const {
