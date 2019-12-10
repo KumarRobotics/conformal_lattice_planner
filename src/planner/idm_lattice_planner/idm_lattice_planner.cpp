@@ -800,8 +800,8 @@ const double IDMLatticePlanner::terminalDistanceCost(
                           root_.lock()->node().lock()->distance();
 
   const double distance_ratio = distance / spatial_horizon;
-  std::printf("station distance:%f spatial horizon:%f distance ratio: %f\n",
-      distance, spatial_horizon, distance_ratio);
+  //std::printf("station distance:%f spatial horizon:%f distance ratio: %f\n",
+  //    distance, spatial_horizon, distance_ratio);
 
   if (distance_ratio >= 1.0) return 0.0;
   else return cost_map[static_cast<int>(distance_ratio*10.0)];
@@ -820,8 +820,8 @@ const double IDMLatticePlanner::costFromRootToTerminal(
   const double path_cost = terminal->costToCome();
   const double terminal_speed_cost = terminalSpeedCost(terminal);
   const double terminal_distance_cost = terminalDistanceCost(terminal);
-  std::printf("path cost: %f speed cost: %f distance cost:%f\n",
-      path_cost, terminal_speed_cost, terminal_distance_cost);
+  //std::printf("path cost: %f speed cost: %f distance cost:%f\n",
+  //    path_cost, terminal_speed_cost, terminal_distance_cost);
 
   // TODO: Weight the cost properly.
   return path_cost + terminal_speed_cost + terminal_distance_cost;
