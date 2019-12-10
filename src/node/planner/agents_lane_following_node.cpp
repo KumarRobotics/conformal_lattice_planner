@@ -18,6 +18,7 @@
 #include <vector>
 #include <chrono>
 #include <unordered_set>
+#include <random>
 
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -62,6 +63,49 @@ bool AgentsLaneFollowingNode::initialize() {
   return all_param_exist;
 }
 
+void AgentsLaneFollowingNode::perturbAgentPolicies(
+    const boost::shared_ptr<planner::Snapshot>& snapshot) {
+
+  // Collect all current agent IDs.
+  std::unordered_set<size_t> current_agents;
+  for (const auto& agent : snapshot->agents())
+    current_agents.insert(agent.first);
+
+  // Update the policy speed of all agents.
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+
+  for (const size_t agent : current_agents) {
+
+    double noise = 0.0;
+    if (agent_policy_.count(agent) > 0) {
+      const double sigma = 2.0;
+      const double sigma_xy = 1.95;
+      std::normal_distribution<double> normal_dist(
+          sigma_xy/sigma*agent_policy_[agent].second,
+          std::sqrt(sigma-sigma_xy*sigma_xy/sigma));
+      noise = normal_dist(rand_gen);
+    }
+
+    agent_policy_[agent] =
+      std::make_pair(snapshot->agent(agent).policySpeed(), noise);
+    snapshot->agent(agent).policySpeed() =
+      agent_policy_[agent].first + agent_policy_[agent].second;
+  }
+
+  // Remove the agents that are no longer in the snapshot.
+  std::unordered_set<size_t> agents_to_erase;
+  for (const auto agent : agent_policy_) {
+    if (current_agents.count(agent.first) > 0) continue;
+    agents_to_erase.insert(agent.first);
+  }
+
+  for (const size_t agent : agents_to_erase)
+    agent_policy_.erase(agent);
+
+  return;
+}
+
 void AgentsLaneFollowingNode::executeCallback(
     const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) {
 
@@ -73,6 +117,7 @@ void AgentsLaneFollowingNode::executeCallback(
 
   // Create the current snapshot.
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(goal->snapshot);
+  perturbAgentPolicies(snapshot);
 
   // Create Path planner.
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
@@ -141,16 +186,6 @@ void AgentsLaneFollowingNode::executeCallback(
         updated_transform.rotation.pitch,
         updated_transform.rotation.yaw);
 
-    //if (updated_transform.location.x==0.0 &&
-    //    updated_transform.location.y==0.0 &&
-    //    updated_transform.location.z==0.0) {
-    //  std::string error_msg(
-    //      "AgentsLaneFollowingNode::executeCallback(): "
-    //      "The updated transform of an agent vehicle is at origin.\n");
-    //  std::string agent_msg = (boost::format("Agent ID: %lu\n") % agent.id()).str();
-    //  throw std::runtime_error(error_msg + agent_msg);
-    //}
-
     // Update the agent transform in the simulator.
     boost::shared_ptr<CarlaVehicle> vehicle = carlaVehicle(agent.id());
     vehicle->SetTransform(updated_transform);
@@ -161,7 +196,7 @@ void AgentsLaneFollowingNode::executeCallback(
         agent.boundingBox(),
         updated_transform,
         updated_speed,
-        agent.policySpeed(),
+        agent_policy_[agent.id()].first,
         accel,
         utils::curvatureAtWaypoint(map_->GetWaypoint(updated_transform.location), map_));
 

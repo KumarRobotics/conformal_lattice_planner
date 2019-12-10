@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <actionlib/server/simple_action_server.h>
 #include <conformal_lattice_planner/AgentPlanAction.h>
 #include <node/planner/planning_node.h>
@@ -36,6 +37,9 @@ public:
 
 protected:
 
+  /// Stores the base policy and noise pair.
+  std::unordered_map<size_t, std::pair<double, double>> agent_policy_;
+
   mutable actionlib::SimpleActionServer<
     conformal_lattice_planner::AgentPlanAction> server_;
 
@@ -50,6 +54,9 @@ public:
   virtual bool initialize() override;
 
 protected:
+
+  void perturbAgentPolicies(
+      const boost::shared_ptr<planner::Snapshot>& snapshot);
 
   virtual void executeCallback(
       const conformal_lattice_planner::AgentPlanGoalConstPtr& goal);
