@@ -44,6 +44,9 @@ protected:
   /// Traffic lattice.
   boost::shared_ptr<planner::TrafficManager> traffic_manager_;
 
+  /// Nominal policy speed of all vehicles.
+  const double nominal_policy_speed_ = 20.0;
+
 public:
 
   RandomTrafficNode(ros::NodeHandle nh) : Base(nh) {}

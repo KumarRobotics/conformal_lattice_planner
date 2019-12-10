@@ -79,7 +79,7 @@ void RandomTrafficNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25, false)) {
+  if (!spawnEgoVehicle(ego_waypoint, nominal_policy_speed_, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
 
@@ -91,15 +91,28 @@ void RandomTrafficNode::spawnVehicles() {
     boost::shared_ptr<const CarlaWaypoint> waypoint3 = waypoint2->GetRight();
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint = nullptr;
 
-    // First lane, 80m, 20m/s.
-    agent_waypoint = traffic_manager_->front(waypoint0, 40.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
+    agent_waypoint = traffic_manager_->front(waypoint0, 50.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, nominal_policy_speed_)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
 
-    // Second lane, 60m, 20m/s
     agent_waypoint = traffic_manager_->back(waypoint1, 30.0)->waypoint();
-    if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
+    if (!spawnAgentVehicle(agent_waypoint, nominal_policy_speed_)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+
+    agent_waypoint = traffic_manager_->front(waypoint1, 90.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, nominal_policy_speed_)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+
+    agent_waypoint = traffic_manager_->front(waypoint2, 20.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, nominal_policy_speed_)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+
+    agent_waypoint = traffic_manager_->front(waypoint3, 10.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, nominal_policy_speed_)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
   }
@@ -153,7 +166,7 @@ boost::optional<size_t> RandomTrafficNode::spawnEgoVehicle(
   // Set the ego vehicle policy.
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
-  std::uniform_real_distribution<double> uni_real_dist(-2.0, 2.0);
+  std::uniform_real_distribution<double> uni_real_dist(-4.0, 4.0);
 
   populateVehicleObj(vehicle, ego_);
 
@@ -210,7 +223,7 @@ boost::optional<size_t> RandomTrafficNode::spawnAgentVehicle(
   // Set the agent vehicle policy
   const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine rand_gen(seed);
-  std::uniform_real_distribution<double> uni_real_dist(-3.0, 3.0);
+  std::uniform_real_distribution<double> uni_real_dist(-4.0, 4.0);
 
   planner::Vehicle agent;
   populateVehicleObj(vehicle, agent);
@@ -297,7 +310,6 @@ void RandomTrafficNode::manageTraffic() {
       const double distance = min_distance/2.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = front->second;
       spawn_waypoint = traffic_manager_->back(waypoint, distance)->waypoint();
-      policy_speed = 23.0;
     }
 
     if (front_distance<back_distance && back_distance>=min_distance) {
@@ -305,7 +317,6 @@ void RandomTrafficNode::manageTraffic() {
       const double distance = min_distance/2.0 + uni_real_dist(rand_gen);
       boost::shared_ptr<const CarlaWaypoint> waypoint = back->second;
       spawn_waypoint = traffic_manager_->front(waypoint, distance)->waypoint();
-      policy_speed = 25.0;
     }
 
     if (!spawn_waypoint) {
@@ -314,7 +325,7 @@ void RandomTrafficNode::manageTraffic() {
       return;
     }
 
-    if (!spawnAgentVehicle(spawn_waypoint, policy_speed)) {
+    if (!spawnAgentVehicle(spawn_waypoint, nominal_policy_speed_)) {
       ROS_WARN_NAMED("carla simulator",
           "Cannot spawn a new agent vehicle at the given waypoint.");
       return;
@@ -325,8 +336,6 @@ void RandomTrafficNode::manageTraffic() {
 }
 
 void RandomTrafficNode::tickWorld() {
-
-  static size_t episode_id = -1;
 
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
