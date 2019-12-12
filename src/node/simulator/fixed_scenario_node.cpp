@@ -58,13 +58,13 @@ void FixedScenarioNode::spawnVehicles() {
     fast_map_->waypoint(start_transform.location);
 
   boost::shared_ptr<WaypointLattice> waypoint_lattice=
-    boost::make_shared<WaypointLattice>(start_waypoint, 100, 1.0, loop_router_);
+    boost::make_shared<WaypointLattice>(start_waypoint, 150, 1.0, loop_router_);
 
   // Spawn the ego vehicle.
   // The ego vehicle is at 50m on the lattice, and there is an 100m buffer
   // in the front of the ego vehicle.
   boost::shared_ptr<const CarlaWaypoint> ego_waypoint =
-    waypoint_lattice->rightFront(start_waypoint, 50.0)->waypoint();
+    waypoint_lattice->front(start_waypoint, 50.0)->waypoint();
   if (!ego_waypoint) {
     throw std::runtime_error("Cannot find the ego waypoint on the traffic lattice.");
   }
@@ -73,14 +73,23 @@ void FixedScenarioNode::spawnVehicles() {
       ego_waypoint->GetTransform().location.y,
       ego_waypoint->GetTransform().location.z);
 
-  if (!spawnEgoVehicle(ego_waypoint, 25, false)) {
+  if (!spawnEgoVehicle(ego_waypoint, 20, false)) {
     throw std::runtime_error("Cannot spawn the ego vehicle.");
   }
+  ego_.speed() = 15.0;
 
   // Spawn agent vehicles.
   {
     boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
-      waypoint_lattice->front(ego_waypoint, 30.0)->waypoint();
+      waypoint_lattice->front(ego_waypoint, 20.0)->waypoint();
+    if (!spawnAgentVehicle(agent_waypoint, 15.0, false)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
+
+  {
+    boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
+      waypoint_lattice->rightBack(ego_waypoint, 20.0)->waypoint();
     if (!spawnAgentVehicle(agent_waypoint, 20.0, false)) {
       throw std::runtime_error("Cannot spawn an agent vehicle.");
     }
@@ -94,13 +103,15 @@ void FixedScenarioNode::spawnVehicles() {
     }
   }
 
-  //{
-  //  boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
-  //    waypoint_lattice->leftBack(ego_waypoint, 15.0)->waypoint();
-  //  if (!spawnAgentVehicle(agent_waypoint, 25.0, false)) {
-  //    throw std::runtime_error("Cannot spawn an agent vehicle.");
-  //  }
-  //}
+  {
+    boost::shared_ptr<const CarlaWaypoint> intermediate_waypoint =
+      waypoint_lattice->rightFront(ego_waypoint, 25.0)->waypoint();
+    boost::shared_ptr<const CarlaWaypoint> agent_waypoint =
+      intermediate_waypoint->GetRight();
+    if (!spawnAgentVehicle(agent_waypoint, 15.0, false)) {
+      throw std::runtime_error("Cannot spawn an agent vehicle.");
+    }
+  }
 
   // Spawn the following camera of the ego vehicle.
   spawnCamera();
