@@ -1008,8 +1008,8 @@ const double SpatiotemporalLatticePlanner::terminalSpeedCost(
   }
 
   static std::unordered_map<int, double> cost_map {
-    {0, 3.0}, {1, 3.0}, {2, 2.0}, {3, 2.0}, {4, 2.0},
-    {5, 2.0}, {6, 1.0}, {7, 1.0}, {8, 0.0}, {9, 0.0},
+    {0, 4.0}, {1, 4.0}, {2, 4.0}, {3, 3.0}, {4, 3.0},
+    {5, 2.0}, {6, 2.0}, {7, 1.0}, {8, 1.0}, {9, 0.0},
   };
 
   const double ego_speed = vertex->speed();
