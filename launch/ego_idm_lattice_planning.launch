@@ -7,7 +7,8 @@
     <node pkg="conformal_lattice_planner"
       type="ego_idm_lattice_planning_node"
       name="ego_idm_lattice_planner"
-      output="screen">
+      output="screen"
+      required="true">
 
       <env name="CPUPROFILE_FREQUENCY" value="100"/>
 

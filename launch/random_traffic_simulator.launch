@@ -9,7 +9,8 @@
     <node pkg="conformal_lattice_planner"
       type="random_traffic_node"
       name="carla_simulator"
-      output="log">
+      output="log"
+      required="true">
       <!-- connect to client -->
       <param name="host" value="$(arg host)"/>
       <param name="port" value="$(arg port)"/>
