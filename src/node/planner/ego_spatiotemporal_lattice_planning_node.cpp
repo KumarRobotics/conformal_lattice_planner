@@ -63,7 +63,7 @@ bool EgoSpatiotemporalLatticePlanningNode::initialize() {
 
   // Initialize the path and speed planner.
   boost::shared_ptr<router::LoopRouter> router = boost::make_shared<router::LoopRouter>();
-  traj_planner_ = boost::make_shared<planner::SpatiotemporalLatticePlanner>(0.1, 100.0, router, map_, fast_map_);
+  traj_planner_ = boost::make_shared<planner::SpatiotemporalLatticePlanner>(0.1, 150.0, router, map_, fast_map_);
 
   // Start the action server.
   ROS_INFO_NAMED("ego_planner", "start action server.");
