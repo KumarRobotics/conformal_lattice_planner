@@ -562,6 +562,13 @@ boost::shared_ptr<Vertex> SLCLatticePlanner::connectVertexToLeftFrontNode(
   if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
     return nullptr;
 
+  // If the ego is on the right of the lane center, connecting to the
+  // left lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        vertex->snapshot().ego().transform().location,
+        vertex->node().lock()->waypoint()) > 0.5)
+    return nullptr;
+
   // Check the left front and left back vehicles.
   //
   // If there are vehicles at the left front or left back of the ego,
@@ -638,6 +645,13 @@ boost::shared_ptr<Vertex> SLCLatticePlanner::connectVertexToRightFrontNode(
   // Return directly if the target node is already very close to the vertex.
   // It is not reasonable to change lane with this short distance.
   if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return nullptr;
+
+  // If the ego is on the left of the lane center, connecting to the
+  // right lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        vertex->snapshot().ego().transform().location,
+        vertex->node().lock()->waypoint()) < -0.5)
     return nullptr;
 
   // Check the right front and right back vehicles.

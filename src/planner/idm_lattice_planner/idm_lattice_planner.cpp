@@ -567,6 +567,13 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToLeftFrontNode(
   if (target_node->distance()-station->node().lock()->distance() < 20.0)
     return nullptr;
 
+  // If the ego is on the right of the lane center, connecting to the
+  // left lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        station->snapshot().ego().transform().location,
+        station->node().lock()->waypoint()) > 0.5)
+    return nullptr;
+
   // Check the left front and left back vehicles.
   //
   // If there are vehicles at the left front or left back of the ego,
@@ -650,6 +657,13 @@ boost::shared_ptr<Station> IDMLatticePlanner::connectStationToRightFrontNode(
   // Return directly if the target node is already very close to the station.
   // It is not reasonable to change lane with this short distance.
   if (target_node->distance()-station->node().lock()->distance() < 20.0)
+    return nullptr;
+
+  // If the ego is on the left of the lane center, connecting to the
+  // right lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        station->snapshot().ego().transform().location,
+        station->node().lock()->waypoint()) < -0.5)
     return nullptr;
 
   // Check the right front and right back vehicles.

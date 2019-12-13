@@ -773,6 +773,13 @@ std::vector<boost::shared_ptr<Vertex>>
   if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
     return std::vector<boost::shared_ptr<Vertex>>();
 
+  // If the ego is on the right of the lane center, connecting to the
+  // left lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        vertex->snapshot().ego().transform().location,
+        vertex->node().lock()->waypoint()) > 0.5)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
   // Check the left front and left back vehicles.
   //
   // If there are vehicles at the left front or left back of the ego,
@@ -883,6 +890,13 @@ std::vector<boost::shared_ptr<Vertex>>
   // Return directly if the target node is already very close to the vertex.
   // It is not reasonable to change lane with this short distance.
   if (target_node->distance()-vertex->node().lock()->distance() < 20.0)
+    return std::vector<boost::shared_ptr<Vertex>>();
+
+  // If the ego is on the left of the lane center, connecting to the
+  // right lane is forbidden.
+  if (utils::distanceToLaneCenter(
+        vertex->snapshot().ego().transform().location,
+        vertex->node().lock()->waypoint()) < -0.5)
     return std::vector<boost::shared_ptr<Vertex>>();
 
   // Check the right front and right back vehicles.

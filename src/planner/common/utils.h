@@ -85,4 +85,17 @@ const double unrollAngle(double angle);
 
 const double shortestAngle(double angle1, double angle2);
 
+/**
+ * \brief Compute the distance from the given location to the lane center.
+ * \param[in] location The query location.
+ * \param[in] waypoint The waypoint obtained by projecting the given location
+ *                     to the closest lane.
+ * \return The distance of the query location to the lane center. If the returned
+ *         value is less than 0.0, the location is at the left of the lane. If
+ *         the returned value is greater than 0.0, the location is on the right.
+ */
+const double distanceToLaneCenter(
+    const carla::geom::Location& location,
+    const boost::shared_ptr<const carla::client::Waypoint>& waypoint);
+
 } // End namespace utils.

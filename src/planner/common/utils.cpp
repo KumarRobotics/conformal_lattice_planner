@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <boost/format.hpp>
@@ -126,6 +127,21 @@ const double shortestAngle(double angle1, double angle2) {
   if (std::abs(diff-360.0) < std::abs(diff)) diff -= 360.0;
 
   return diff;
+}
+
+const double distanceToLaneCenter(
+    const carla::geom::Location& location,
+    const boost::shared_ptr<const carla::client::Waypoint>& waypoint) {
+
+  // Compute the location difference.
+  const carla::geom::Transform waypoint_transform = waypoint->GetTransform();
+  const carla::geom::Vector3D diff = location - waypoint_transform.location;
+
+  // Compute the unit vector in the lateral direction.
+  const double angle = (waypoint_transform.rotation.yaw+90.0)/180.0*M_PI;
+  const carla::geom::Vector3D lateral_unit(std::cos(angle), std::sin(angle), 0.0);
+
+  return diff.x*lateral_unit.x + diff.y*lateral_unit.y;
 }
 
 } // End namespace utils.
