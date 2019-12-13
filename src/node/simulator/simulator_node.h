@@ -25,6 +25,7 @@
 #include <boost/optional.hpp>
 
 #include <ros/ros.h>
+#include <std_srvs/Trigger.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -132,6 +133,9 @@ protected:
   /// The actionlib client for the planner controlling all agent vehicles.
   mutable actionlib::SimpleActionClient<
     conformal_lattice_planner::AgentPlanAction> agents_client_;
+
+  /// The service server to tell the simulation time.
+  mutable ros::ServiceServer sim_time_server_;
   /// @}
 
 public:
@@ -141,7 +145,8 @@ public:
     nh_(nh),
     img_transport_(nh),
     ego_client_(nh_, "ego_plan", false),
-    agents_client_(nh_, "agents_plan", false) {}
+    agents_client_(nh_, "agents_plan", false),
+    sim_time_server_(nh_.advertiseService("simulation_time", &SimulatorNode::simTimeCallback, this)){}
 
   virtual ~SimulatorNode() {}
 
@@ -278,6 +283,16 @@ protected:
   virtual void populateVehicleObj(
       const boost::shared_ptr<const CarlaVehicle>& vehicle_actor,
       planner::Vehicle& vehicle_obj);
+
+  /// Callback for the simulation time server.
+  virtual bool simTimeCallback(
+      std_srvs::Trigger::Request& req,
+      std_srvs::Trigger::Response& res) {
+
+    res.success = true;
+    res.message = std::to_string(simulation_time_);
+    return true;
+  }
 
 }; // End class SimulatorNode.
 
