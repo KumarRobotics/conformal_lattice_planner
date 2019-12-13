@@ -22,6 +22,8 @@ bool success
 int8 path_type
 # The new desired state of the ego.
 conformal_lattice_planner/Vehicle ego
+# Planning time.
+float64 planning_time
 ---
 # Feedback
 # TODO: what could a meaningful feedback?

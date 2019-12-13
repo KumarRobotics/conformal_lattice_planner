@@ -78,8 +78,6 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
 
   ROS_INFO_NAMED("ego_planner", "executeCallback()");
 
-  ros::Time start_time = ros::Time::now();
-
   // Update the carla world and map.
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   //map_ = world_->GetMap();
@@ -88,8 +86,10 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(goal->snapshot);
 
   // Plan the ego trajectory.
+  ros::Time start_time = ros::Time::now();
   const std::list<std::pair<ContinuousPath, double>> ego_traj =
     traj_planner_->planTraj(snapshot->ego().id(), *snapshot);
+  ros::Duration traj_planning_time = ros::Time::now() - start_time;
 
   DiscretePath ego_path(ego_traj.front().first);
   for (auto iter = ++(ego_traj.begin()); iter!=ego_traj.end(); ++iter)
@@ -143,19 +143,10 @@ void EgoSpatiotemporalLatticePlanningNode::executeCallback(
   conformal_lattice_planner::EgoPlanResult result;
   result.header.stamp = ros::Time::now();
   result.success = true;
-  // FIXME: Use the correct action type.
   result.path_type = ego_path.laneChangeType();
+  result.planning_time = traj_planning_time.toSec();
   populateVehicleMsg(updated_ego, result.ego);
   server_.setSucceeded(result);
-
-  ros::Time end_time = ros::Time::now();
-  ROS_INFO_NAMED("ego_planner", "planning time: %f",
-      (end_time-start_time).toSec());
-  //std::cin.get();
-  //if ((end_time-start_time).toSec() < 0.25) {
-  //  ros::Duration delay(0.25-(end_time-start_time).toSec());
-  //  delay.sleep();
-  //}
 
   return;
 }
