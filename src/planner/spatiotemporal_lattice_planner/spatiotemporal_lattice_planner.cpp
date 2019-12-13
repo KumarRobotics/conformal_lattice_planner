@@ -1142,7 +1142,7 @@ void SpatiotemporalLatticePlanner::selectOptimalTraj(
   vertex_sequence.clear();
 
   boost::shared_ptr<Vertex> vertex = optimal_vertex;
-  vertex_sequence.push_back(boost::weak_ptr<Vertex>(vertex));
+  vertex_sequence.push_front(boost::weak_ptr<Vertex>(vertex));
 
   while (vertex->hasParents()) {
     //std::printf("%s", vertex->string().c_str());
@@ -1157,7 +1157,7 @@ void SpatiotemporalLatticePlanner::selectOptimalTraj(
       throw std::runtime_error(error_msg + vertex->string());
     }
 
-    vertex_sequence.push_back(boost::weak_ptr<Vertex>(parent_vertex));
+    vertex_sequence.push_front(boost::weak_ptr<Vertex>(parent_vertex));
 
     // Find the path between the parent and this vertex.
     boost::optional<std::pair<ContinuousPath, double>> traj =
