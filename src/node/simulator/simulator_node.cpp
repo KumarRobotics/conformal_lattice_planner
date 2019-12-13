@@ -364,6 +364,7 @@ void SimulatorNode::sendEgoGoal() {
 
   conformal_lattice_planner::EgoPlanGoal goal;
   goal.header.stamp = ros::Time::now();
+  goal.simulation_time = simulation_time_;
   populateVehicleMsg(ego_, goal.snapshot.ego);
   for (const auto& item : agents_) {
     goal.snapshot.agents.push_back(conformal_lattice_planner::Vehicle());
@@ -429,6 +430,7 @@ void SimulatorNode::sendAgentsGoal() {
 
   conformal_lattice_planner::AgentPlanGoal goal;
   goal.header.stamp = ros::Time::now();
+  goal.simulation_time = simulation_time_;
   populateVehicleMsg(ego_, goal.snapshot.ego);
   for (const auto& item : agents_) {
     goal.snapshot.agents.push_back(conformal_lattice_planner::Vehicle());

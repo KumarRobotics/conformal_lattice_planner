@@ -67,22 +67,8 @@ protected:
 
 protected:
 
-  /// FIXME: It seems redundant to store the policy speed and actual
-  //         speed of a vehicle separately. It can easily lead to bugs
-  //         as well since the IDs between corresponding maps may not
-  //         match.
-
-  ///// Ego ID and ego policy speed pair.
-  //std::pair<size_t, double> ego_policy_;
-
-  ///// Ego ID and ego speed pair.
-  //std::pair<size_t, double> ego_speed_;
-
-  ///// Agent ID and policy speed pair.
-  //std::unordered_map<size_t, double> agent_policies_;
-
-  ///// Agent ID and speed pair.
-  //std::unordered_map<size_t, double> agent_speed_;
+  /// The actual simulation time starting from 0.
+  double simulation_time_ = 0.0;
 
   /// The ego vehicle.
   planner::Vehicle ego_;
@@ -182,9 +168,19 @@ protected:
   /// Simulate the world forward by one time step.
   virtual void tickWorld() {
     world_->Tick();
+    updateSimTime();
     publishTraffic();
     sendEgoGoal();
     sendAgentsGoal();
+    return;
+  }
+
+  /// Update the simulation time based on the settings for the carla server.
+  virtual void updateSimTime() {
+    double fixed_delta_seconds = 0.05;
+    nh_.param<double>("fixed_delta_seconds", fixed_delta_seconds, 0.05);
+    simulation_time_ += fixed_delta_seconds;
+    return;
   }
 
   /// Publish the following image.

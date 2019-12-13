@@ -339,15 +339,13 @@ void RandomTrafficNode::tickWorld() {
 
   // This tick is for update the vehicle transforms set by the planners.
   world_->Tick();
+  updateSimTime();
 
   manageTraffic();
 
-  std::string agent_ids_msg("agents in the sim: ");
   for (const auto& agent : agents_) {
     boost::shared_ptr<CarlaVehicle> vehicle = agentVehicle(agent.first);
     const CarlaTransform transform = vehicle->GetTransform();
-
-    agent_ids_msg += std::to_string(agent.first) + " ";
 
     if (std::fabs(transform.location.x)<1e-3 &&
         std::fabs(transform.location.y)<1e-3 &&
@@ -359,8 +357,6 @@ void RandomTrafficNode::tickWorld() {
       throw std::runtime_error(error_msg + agent_msg);
     }
   }
-
-  ROS_INFO_NAMED("carla_simulator", "%s", agent_ids_msg.c_str());
 
   publishTraffic();
   sendEgoGoal();

@@ -2,6 +2,7 @@
 # Stores the data for all the vehicles
 # (both the ego and agent vehicles) with the policy speed included.
 std_msgs/Header header
+float64 simulation_time
 conformal_lattice_planner/TrafficSnapshot snapshot
 # Leading vehicle.
 conformal_lattice_planner/Vehicle leader

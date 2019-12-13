@@ -49,8 +49,10 @@ protected:
   /// to send the goals for the agent vehicles.
   virtual void tickWorld() override {
     world_->Tick();
+    updateSimTime();
     publishTraffic();
     sendEgoGoal();
+    return;
   }
 
 }; // End class NoTrafficNode.
