@@ -470,6 +470,17 @@ std::list<std::pair<ContinuousPath, double>>
   // Prune the vertex graph.
   std::deque<boost::shared_ptr<Vertex>> vertex_queue = pruneVertexGraph(snapshot);
 
+  // No immedinate front nodes can be connected.
+  if (vertex_queue.size() == 0) {
+    std::string error_msg(
+        "SpatiotemporalLatticePlanner::planTraj(): "
+        "The ego cannot reach any immediate next nodes.");
+    throw std::runtime_error(
+        error_msg +
+        snapshot.string("Input snapshot:\n") +
+        waypoint_lattice_->string("waypoint lattice:\n"));
+  }
+
   // Construct the vertex graph.
   constructVertexGraph(vertex_queue);
 

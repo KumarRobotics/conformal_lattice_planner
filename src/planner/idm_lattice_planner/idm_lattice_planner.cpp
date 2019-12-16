@@ -258,20 +258,26 @@ DiscretePath IDMLatticePlanner::planPath(
   // Prune the station graph.
   std::deque<boost::shared_ptr<Station>> station_queue = pruneStationGraph(snapshot);
 
-  // In the case that no immedinate front nodes can be connected.
-  // We have to start fresh.
+  // No immedinate front nodes can be connected.
   if (station_queue.size() == 0) {
     std::string warning_msg;
     warning_msg += snapshot.string("Input snapshot:\n");
     std::printf("IDMLatticePlanner::planPath(): WARNING\n"
                 "The ego cannot reach any immediate next nodes. Restart fresh.\n"
                 "%s", warning_msg.c_str());
+    std::string error_msg(
+        "IDMLatticePlanner::planPath(): "
+        "The ego cannot reach any immediate next nodes.");
+    throw std::runtime_error(
+        error_msg +
+        snapshot.string("Input snapshot:\n") +
+        waypoint_lattice_->string("waypoint lattice:\n"));
 
-    waypoint_lattice_ = nullptr;
-    node_to_station_table_.clear();
+    //waypoint_lattice_ = nullptr;
+    //node_to_station_table_.clear();
 
-    updateWaypointLattice(snapshot);
-    station_queue = pruneStationGraph(snapshot);
+    //updateWaypointLattice(snapshot);
+    //station_queue = pruneStationGraph(snapshot);
   }
 
   // Construct the station graph.

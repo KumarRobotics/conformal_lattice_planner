@@ -264,20 +264,20 @@ DiscretePath SLCLatticePlanner::planPath(
   // Prune the vertex graph from the last planning step.
   std::deque<boost::shared_ptr<Vertex>> vertex_queue = pruneVertexGraph(snapshot);
 
-  // In the case that no immedinate front nodes can be connected.
-  // We have to start fresh.
+  // No immedinate front nodes can be connected.
   if (vertex_queue.size() == 0) {
-    std::string warning_msg;
-    warning_msg += snapshot.string("Input snapshot:\n");
-    std::printf("SLCLatticePlanner::planPath(): WARNING\n"
-                "The ego cannot reach any immediate next nodes. Restart fresh.\n"
-                "%s", warning_msg.c_str());
+    std::string error_msg(
+        "SLCLatticePlanner::planPath(): "
+        "The ego cannot reach any immediate next nodes.");
+    throw std::runtime_error(
+        error_msg +
+        snapshot.string("Input snapshot:\n") +
+        waypoint_lattice_->string("waypoint lattice:\n"));
+    //waypoint_lattice_ = nullptr;
+    //all_vertices_.clear();
 
-    waypoint_lattice_ = nullptr;
-    all_vertices_.clear();
-
-    updateWaypointLattice(snapshot);
-    vertex_queue = pruneVertexGraph(snapshot);
+    //updateWaypointLattice(snapshot);
+    //vertex_queue = pruneVertexGraph(snapshot);
   }
 
   // Construct the vertex graph.
