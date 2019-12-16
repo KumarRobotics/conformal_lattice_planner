@@ -5,7 +5,7 @@ simulation_time=0.0
 episode_timeout=0
 
 total_simulation_time=0.0
-max_experiment_time=3600.0
+max_experiment_time=100.0
 experiment_timeout=0
 
 while [ ${experiment_timeout} -le 0 ]; do
@@ -16,7 +16,7 @@ while [ ${experiment_timeout} -le 0 ]; do
 
   # Start the ros clients.
   echo "Start ROS nodes."
-  roslaunch conformal_lattice_planner autonomous_driving.launch random_traffic:=true ego_slc_lattice_planner:=true agents_lane_follower:=true &
+  roslaunch conformal_lattice_planner autonomous_driving.launch random_traffic:=true ego_slc_lattice_planner:=true agents_lane_follower:=true record_bags:=true&
   sleep 15
 
   # Keep track of the simulation time of this episode.
