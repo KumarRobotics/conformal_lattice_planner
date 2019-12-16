@@ -16,6 +16,9 @@
   <!-- Only one of the variables should be true -->
   <arg name="agents_lane_follower" default="false"/>
 
+  <!-- Whether to record rosbags -->
+  <arg name="record_bags" default="false"/>
+
   <arg name="host" default="localhost"/>
   <arg name="port" default="2000"/>
   <arg name="fixed_delta_seconds" default="0.05"/>
@@ -55,11 +58,11 @@
 
   <!-- Ego vehicle planner -->
   <group if="$(arg ego_lane_follower)">
-  <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
-    <arg name="host" value="$(arg host)"/>
-    <arg name="port" value="$(arg port)"/>
-    <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-  </include>
+    <include file="$(find conformal_lattice_planner)/launch/ego_lane_following.launch">
+      <arg name="host" value="$(arg host)"/>
+      <arg name="port" value="$(arg port)"/>
+      <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
+    </include>
   </group>
 
   <group if="$(arg ego_idm_lattice_planner)">
@@ -93,6 +96,11 @@
       <arg name="port" value="$(arg port)"/>
       <arg name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
     </include>
+  </group>
+
+  <!-- Record bags -->
+  <group if="$(arg record_bags)">
+    <node pkg="rosbag" type="record" name="recorder" args="-o traffic_data -e '/carla/.*' "/>
   </group>
 
 </launch>
