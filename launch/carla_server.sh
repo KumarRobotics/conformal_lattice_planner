@@ -1,5 +1,5 @@
 #!/bin/sh
-#trap "trap - TERM && kill -- -$$" INT TERM EXIT
+trap "trap - TERM && kill -- -$$" INT TERM EXIT
 
 CWD=`pwd`
 cd ${Carla_DIST}
@@ -33,6 +33,6 @@ python config.py --delta-seconds 0.05
 # Do not exit until
 echo "CARLA server initialization finishes."
 #echo "Ctrl+c to terminate the server."
-#wait ${SERVER_PID}
+wait ${SERVER_PID}
 
 cd ${CWD}
