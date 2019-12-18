@@ -474,7 +474,7 @@ std::list<std::pair<ContinuousPath, double>>
   if (vertex_queue.size() == 0) {
     std::string error_msg(
         "SpatiotemporalLatticePlanner::planTraj(): "
-        "The ego cannot reach any immediate next nodes.");
+        "The ego cannot reach any immediate next nodes.\n");
     throw std::runtime_error(
         error_msg +
         snapshot.string("Input snapshot:\n") +

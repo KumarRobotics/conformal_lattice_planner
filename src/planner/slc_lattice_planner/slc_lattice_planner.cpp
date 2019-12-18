@@ -268,11 +268,12 @@ DiscretePath SLCLatticePlanner::planPath(
   if (vertex_queue.size() == 0) {
     std::string error_msg(
         "SLCLatticePlanner::planPath(): "
-        "The ego cannot reach any immediate next nodes.");
+        "The ego cannot reach any immediate next nodes.\n");
     throw std::runtime_error(
         error_msg +
         snapshot.string("Input snapshot:\n") +
         waypoint_lattice_->string("waypoint lattice:\n"));
+
     //waypoint_lattice_ = nullptr;
     //all_vertices_.clear();
 

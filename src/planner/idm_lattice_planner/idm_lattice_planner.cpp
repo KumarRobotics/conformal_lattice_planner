@@ -260,14 +260,9 @@ DiscretePath IDMLatticePlanner::planPath(
 
   // No immedinate front nodes can be connected.
   if (station_queue.size() == 0) {
-    std::string warning_msg;
-    warning_msg += snapshot.string("Input snapshot:\n");
-    std::printf("IDMLatticePlanner::planPath(): WARNING\n"
-                "The ego cannot reach any immediate next nodes. Restart fresh.\n"
-                "%s", warning_msg.c_str());
     std::string error_msg(
         "IDMLatticePlanner::planPath(): "
-        "The ego cannot reach any immediate next nodes.");
+        "The ego cannot reach any immediate next nodes.\n");
     throw std::runtime_error(
         error_msg +
         snapshot.string("Input snapshot:\n") +
