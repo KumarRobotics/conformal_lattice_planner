@@ -100,7 +100,7 @@
 
   <!-- Record bags -->
   <group if="$(arg record_bags)">
-    <node pkg="rosbag" type="record" name="recorder" args="--split --size=5120 -o traffic_data -e '/carla/.*' "/>
+    <node pkg="rosbag" type="record" name="recorder" args="-o traffic_data -e '/carla/.*' "/>
   </group>
 
 </launch>
