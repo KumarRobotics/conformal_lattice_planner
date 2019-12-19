@@ -490,10 +490,8 @@ std::list<std::pair<ContinuousPath, double>>
   selectOptimalTraj(optimal_traj_seq, optimal_vertex_seq);
 
   // Update the cached next vertex.
+  //std::printf("optimal_vertex_seq size:%lu\n", optimal_vertex_seq.size());
   cached_next_vertex_ = *(++optimal_vertex_seq.begin());
-
-  //for (const auto& vertex : vertices())
-  //  std::printf("%s", vertex->string().c_str());
 
   return optimal_traj_seq;
 }
@@ -658,12 +656,6 @@ void SpatiotemporalLatticePlanner::constructVertexGraph(
     addVerticesToTableAndQueue(right_front_vertices, right_front_node);
   }
 
-  //std::printf("===========================================\n");
-  //for (const auto& vertex : this->vertices())
-  //  std::printf("%s\n", vertex->string().c_str());
-  //std::cin.get();
-  //std::printf("===========================================\n");
-
   return;
 }
 
@@ -707,11 +699,17 @@ std::vector<boost::shared_ptr<Vertex>>
 
     ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
-    const bool no_collision = simulator.simulate(
-        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
-    // Continue if this acceleration option leads to collision.
-    if (!no_collision) continue;
+    try {
+      const bool no_collision = simulator.simulate(
+          *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+      // Continue if this acceleration option leads to collision.
+      if (!no_collision) continue;
+    } catch (std::exception& e) {
+      std::printf("SpatiotemporalLatticePlanner::connectVertexToFrontNode(): WARNING\n"
+                  "%s", e.what());
+      continue;
+    }
 
     // Create a new vertex using the end snapshot of the simulation.
     boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
@@ -738,13 +736,6 @@ std::vector<boost::shared_ptr<Vertex>>
       next_vertex->updateBackParent(
           simulator.snapshot(), stage_cost, vertex);
     }
-
-    //std::printf("----------------------------------------------\n");
-    //std::printf("acceleration option: %f\n", accel);
-    //std::printf("%s", vertex->string("start vertex:\n").c_str());
-    //std::printf("%s", next_vertex->string("new vertex:\n").c_str());
-    //std::cin.get();
-    //std::printf("----------------------------------------------\n");
 
     // Set the front vertices that are connected with this vertex.
     auto children = vertex->frontChildren();
@@ -834,11 +825,17 @@ std::vector<boost::shared_ptr<Vertex>>
 
     ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
-    const bool no_collision = simulator.simulate(
-        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
-    // Continue if this acceleration option leads to collision.
-    if (!no_collision) continue;
+    try {
+      const bool no_collision = simulator.simulate(
+          *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+      // Continue if this acceleration option leads to collision.
+      if (!no_collision) continue;
+    } catch (std::exception& e) {
+      std::printf("SpatiotemporalLatticePlanner::connectVertexToLeftFrontNode(): WARNING\n"
+                  "%s", e.what());
+      continue;
+    }
 
     // Create a new vertex using the end snapshot of the simulation.
     boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
@@ -953,11 +950,17 @@ std::vector<boost::shared_ptr<Vertex>>
 
     ConstAccelTrafficSimulator simulator(snapshot, map_, fast_map_);
     double simulation_time = 0.0; double stage_cost = 0.0;
-    const bool no_collision = simulator.simulate(
-        *path, sim_time_step_, 5.0, simulation_time, stage_cost);
 
-    // Continue if this acceleration option leads to collision.
-    if (!no_collision) continue;
+    try {
+      const bool no_collision = simulator.simulate(
+          *path, sim_time_step_, 5.0, simulation_time, stage_cost);
+      // Continue if this acceleration option leads to collision.
+      if (!no_collision) continue;
+    } catch (std::exception& e) {
+      std::printf("SpatiotemporalLatticePlanner::connectVertexToRightFrontNode(): WARNING\n"
+                  "%s", e.what());
+      continue;
+    }
 
     // Create a new vertex using the end snapshot of the simulation.
     boost::shared_ptr<Vertex> next_vertex = boost::make_shared<Vertex>(
@@ -1200,7 +1203,6 @@ void SpatiotemporalLatticePlanner::selectOptimalTraj(
     traj_sequence.push_front(*traj);
     vertex = parent_vertex;
   }
-  //std::printf("%s", vertex->string().c_str());
 
   return;
 }
