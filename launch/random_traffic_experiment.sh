@@ -47,7 +47,6 @@ while [ $experiment_timeout -le 0 ]; do
   experiment_timeout=$(echo "$experiment_time>$max_experiment_time" | bc -l)
   episode_time=0.0
   episode_timeout=0
-  echo "total time=$experiment_time experiment timeout=$experiment_timeout"
 
   # Kill all ROS nodes in case some nodes has not died yet.
   echo "Stop all ROS nodes"
