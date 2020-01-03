@@ -167,7 +167,7 @@ ContinuousPath::transformAt(const double s) const {
   if (s < 0.0 || s > path_.sf) {
     throw std::runtime_error((boost::format(
             "ContinuousPath::transformAt(): "
-            "the input distance %1% is outside path range $2$.\n")
+            "the input distance %1% is outside path range %2%.\n")
             % s % path_.sf).str());
   }
 
@@ -293,7 +293,7 @@ DiscretePath::transformAt(const double s) const {
   if (s < 0.0 || s > range()) {
     throw std::runtime_error((boost::format(
             "DiscretePath::transformAt(): "
-            "the input distance %1% is outside path range $2$.\n")
+            "the input distance %1% is outside path range %2%.\n")
             % s % range()).str());
   }
 
@@ -308,7 +308,7 @@ DiscretePath::transformAt(const double s) const {
   if (iter==samples_.begin() || iter==samples_.end()) {
     throw std::runtime_error((boost::format(
             "DiscretePath::transformAt(): "
-            "the input distance %1% is outside path range $2$.\n")
+            "the input distance %1% is outside path range %2%.\n")
             % s % range()).str());
   }
 
