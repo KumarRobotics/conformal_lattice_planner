@@ -134,7 +134,7 @@ def main():
     plt.savefig('/home/ke/Desktop/braking_scenario_headway.png',
                 format='png', bbox_inches='tight')
 
-    #plt.show()
+    plt.show()
 
 if __name__ == '__main__':
     main()
