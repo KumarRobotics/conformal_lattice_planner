@@ -469,7 +469,7 @@ void SLCLatticePlanner::constructVertexGraph(
 
     // Check if the vertex is on the same lane with the root.
     // If not, no lane change options will be allowed further.
-    //if (!(vertex->sameLaneWith(root_.lock()))) continue;
+    if (!(vertex->sameLaneWith(root_.lock()))) continue;
 
     // Try to connect to the left front node.
     boost::shared_ptr<const WaypointNode> left_front_node =
