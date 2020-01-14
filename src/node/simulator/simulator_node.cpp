@@ -375,23 +375,58 @@ void SimulatorNode::sendEgoGoal() {
   boost::shared_ptr<planner::Snapshot> snapshot =
     boost::make_shared<planner::Snapshot>(ego_, agents_, loop_router_, map_, fast_map_);
 
-  boost::optional<std::pair<size_t, double>> leader =
+  boost::optional<std::pair<size_t, double>> front_leader =
     snapshot->trafficLattice()->front(snapshot->ego().id());
-  boost::optional<std::pair<size_t, double>> follower =
-    snapshot->trafficLattice()->back(snapshot->ego().id());
-
-  if (leader) {
-    populateVehicleMsg(agents_[leader->first], goal.leader);
-    goal.leading_distance = leader->second;
+  if (front_leader) {
+    populateVehicleMsg(agents_[front_leader->first], goal.front_leader);
+    goal.front_distance = front_leader->second;
   } else {
-    goal.leading_distance = -1.0;
+    goal.front_distance = -1.0;
   }
 
-  if (follower) {
-    populateVehicleMsg(agents_[follower->first], goal.follower);
-    goal.following_distance = follower->second;
+  boost::optional<std::pair<size_t, double>> left_front_leader =
+    snapshot->trafficLattice()->leftFront(snapshot->ego().id());
+  if (left_front_leader) {
+    populateVehicleMsg(agents_[left_front_leader->first], goal.left_front_leader);
+    goal.left_front_distance = left_front_leader->second;
   } else {
-    goal.following_distance = -1.0;
+    goal.left_front_distance = -1.0;
+  }
+
+  boost::optional<std::pair<size_t, double>> right_front_leader =
+    snapshot->trafficLattice()->rightFront(snapshot->ego().id());
+  if (right_front_leader) {
+    populateVehicleMsg(agents_[right_front_leader->first], goal.right_front_leader);
+    goal.right_front_distance = right_front_leader->second;
+  } else {
+    goal.right_front_distance = -1.0;
+  }
+
+  boost::optional<std::pair<size_t, double>> back_follower =
+    snapshot->trafficLattice()->back(snapshot->ego().id());
+  if (back_follower) {
+    populateVehicleMsg(agents_[back_follower->first], goal.back_follower);
+    goal.back_distance = back_follower->second;
+  } else {
+    goal.back_distance = -1.0;
+  }
+
+  boost::optional<std::pair<size_t, double>> left_back_follower =
+    snapshot->trafficLattice()->leftBack(snapshot->ego().id());
+  if (left_back_follower) {
+    populateVehicleMsg(agents_[left_back_follower->first], goal.left_back_follower);
+    goal.left_back_distance = left_back_follower->second;
+  } else {
+    goal.left_back_distance = -1.0;
+  }
+
+  boost::optional<std::pair<size_t, double>> right_back_follower =
+    snapshot->trafficLattice()->rightBack(snapshot->ego().id());
+  if (right_back_follower) {
+    populateVehicleMsg(agents_[right_back_follower->first], goal.right_back_follower);
+    goal.right_back_distance = right_back_follower->second;
+  } else {
+    goal.right_back_distance = -1.0;
   }
 
   ego_client_.sendGoal(

@@ -4,12 +4,25 @@
 std_msgs/Header header
 float64 simulation_time
 conformal_lattice_planner/TrafficSnapshot snapshot
-# Leading vehicle.
-conformal_lattice_planner/Vehicle leader
-float64 leading_distance
-# Following vehicle.
-conformal_lattice_planner/Vehicle follower
-float64 following_distance
+# Leading vehicles.
+conformal_lattice_planner/Vehicle front_leader
+float64 front_distance
+conformal_lattice_planner/Vehicle left_front_leader
+float64 left_front_distance
+conformal_lattice_planner/Vehicle right_front_leader
+float64 right_front_distance
+# Following vehicles.
+conformal_lattice_planner/Vehicle back_follower
+float64 back_distance
+conformal_lattice_planner/Vehicle left_back_follower
+float64 left_back_distance
+conformal_lattice_planner/Vehicle right_back_follower
+float64 right_back_distance
+
+#conformal_lattice_planner/Vehicle leader
+#float64 leading_distance
+#conformal_lattice_planner/Vehicle follower
+#float64 following_distance
 ---
 # Result
 uint8 LANE_KEEP = 0
