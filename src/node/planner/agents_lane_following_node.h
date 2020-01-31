@@ -40,6 +40,9 @@ protected:
   /// Stores the base policy and noise pair.
   std::unordered_map<size_t, std::pair<double, double>> agent_policy_;
 
+  /// Stores the IDMs for different agents.
+  std::unordered_map<size_t, boost::shared_ptr<planner::IntelligentDriverModel>> agent_idm_;
+
   mutable actionlib::SimpleActionServer<
     conformal_lattice_planner::AgentPlanAction> server_;
 
@@ -56,6 +59,9 @@ public:
 protected:
 
   void perturbAgentPolicies(
+      const boost::shared_ptr<planner::Snapshot>& snapshot);
+
+  void manageAgentIdms(
       const boost::shared_ptr<planner::Snapshot>& snapshot);
 
   virtual void executeCallback(

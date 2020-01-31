@@ -106,6 +106,40 @@ void AgentsLaneFollowingNode::perturbAgentPolicies(
   return;
 }
 
+void AgentsLaneFollowingNode::manageAgentIdms(
+    const boost::shared_ptr<planner::Snapshot>& snapshot) {
+
+  // Collect all current agent IDs.
+  std::unordered_set<size_t> current_agents;
+  for (const auto& agent : snapshot->agents())
+    current_agents.insert(agent.first);
+
+  // Generate IDMs for new agents if necessary.
+  const size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine rand_gen(seed);
+  std::uniform_real_distribution<double> headway_noise_dist(-0.2, 0.2);
+  std::uniform_real_distribution<double> distance_noise_dist(-1.0, 1.0);
+
+  for (const size_t agent : current_agents) {
+    if (agent_idm_.count(agent) > 0) continue;
+    agent_idm_[agent] = boost::make_shared<IntelligentDriverModel>(
+        1.0 + headway_noise_dist(rand_gen),
+        6.0 + distance_noise_dist(rand_gen));
+  }
+
+  // Remove agents that are no longer in the snapshot.
+  std::unordered_set<size_t> agents_to_erase;
+  for (const auto agent : agent_idm_) {
+    if (current_agents.count(agent.first) > 0) continue;
+    agents_to_erase.insert(agent.first);
+  }
+
+  for (const size_t agent : agents_to_erase)
+    agent_idm_.erase(agent);
+
+  return;
+}
+
 void AgentsLaneFollowingNode::executeCallback(
     const conformal_lattice_planner::AgentPlanGoalConstPtr& goal) {
 
@@ -118,6 +152,7 @@ void AgentsLaneFollowingNode::executeCallback(
   // Create the current snapshot.
   boost::shared_ptr<Snapshot> snapshot = createSnapshot(goal->snapshot);
   perturbAgentPolicies(snapshot);
+  manageAgentIdms(snapshot);
 
   // Create Path planner.
   std::vector<boost::shared_ptr<const WaypointNodeWithVehicle>>
@@ -134,9 +169,9 @@ void AgentsLaneFollowingNode::executeCallback(
   boost::shared_ptr<LaneFollower> path_planner =
     boost::make_shared<LaneFollower>(map_, fast_map_, waypoint, range, router_);
 
-  // Create speed planner.
-  boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
-    boost::make_shared<VehicleSpeedPlanner>();
+  //// Create speed planner.
+  //boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
+  //  boost::make_shared<VehicleSpeedPlanner>();
 
   double dt = 0.05;
   nh_.param<double>("fixed_delta_seconds", dt, 0.05);
@@ -153,6 +188,10 @@ void AgentsLaneFollowingNode::executeCallback(
     double updated_speed = agent.speed();
 
     try {
+
+      boost::shared_ptr<VehicleSpeedPlanner> speed_planner =
+        boost::make_shared<VehicleSpeedPlanner>(agent_idm_[agent.id()]);
+
       const DiscretePath path = path_planner->planPath(agent.id(), *snapshot);
       accel = speed_planner->planSpeed(agent.id(), *snapshot);
 
