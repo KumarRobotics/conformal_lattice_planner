@@ -47,6 +47,9 @@ bool NoTrafficNode::initialize() {
   world_ = boost::make_shared<CarlaWorld>(client_->GetWorld());
   ros::Duration(1.0).sleep();
 
+  // Set the weather.
+  world_->SetWeather(carla::rpc::WeatherParameters::ClearNoon);
+
   // Set the map.
   map_ = world_->GetMap();
   fast_map_ = boost::make_shared<utils::FastWaypointMap>(map_);
