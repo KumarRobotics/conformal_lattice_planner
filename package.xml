@@ -2,7 +2,7 @@
 <package format="2">
   <name>conformal_lattice_planner</name>
   <version>0.0.0</version>
-  <description>Interfacing with the CARLA simulator server</description>
+  <description>Lattice motion planning algorithms for self-driving vehicles</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -13,7 +13,7 @@
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>Apache 2.0</license>
+  <license>BSD 3-Clause</license>
 
 
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
