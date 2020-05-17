@@ -4,7 +4,7 @@ This respository provides conformal lattice planner C++ implementations for auto
 
 ## Related Publications
 
-* K. Sun, B. Schlotfelt, S. Chaves, P. Martin, G. Mandhyan, and V. Kumar, _"Feedback Enhanced Motion Planning for Autonomous Vehicles"_, Robotics and Automation Letter, 2020 (under revision).
+* [RAL20] K. Sun, B. Schlotfelt, S. Chaves, P. Martin, G. Mandhyan, and V. Kumar, _"Feedback Enhanced Motion Planning for Autonomous Vehicles"_, Robotics and Automation Letter, 2020 (under revision).
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TxMY1dvHFog
 " target="_blank"><img src="http://img.youtube.com/vi/TxMY1dvHFog/0.jpg"
@@ -25,5 +25,7 @@ The setup of the workspace can be a bit tricky, mostly because Carla 0.9.6 uses 
 * [catkin tools](https://catkin-tools.readthedocs.io/en/latest/)
 * [Carla 0.9.6](https://carla.org/2019/07/12/release-0.9.6/)
 
-## Software Framework
+## Software Framework and Usage
+
+This repository currently focuses on motion planning algorithms for self-driving vehicles. Therefore, we have only developed the simulation and planning software stack for now. Many sensing capabilities provided by Carla has not been interfaced. For such sensing capabilities, check [Carla-ROS bridge](https://github.com/carla-simulator/ros-bridge) for a python interface. More software details can be found [here](scripts/software_framework_usage.md)
 
