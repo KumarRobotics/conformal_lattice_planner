@@ -2,7 +2,7 @@
 
 The following figure presents an overview of the node structure of this repository.
 
-![node structure](scripts/software_framework.png)
+![node structure](/scripts/software_framework.png)
 
 ## Simulator Node
 
