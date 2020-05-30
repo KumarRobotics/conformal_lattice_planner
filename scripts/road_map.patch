@@ -1,0 +1,22 @@
+diff --git a/LibCarla/source/carla/road/Map.h b/LibCarla/source/carla/road/Map.h
+index 360b8591..c4bd3812 100644
+--- a/LibCarla/source/carla/road/Map.h
++++ b/LibCarla/source/carla/road/Map.h
+@@ -105,11 +105,15 @@ namespace road {
+     /// map. The waypoints are placed at the entrance of each lane.
+     std::vector<std::pair<Waypoint, Waypoint>> GenerateTopology() const;
+ 
+-#ifdef LIBCARLA_WITH_GTEST
++//#ifdef LIBCARLA_WITH_GTEST
++    const MapData &GetMap() const {
++      return _data;
++    }
++
+     MapData &GetMap() {
+       return _data;
+     }
+-#endif // LIBCARLA_WITH_GTEST
++//#endif // LIBCARLA_WITH_GTEST
+ 
+ private:
+ 
