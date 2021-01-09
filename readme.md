@@ -4,7 +4,7 @@ This respository provides conformal lattice planner C++ implementations for auto
 
 ## Related Publications
 
-* [RAL20] K. Sun, B. Schlotfelt, S. Chaves, P. Martin, G. Mandhyan, and V. Kumar, _"Feedback Enhanced Motion Planning for Autonomous Vehicles"_, Robotics and Automation Letter, 2020 (under revision).
+* [IROS20] K. Sun, B. Schlotfelt, S. Chaves, P. Martin, G. Mandhyan, and V. Kumar, _"Feedback Enhanced Motion Planning for Autonomous Vehicles"_, Robotics and Automation Letter, 2020.
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TxMY1dvHFog
 " target="_blank"><img src="http://img.youtube.com/vi/TxMY1dvHFog/0.jpg"
